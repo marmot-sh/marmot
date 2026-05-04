@@ -126,7 +126,7 @@ marmot map https://stripe.com --provider firecrawl --search "checkout" --limit 5
 
 ## Async verbs
 
-All async verbs accept `--wait` (default: block and poll until terminal status) or `--async` (return task id immediately, exit). They are not cached. The CLI appends a record to the local task index (`~/.marmot/ai/tasks.json`) on submit and updates status on every poll.
+All async verbs accept `--wait` (default: block and poll until terminal status) or `--async` (return task id immediately, exit). They are not cached. The CLI appends a record to the local task index (`~/.marmot/tasks.json`) on submit and updates status on every poll.
 
 Async envelope shape on terminal completion:
 ```
@@ -245,7 +245,7 @@ There is no `--cancel` on `marmot get`. Cancellation is provider-specific and no
 
 ### marmot tasks
 
-Operates on the local index file `~/.marmot/ai/tasks.json`. Does NOT hit the provider.
+Operates on the local index file `~/.marmot/tasks.json`. Does NOT hit the provider.
 
 ```
 marmot tasks list [--provider X] [--verb Y] [--status queued|running|done|failed|cancelled] [--limit N]
@@ -301,7 +301,7 @@ Sync envelope:
 - Brave `answer` requires Pro. Free keys silently lose the chained summarizer step.
 - Exa `findall` is Websets — Pro/Personal tier. Lower tiers 401.
 - Firecrawl `crawl` is async; Tavily `crawl` is sync, 150s server cap.
-- `marmot get` requires `--provider` because task ids are not globally unique. `--verb` is inferred from `~/.marmot/ai/tasks.json` when present.
+- `marmot get` requires `--provider` because task ids are not globally unique. `--verb` is inferred from `~/.marmot/tasks.json` when present.
 - `tasks remove` and `tasks prune` are local-only. Neither cancels work on the provider.
 - Async verbs ignore `--no-cache` / `--refresh` (not cached at all).
 - `--wait` and `--async` are mutually exclusive; passing both errors out.

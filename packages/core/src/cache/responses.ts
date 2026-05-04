@@ -2,7 +2,7 @@
 // and often expensive; caching repeat calls within a TTL avoids unnecessary
 // spend. Disabled by default; user opts in via providers.<slug>.cache.enabled.
 //
-// Storage: ~/.marmot/ai/cache/responses/<provider>/<sha256>.json
+// Storage: ~/.marmot/cache/responses/<provider>/<sha256>.json
 // File mode: 0o600 (entries may contain provider response bodies).
 // Dir mode:  0o700.
 

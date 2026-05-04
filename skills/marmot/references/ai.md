@@ -2,7 +2,7 @@
 
 Four verbs cover text, image, audio out, and audio in: `run`, `image`, `speak`, `transcribe`. Plain text on stdout by default. Status on stderr. AI verbs do **not** use the response cache (caching applies to web/data verbs only).
 
-**First-run auto-config:** if no default is set for an AI verb, marmot detects available API keys in the env and auto-configures one in this order: `ollama` (local, no key) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic` (image/speech/transcription skip ollama and anthropic). The choice is persisted to `~/.marmot/ai/config.json` so subsequent calls are fast. Override with `marmot setup`, `marmot config set`, or `--provider`.
+**First-run auto-config:** if no default is set for an AI verb, marmot detects available API keys in the env and auto-configures one in this order: `ollama` (local, no key) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic` (image/speech/transcription skip ollama and anthropic). The choice is persisted to `~/.marmot/config.json` so subsequent calls are fast. Override with `marmot setup`, `marmot config set`, or `--provider`.
 
 ## Provider matrix
 

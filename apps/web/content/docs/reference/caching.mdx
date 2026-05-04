@@ -18,7 +18,7 @@ AI verbs (`run`, `image`, `speak`, `transcribe`) are not cached either. AI input
 
 ## Enable caching
 
-Per provider, in `~/.marmot/ai/config.json`:
+Per provider, in `~/.marmot/config.json`:
 
 ```json
 {
@@ -43,7 +43,7 @@ Or run `marmot setup` and pick caching settings during the walkthrough.
 When a sync verb runs:
 
 1. Marmot computes a SHA-256 hash of the canonical request payload (verb plus normalized input; `apiKey`, `apiSecret`, `fetchFn`, `abortSignal` are excluded).
-2. If `providers.<slug>.cache.enabled` is true, Marmot checks `~/.marmot/ai/cache/responses/<provider>/<hash>.json`.
+2. If `providers.<slug>.cache.enabled` is true, Marmot checks `~/.marmot/cache/responses/<provider>/<hash>.json`.
 3. On a hit within the TTL, the cached response is returned. The envelope includes `"cached": true`.
 4. On a miss or expiry, the adapter is called and the fresh response is written to the cache.
 
@@ -101,7 +101,7 @@ The `--query` filter matches against the human-readable label Marmot stores alon
 ## Storage location
 
 ```
-~/.marmot/ai/cache/responses/<provider>/<sha256>.json
+~/.marmot/cache/responses/<provider>/<sha256>.json
 ```
 
 Each entry holds the request hash, verb, requested-at timestamp, TTL in seconds, the response, and an optional `query` label. Files are written with mode `0o600` (owner read/write only); directories are `0o700`.

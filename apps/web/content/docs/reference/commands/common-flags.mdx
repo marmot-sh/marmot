@@ -86,6 +86,6 @@ Streaming runs (`--stream`) skip the spinner because tokens go live to stdout an
 For `--provider`, `--model`, and any other configurable default:
 
 1. Explicit flag on the command line
-2. `~/.marmot/ai/config.json`, set via `marmot setup` or `marmot config set`
-3. **First-run auto-config:** if no default is set for an AI verb (`text`, `image`, `speech`, `transcription`), marmot detects available API keys in your environment and picks the first ready provider in this order: ollama (local) → openrouter → vercel → cloudflare → openai → anthropic. The choice is persisted to `~/.marmot/ai/config.json` and a one-line stderr note announces it. You can override later with `marmot setup` or `marmot config set`.
+2. `~/.marmot/config.json`, set via `marmot setup` or `marmot config set`
+3. **First-run auto-config:** if no default is set for an AI verb (`text`, `image`, `speech`, `transcription`), marmot detects available API keys in your environment and picks the first ready provider in this order: ollama (local) → openrouter → vercel → cloudflare → openai → anthropic. The choice is persisted to `~/.marmot/config.json` and a one-line stderr note announces it. You can override later with `marmot setup` or `marmot config set`.
 4. Error, with a hint listing every supported provider's env var and a link to where to get a key.

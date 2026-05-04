@@ -3,7 +3,7 @@ title: Async tasks
 description: marmot get and marmot tasks — poll and manage long-running provider tasks.
 ---
 
-Some verbs take seconds or minutes to finish. `research`, Firecrawl `crawl`, and `findall` submit a task to the provider and either poll on your behalf (the default) or hand you the task id to follow up later. A local index at `~/.marmot/ai/tasks.json` keeps track of every submission so nothing gets lost.
+Some verbs take seconds or minutes to finish. `research`, Firecrawl `crawl`, and `findall` submit a task to the provider and either poll on your behalf (the default) or hand you the task id to follow up later. A local index at `~/.marmot/tasks.json` keeps track of every submission so nothing gets lost.
 
 ```bash
 marmot research <query> [--async | --wait] [flags…]
@@ -74,7 +74,7 @@ Every poll updates `lastCheckedAt` and `status` on the local record. On terminal
 
 ## Managing tasks
 
-`marmot tasks` browses and cleans up the local index. Records live at `~/.marmot/ai/tasks.json`, file mode `0o600`. Every async submission writes a record automatically. `marmot get` updates it.
+`marmot tasks` browses and cleans up the local index. Records live at `~/.marmot/tasks.json`, file mode `0o600`. Every async submission writes a record automatically. `marmot get` updates it.
 
 ```bash
 marmot tasks list   [flags…]

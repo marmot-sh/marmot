@@ -48,8 +48,8 @@ Examples of in-scope issues:
 
 ## What marmot does to reduce risk
 
-- All API keys are read from env vars or the `--api-key` flag. Keys are never persisted to the on-disk config (`~/.marmot/ai/config.json` only stores env-var *names*, not values).
-- The response cache (`~/.marmot/ai/cache/responses/`) only stores response bodies. Request inputs that include the API key, abort signal, or fetch function are excluded from cache keys and cached payloads.
+- All API keys are read from env vars or the `--api-key` flag. Keys are never persisted to the on-disk config (`~/.marmot/config.json` only stores env-var *names*, not values).
+- The response cache (`~/.marmot/cache/responses/`) only stores response bodies. Request inputs that include the API key, abort signal, or fetch function are excluded from cache keys and cached payloads.
 - Cache file permissions are `0o600`; the cache directory is `0o700`.
 - Provider error messages are wrapped to strip secrets before being shown.
 - Retry-on-flake is opt-in (`--retries N`, default 0) so paid-API calls aren't silently double-billed.

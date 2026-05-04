@@ -80,21 +80,21 @@ describe('image-cache path resolution', () => {
     const path = getProviderImageCachePath('openai', {
       MARMOT_HOME: '/tmp/marmot-fake-home',
     });
-    expect(path).toBe('/tmp/marmot-fake-home/image-models/openai.json');
+    expect(path).toBe('/tmp/marmot-fake-home/cache/models/images/openai.json');
   });
 
   it('namespaces image models separately from text models', () => {
     const env = { MARMOT_HOME: '/tmp/marmot-fake-home' };
     expect(getProviderCachePath('openai', env)).toBe(
-      '/tmp/marmot-fake-home/providers/openai.json',
+      '/tmp/marmot-fake-home/cache/models/text/openai.json',
     );
     expect(getProviderImageCachePath('openai', env)).toBe(
-      '/tmp/marmot-fake-home/image-models/openai.json',
+      '/tmp/marmot-fake-home/cache/models/images/openai.json',
     );
   });
 
-  it('falls back to <home>/.marmot/ai/image-models when MARMOT_HOME is not set', () => {
+  it('falls back to <home>/.marmot/cache/models/images when MARMOT_HOME is not set', () => {
     const path = getProviderImageCachePath('openai', {});
-    expect(path).toMatch(/\.marmot\/ai\/image-models\/openai\.json$/);
+    expect(path).toMatch(/\.marmot\/cache\/models\/images\/openai\.json$/);
   });
 });

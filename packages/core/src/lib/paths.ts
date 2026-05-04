@@ -31,9 +31,7 @@ export function resolveUserPath(
 
 export function getMarmotHome(env: NodeJS.ProcessEnv = process.env): string {
   const explicitHome = env.MARMOT_HOME?.trim();
-  // Namespaced under ~/.marmot/ai/ so it can coexist with other tools
-  // that use ~/.marmot/ for their own state.
-  return explicitHome ? resolveUserPath(explicitHome) : join(homedir(), '.marmot', 'ai');
+  return explicitHome ? resolveUserPath(explicitHome) : join(homedir(), '.marmot');
 }
 
 /**

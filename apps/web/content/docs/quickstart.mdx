@@ -13,7 +13,7 @@ marmot 'write a haiku about caching'
 ```
 
 The first AI call auto-configures a default provider from your environment and
-stores it in `~/.marmot/ai/config.json`. After that, the same command runs
+stores it in `~/.marmot/config.json`. After that, the same command runs
 without extra setup.
 
 ## Pipe real input
@@ -72,7 +72,7 @@ marmot 'turn that into an upgrade checklist'
 marmot session end
 ```
 
-Sessions are local. They log calls under `~/.marmot/ai/sessions/`. Only text
+Sessions are local. They log calls under `~/.marmot/sessions/`. Only text
 calls participate in chat history; image, speech, transcription, and data calls
 can still log to the session.
 

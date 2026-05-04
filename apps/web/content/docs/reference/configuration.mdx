@@ -3,7 +3,7 @@ title: Configuration
 description: Every key the Marmot config file accepts.
 ---
 
-Marmot keeps your default provider and model for each verb in a single config file at `~/.marmot/ai/config.json`. `marmot setup` and `marmot config set` write to it for you. This page lists every key the file accepts.
+Marmot keeps your default provider and model for each verb in a single config file at `~/.marmot/config.json`. `marmot setup` and `marmot config set` write to it for you. This page lists every key the file accepts.
 
 ## Top level
 
@@ -126,7 +126,7 @@ See [Caching](/docs/reference/caching) for the full cache model.
 ## Resolution order
 
 1. Command-line flag for the call
-2. `~/.marmot/ai/config.json`
+2. `~/.marmot/config.json`
 3. Error, with a hint to run `marmot setup`
 
 ## Setting keys from the CLI

@@ -30,7 +30,7 @@ export OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
 Marmot reads keys from environment variables. It does not write key values to
-`~/.marmot/ai/config.json`.
+`~/.marmot/config.json`.
 
 If you use local models, start Ollama instead. Ollama needs no API key.
 
@@ -47,7 +47,7 @@ marmot 'write a haiku about caching'
 ```
 
 On the first AI call, Marmot detects the providers available in your shell,
-chooses a default, writes it to `~/.marmot/ai/config.json`, and continues the
+chooses a default, writes it to `~/.marmot/config.json`, and continues the
 call. You can change that default later with `marmot setup`.
 
 <Callout>

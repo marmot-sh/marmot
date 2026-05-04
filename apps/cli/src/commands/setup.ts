@@ -715,7 +715,7 @@ async function pickModel(args: PickModelArgs): Promise<string | null | undefined
   } catch (error) {
     fetchSpin.stop(`Could not fetch model list (${(error as Error).message})`);
     note(
-      'Falling back to the provider default. You can edit ~/.marmot/ai/config.json by hand later.',
+      'Falling back to the provider default. You can edit ~/.marmot/config.json by hand later.',
       'model',
     );
     return undefined;

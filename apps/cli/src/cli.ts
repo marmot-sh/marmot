@@ -489,7 +489,7 @@ export function createProgram(): Command {
     });
 
   const configCommand = new Command('config')
-    .description('Manage the global config file (~/.marmot/ai/config.json).');
+    .description('Manage the global config file (~/.marmot/config.json).');
 
   configCommand
     .command('show')

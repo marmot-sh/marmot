@@ -108,10 +108,10 @@ export const ANTHROPIC_API_VERSION = '2023-06-01';
 export const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export const OPENAI_MODELS_URL = `${OPENAI_BASE_URL}/models`;
 export const DEFAULT_OLLAMA_HOST = 'http://localhost:11434';
-export const PROVIDER_CACHE_DIRNAME = 'providers';
-export const PROVIDER_IMAGE_CACHE_DIRNAME = 'image-models';
-export const PROVIDER_SPEECH_CACHE_DIRNAME = 'speech-models';
-export const PROVIDER_TRANSCRIPTION_CACHE_DIRNAME = 'transcription-models';
+export const PROVIDER_CACHE_DIRNAME = 'cache/models/text';
+export const PROVIDER_IMAGE_CACHE_DIRNAME = 'cache/models/images';
+export const PROVIDER_SPEECH_CACHE_DIRNAME = 'cache/models/speech';
+export const PROVIDER_TRANSCRIPTION_CACHE_DIRNAME = 'cache/models/transcription';
 export const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
 
 // -- Web / data search providers ----------------------------------------------

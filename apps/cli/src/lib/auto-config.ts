@@ -1,6 +1,6 @@
 // First-run auto-config: when the user runs a verb without any config and
 // without a --provider override, walk a pecking order of detected providers,
-// pick the first ready one, persist the choice to ~/.marmot/ai/config.json,
+// pick the first ready one, persist the choice to ~/.marmot/config.json,
 // and surface a one-line stderr note. The goal is "install + set a key +
 // run" — no `marmot setup` step required for the happy path.
 //
@@ -57,7 +57,7 @@ export type AutoConfigDeps = {
 /**
  * Ensure a default provider/model is configured for `verb`. Returns the
  * (possibly updated) config. Side effects:
- *   - May write `~/.marmot/ai/config.json`
+ *   - May write `~/.marmot/config.json`
  *   - May print a one-line note to stderr
  *
  * Behavior:

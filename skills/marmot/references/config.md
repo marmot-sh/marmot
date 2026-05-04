@@ -4,7 +4,7 @@ Everything an agent needs to read, mutate, and reason about marmot's on-disk sta
 
 ## 1. Where the config lives
 
-Single JSON file at `~/.marmot/ai/config.json`.
+Single JSON file at `~/.marmot/config.json`.
 
 ```bash
 marmot config path        # prints the absolute path (honors $MARMOT_HOME)
@@ -12,12 +12,12 @@ marmot config path        # prints the absolute path (honors $MARMOT_HOME)
 
 | Path | Mode |
 | --- | --- |
-| `~/.marmot/ai/` | `0o700` |
-| `~/.marmot/ai/config.json` | `0o600` |
-| `~/.marmot/ai/cache/responses/<slug>/` | `0o700` |
-| `~/.marmot/ai/sessions/<name>/` | `0o700` |
+| `~/.marmot/` | `0o700` |
+| `~/.marmot/config.json` | `0o600` |
+| `~/.marmot/cache/responses/<slug>/` | `0o700` |
+| `~/.marmot/sessions/<name>/` | `0o700` |
 
-`MARMOT_HOME` overrides `~/.marmot`. The file is JSON; agents may hand-edit it but the CLI is safer (validates before write).
+`MARMOT_HOME` overrides `~/.marmot` (so `MARMOT_HOME=/x/y` puts everything under `/x/y` directly). The file is JSON; agents may hand-edit it but the CLI is safer (validates before write).
 
 ## 2. Top-level schema
 
@@ -194,7 +194,7 @@ marmot config set providers.tavily.cache.ttlDays 14   # default 30
 ### Storage
 
 ```
-~/.marmot/ai/cache/responses/<provider>/<sha256>.json   # mode 0o600
+~/.marmot/cache/responses/<provider>/<sha256>.json   # mode 0o600
 ```
 
 Cache key is SHA-256 of canonicalized `{verb, input}` with `apiKey`, `apiSecret`, `fetchFn`, `abortSignal` stripped. Identical inputs hash to the same key regardless of property order. Each entry stores `{hash, verb, requestedAt, ttlSeconds, response, query?}`.
@@ -231,7 +231,7 @@ Constraints: must pass either `--provider` or `--all`, never both. `--query` req
 
 ### Model-catalog cache vs response cache
 
-`marmot cache refresh [provider|all]` is a different cache. It rebuilds the per-provider model catalogs (text/image/speech/transcription) under `~/.marmot/ai/cache/providers/`. Unrelated to the response cache. Use it after rotating keys or when a new model isn't visible in `setup`.
+`marmot cache refresh [provider|all]` is a different cache. It rebuilds the per-provider model catalogs under `~/.marmot/cache/models/{text,images,speech,transcription}/<provider>.json`. Unrelated to the response cache. Use it after rotating keys or when a new model isn't visible in `setup`.
 
 ## 8. Presets
 
@@ -285,7 +285,7 @@ Mode mismatch is rejected: `marmot image @deep-research "..."` fails because `de
 explicit flag > preset > defaults.<mode> > first-run auto-config (AI verbs only) > error
 ```
 
-**First-run auto-config (AI verbs only):** if no default is set for `text`/`image`/`speech`/`transcription`, marmot detects available API keys in the environment and picks the first ready provider in this order: `ollama` (local) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`. The choice is persisted to `~/.marmot/ai/config.json` so subsequent calls hit step 3 directly. Web/data verbs have no auto-config — they error if no default is set.
+**First-run auto-config (AI verbs only):** if no default is set for `text`/`image`/`speech`/`transcription`, marmot detects available API keys in the environment and picks the first ready provider in this order: `ollama` (local) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`. The choice is persisted to `~/.marmot/config.json` so subsequent calls hit step 3 directly. Web/data verbs have no auto-config — they error if no default is set.
 
 `marmot @deep-research --model claude-haiku-4-5 "..."` keeps the preset's system + provider but overrides model.
 
@@ -325,7 +325,7 @@ If `--mode` is omitted on `create`, defaults to `stateless`. Chat-mode sessions 
 --session <name> on the call > marmot session use <name> pointer > unbound (no log)
 ```
 
-The pointer file is `~/.marmot/ai/current-session` (or `$MARMOT_HOME/current-session`) and is shared across terminals.
+The pointer file is `~/.marmot/current-session` (or `$MARMOT_HOME/current-session`) and is shared across terminals.
 
 ### Inspection
 

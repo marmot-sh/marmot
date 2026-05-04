@@ -23,7 +23,7 @@ const ALL_PROVIDER_SLUGS: ReadonlySet<string> = new Set([
  * Reject anything that isn't a known provider slug. The cache subcommands
  * pass `--provider` straight to filesystem path joins (cache root + slug),
  * so an unvalidated value like `"../sessions/x"` would escape the cache
- * tree and let `cache clear` delete arbitrary files inside `~/.marmot/ai/`.
+ * tree and let `cache clear` delete arbitrary files inside `~/.marmot/`.
  * Allowlist enforcement at the CLI boundary closes that path.
  */
 function assertProviderSlug(provider: string): void {
