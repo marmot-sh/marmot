@@ -21,10 +21,11 @@
   "homepage": "https://marmot.sh",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marmot-sh/web.git"
+    "url": "git+https://github.com/marmot-sh/marmot.git",
+    "directory": "apps/web"
   },
   "bugs": {
-    "url": "https://github.com/marmot-sh/web/issues"
+    "url": "https://github.com/marmot-sh/marmot/issues"
   },
   "license": "MIT",
   "dependencies": {
