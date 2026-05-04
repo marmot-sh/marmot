@@ -31,7 +31,7 @@ Before you publish:
 - [ ] Bump versions in **both** package.json files:
   - `apps/cli/package.json` `version`
   - `apps/marmot-sh/package.json` `version`
-- [ ] Update `CHANGELOG.md` if you maintain one (we don't yet for v0.1; see "Future" below).
+- [ ] Add a new entry to `CHANGELOG.md` describing what changed (Breaking / Added / Changed / Fixed sections, plus a Migration note when the version is breaking). The CHANGELOG entry should be in the same commit as the version bump so the tag points at code whose CHANGELOG already documents the release.
 
 ## Publishing
 
@@ -94,7 +94,7 @@ For an urgent fix:
 
 When the project moves out of v0.x:
 
-- Add `.changeset/` for changelog automation
+- Replace the hand-edited `CHANGELOG.md` with `.changeset/` automation
 - Set up GitHub Actions for CI (typecheck + test on PR)
 - Add a release workflow with npm provenance (`--provenance`)
 - Submit `marmot` to homebrew-core (after stability + adoption thresholds)
