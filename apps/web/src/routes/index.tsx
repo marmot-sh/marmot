@@ -26,16 +26,27 @@ import {
 
 export const Route = createFileRoute("/")({
   component: Landing,
-  head: () => ({
-    meta: [
-      { title: "marmot - shell-native AI and web data" },
-      {
-        name: "description",
-        content:
-          "Marmot is one CLI for AI generation, web research, scraping, and data enrichment, with consistent flags and JSON output across providers.",
-      },
-    ],
-  }),
+  head: () => {
+    const title = "marmot — shell-native AI and web data";
+    const description =
+      "Marmot is one CLI for AI generation, web research, scraping, and data enrichment, with consistent flags and JSON output across providers.";
+    const canonical = "https://marmot.sh/";
+    const ogImage = "https://assets.marmot.sh/marmot-og-default.png";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:url", content: canonical },
+        { property: "og:image", content: ogImage },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+        { name: "twitter:image", content: ogImage },
+      ],
+      links: [{ rel: "canonical", href: canonical }],
+    };
+  },
 });
 
 function Landing() {
@@ -719,7 +730,7 @@ function WhatsInTheBox() {
  *  block with the two-line install + setup recipe. */
 function FinalCta() {
   return (
-    <section className="container mx-auto px-6 py-20 sm:py-24">
+    <section className="container mx-auto overflow-x-clip px-6 py-20 sm:py-24">
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="text-balance text-center text-[2rem] font-[680] leading-[1.1] tracking-[-0.025em] text-foreground sm:leading-[1.05] sm:text-[2.75rem] lg:text-[3.25rem]">
           Try Marmot now.

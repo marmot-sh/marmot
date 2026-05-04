@@ -29,11 +29,23 @@ export const Route = createRootRoute({
       { name: "description", content: "Small, sharp CLIs for the shell." },
       { property: "og:site_name", content: "marmot.sh" },
       { property: "og:type", content: "website" },
+      { property: "og:locale", content: "en_US" },
+      { property: "og:title", content: "marmot — shell-native AI and web data" },
+      {
+        property: "og:description",
+        content: "Small, sharp CLIs for the shell.",
+      },
+      { property: "og:url", content: "https://marmot.sh" },
       {
         property: "og:image",
         content: "https://assets.marmot.sh/marmot-og-default.png",
       },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "marmot — shell-native AI and web data" },
+      {
+        name: "twitter:description",
+        content: "Small, sharp CLIs for the shell.",
+      },
       {
         name: "twitter:image",
         content: "https://assets.marmot.sh/marmot-og-default.png",

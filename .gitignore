@@ -61,6 +61,7 @@ Desktop.ini
 # Deployment
 .vercel/
 .netlify/
+.wrangler/
 
 # Stray test artifacts at repo root (CLI image/speak/transcribe outputs).
 # Catches both default-named provider outputs (openai-*.png, etc.) and one-off

@@ -3,6 +3,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { TreeContextProvider } from "fumadocs-ui/contexts/tree";
 import { TOC, TOCProvider } from "fumadocs-ui/layouts/docs/page/slots/toc";
+import { PageLastUpdate } from "fumadocs-ui/layouts/docs/page";
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import browserCollections from "fumadocs-mdx:collections/browser";
@@ -28,22 +29,25 @@ export const Route = createFileRoute("/docs/$")({
   head: ({ loaderData, params }) => {
     const slug = params._splat ?? "";
     const ogImage = `https://marmot.sh/api/og/docs/${slug ? `${slug}/` : ""}image.png`;
+    const canonical = `https://marmot.sh/docs/${slug}`;
+    const title = loaderData?.title
+      ? `${loaderData.title} — marmot`
+      : "marmot — docs";
+    const description =
+      loaderData?.description ?? "One CLI for AI, search, and data lookup.";
     return {
       meta: [
-        {
-          title: loaderData?.title
-            ? `${loaderData.title} — marmot`
-            : "marmot — docs",
-        },
-        {
-          name: "description",
-          content:
-            loaderData?.description ??
-            "One CLI for AI, search, and data lookup.",
-        },
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:url", content: canonical },
         { property: "og:image", content: ogImage },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
         { name: "twitter:image", content: ogImage },
       ],
+      links: [{ rel: "canonical", href: canonical }],
     };
   },
   notFoundComponent: () => <NotFoundPage mode="docs" />,
@@ -67,7 +71,7 @@ const serverLoader = createServerFn({ method: "GET" })
   });
 
 const clientLoader = browserCollections.docs.createClientLoader({
-  component({ toc, frontmatter, default: MDX }) {
+  component({ toc, frontmatter, default: MDX, lastModified }) {
     const title = frontmatter.title as string;
     const description = frontmatter.description as string | undefined;
     const { markdownUrl } = useContext(ArticleContext);
@@ -88,10 +92,18 @@ const clientLoader = browserCollections.docs.createClientLoader({
                 ) : null}
               </div>
               {description ? (
-                <p className="mt-4 mb-10 text-base text-muted-foreground">
+                <p className="mt-4 mb-2 text-base text-muted-foreground">
                   {description}
                 </p>
               ) : null}
+              {lastModified ? (
+                <PageLastUpdate
+                  date={lastModified as Date}
+                  className="mb-10 text-xs text-muted-foreground font-normal"
+                />
+              ) : (
+                <div className="mb-10" />
+              )}
               <div className="prose prose-neutral max-w-none dark:prose-invert prose-a:text-primary prose-a:no-underline hover:prose-a:no-underline [&_:is(h1,h2,h3,h4,h5,h6)_a]:text-foreground [&_:is(h1,h2,h3,h4,h5,h6)_a]:no-underline">
                 <MDX components={{ ...defaultMdxComponents }} />
               </div>

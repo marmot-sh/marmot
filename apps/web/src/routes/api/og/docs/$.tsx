@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "workers-og";
 
 import { source } from "@/lib/source";
 
@@ -7,14 +7,6 @@ const BACKGROUND_URL =
   "https://assets.marmot.sh/marmot-og-docs-background.png";
 const FONT_URL =
   "https://cdn.jsdelivr.net/npm/@fontsource/archivo@5.2.5/files/archivo-latin-600-normal.woff";
-
-let cachedFont: ArrayBuffer | null = null;
-async function getFont(): Promise<ArrayBuffer> {
-  if (cachedFont) return cachedFont;
-  const res = await fetch(FONT_URL);
-  cachedFont = await res.arrayBuffer();
-  return cachedFont;
-}
 
 export const Route = createFileRoute("/api/og/docs/$")({
   server: {
@@ -34,98 +26,37 @@ export const Route = createFileRoute("/api/og/docs/$")({
           (data?.description as string) ??
           "Small, sharp CLIs for the shell.";
 
-        const fontData = await getFont();
+        const fontResponse = await fetch(FONT_URL);
+        const fontData = await fontResponse.arrayBuffer();
 
-        const response = new ImageResponse(
-          (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                width: "1200px",
-                height: "630px",
-                backgroundColor: "#0a0a0a",
-                color: "white",
-                padding: "64px",
-                fontFamily: "Archivo, system-ui, sans-serif",
-                position: "relative",
-              }}
-            >
-              <img
-                src={BACKGROUND_URL}
-                width={1200}
-                height={630}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  objectFit: "cover",
-                }}
-              />
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  width: "100%",
-                  height: "100%",
-                  position: "relative",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                    marginTop: "auto",
-                    marginBottom: "auto",
-                  }}
-                >
-                  <h1
-                    style={{
-                      fontSize: 56,
-                      fontWeight: 600,
-                      letterSpacing: "-0.02em",
-                      margin: 0,
-                    }}
-                  >
-                    {title}
-                  </h1>
-                  {description ? (
-                    <p
-                      style={{
-                        fontSize: 26,
-                        color: "#d6d3d1",
-                        margin: 0,
-                        maxWidth: 900,
-                        fontWeight: 400,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {description}
-                    </p>
-                  ) : null}
-                </div>
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <span style={{ fontSize: 18, color: "#d6d3d1" }}>
-                    marmot.sh
-                  </span>
-                </div>
+        const html = `
+          <div style="display: flex; flex-direction: column; width: 1200px; height: 630px; background-color: #ffffff; color: #0a0a0a; padding: 64px; font-family: 'Archivo', system-ui, sans-serif; position: relative;">
+            <img src="${BACKGROUND_URL}" width="1200" height="630" style="position: absolute; top: 0; left: 0; object-fit: cover;" />
+            <div style="display: flex; flex-direction: column; width: 100%; height: 100%; position: relative;">
+              <div style="display: flex; flex-direction: column; gap: 16px; margin-top: auto; margin-bottom: auto;">
+                <h1 style="font-size: 56px; font-weight: 600; letter-spacing: -0.02em; margin: 0; color: #0a0a0a;">${title}</h1>
+                ${description ? `<p style="font-size: 26px; color: #525252; margin: 0; max-width: 900px; font-weight: 400; line-height: 1.4; text-wrap: balance;">${description}</p>` : ""}
+              </div>
+              <div style="display: flex; align-items: center;">
+                <span style="font-size: 18px; color: #737373;">marmot.sh</span>
               </div>
             </div>
-          ),
-          {
-            width: 1200,
-            height: 630,
-            fonts: [
-              {
-                name: "Archivo",
-                data: fontData,
-                weight: 600,
-                style: "normal",
-              },
-            ],
-          },
-        );
+          </div>
+        `;
+
+        const response = new ImageResponse(html, {
+          width: 1200,
+          height: 630,
+          format: "png",
+          fonts: [
+            {
+              name: "Archivo",
+              data: fontData,
+              weight: 600,
+              style: "normal",
+            },
+          ],
+        });
 
         response.headers.set(
           "Cache-Control",
