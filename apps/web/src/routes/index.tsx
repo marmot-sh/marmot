@@ -212,13 +212,13 @@ function Hero() {
             <span className={D.comment}># Install</span>
             {"\n"}
             <span className={D.prompt}>$</span>{" "}
-            <span className={D.cmd}>npm i -g marmot-sh</span>
+            <span className={D.cmd}>npm install -g marmot-sh</span>
             {"\n\n"}
             <span className={D.comment}># Generate text</span>
             {"\n"}
             <span className={D.prompt}>$</span>{" "}
             <span className={D.cmd}>marmot </span>
-            <span className={D.str}>&apos;tell me a joke&apos;</span>
+            <span className={D.str}>&apos;What do Marmots eat?&apos;</span>
             {"\n\n"}
             <span className={D.comment}># Search the web, then summarize</span>
             {"\n"}
@@ -229,7 +229,13 @@ function Hero() {
             {"\n  "}
             <span className={D.dim}>| </span>
             <span className={D.cmd}>marmot </span>
-            <span className={D.str}>&apos;summarize&apos;</span>
+            <span className={D.str}>&apos;make an audio summary&apos;</span>{" "}
+            <span className={D.dim}>\</span>
+            {"\n  "}
+            <span className={D.dim}>| </span>
+            <span className={D.cmd}>marmot speak </span>
+            <span className={D.flag}>--voice</span>
+            <span className={D.cmd}> nova</span>
           </pre>
         </Terminal>
 

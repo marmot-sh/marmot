@@ -2,7 +2,7 @@
   <a href="https://marmot.sh?utm_source=github&utm_medium=main" target="_blank" rel="noopener noreferrer">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://assets.marmot.sh/marmot-logo.png" type="image/png">
-      <img src="https://assets.marmot.sh/marmot-logo.png" height="64" alt="Marmot logo">
+      <img src="https://assets.marmot.sh/marmot-logo.png" width="170" height="30" alt="Marmot logo">
     </picture>
   </a>
   <br />
@@ -18,15 +18,19 @@
 
 </div>
 
-[Marmot](https://marmot.sh?utm_source=github&utm_medium=main) is **a single CLI for AI generation and web/data retrieval**. It wraps providers like OpenAI, Anthropic, OpenRouter, Tavily, Exa, Apollo, and Hunter behind one consistent verb shape, so scripts and AI agents stay portable across vendors. Switching providers is a flag.
+[Marmot](https://marmot.sh?utm_source=github&utm_medium=main) is an open-source (MIT) CLI for AI, web search, scraping, and enrichment data. It is built for agents, agent skills, and standalone scripts that need reliable access to external providers. Marmot composes naturally with shell pipes and supports presets, caching, retries, sessions, and structured output.
 
 ## Why Marmot
 
-A lot of work in agent workflows is basic. A quick search, a one-shot enrichment, a simple text generation. Routing it through your orchestrator's heavy model wastes context and money. Marmot is a small, deterministic CLI that handles those calls outside the agent's context.
+[Claude Code](https://www.anthropic.com/claude-code), [Codex](https://developers.openai.com/codex/), [OpenCode](https://opencode.ai), [OpenClaw](https://www.openclaw.ai/), [Hermes](https://hermes-agent.org/), and similar agents are strongest when their context stays focused. But agent workflows still need web search, scraping, enrichment data, retries, caching, and small helper prompts.
+
+Marmot gives agents one shell-native command shape for external calls. Instead of teaching every agent a dozen provider CLIs, or spinning up subagents for routine lookups, you give them one interface for AI providers, search APIs, scraping tools, and enrichment services. Agents with the Marmot skill can learn the pattern once, pipe results through shell workflows, and bring back only the output the main agent needs.
+
+It also lets each task use the right model. A quick classification, a local or private prompt, and a long synthesis do not need to run through the same model your main agent or subagent is configured with. Marmot lets you choose faster, cheaper, local, or stronger models at the command level.
 
 - 🔌 **One shape, many providers.** Same flags across OpenRouter, Anthropic, OpenAI, Vercel AI Gateway, Cloudflare Workers AI, and Ollama for AI; Brave, Exa, Firecrawl, Parallel, Tavily for web; Apollo, Hunter, PDL, Tomba, Bouncer, Datagma, ZeroBounce, Kickbox for data.
 - 🤖 **Agent-friendly.** Default plain-text output for piping; `--json` envelope for structured parsing.
-- 🧰 **Composable.** Chain verbs through pipes: `marmot search ... | marmot run "summarize"`.
+- 🧰 **Composable.** Chain verbs through pipes: `marmot search ... | marmot "summarize"`.
 - 🪵 **Predictable.** Stable exit codes, stderr/stdout separation, deterministic JSON envelope shapes.
 - 💾 **Optional response cache.** Disabled by default; enable per-provider for repeat calls.
 - 🪟 **Sessions and presets.** Persist chat history; save flag bundles for reuse.
@@ -37,12 +41,6 @@ A lot of work in agent workflows is basic. A quick search, a one-shot enrichment
 npm install -g @marmot-sh/cli
 # or the shorter unscoped alias (same binary):
 npm install -g marmot-sh
-```
-
-Or with pnpm / yarn / bun:
-
-```bash
-pnpm add -g @marmot-sh/cli
 ```
 
 This installs the `marmot` binary globally. Verify with `marmot --version`.
@@ -66,22 +64,37 @@ Re-run `marmot setup` any time to change settings, or use `marmot config set/sho
 
 ## Quickstart
 
-The default verb is text generation, so this works:
+The default verb is text generation, so a bare `marmot` call goes straight to a model:
 
 ```bash
-marmot "write me a haiku about caching"
+marmot "tell me a joke"
 ```
 
-Pipe stdin into the prompt:
+Search the web, then summarize:
+
+```bash
+marmot search "news about apple" \
+  | marmot "summarize"
+```
+
+Get five bullets out of any topic:
+
+```bash
+marmot search "openrouter pricing 2026" \
+  | marmot "give me 5 bullet highlights"
+```
+
+Compose with other shell tools. For example, pull a day of mail with `gog` and hand it to a fast model:
+
+```bash
+gog gmail search "newer_than:1d" \
+  | marmot "summarize today's email"
+```
+
+Pipe stdin straight into the prompt:
 
 ```bash
 git diff | marmot --stream "commit message under 60 chars"
-```
-
-Search the web:
-
-```bash
-marmot search "openrouter pricing 2026"
 ```
 
 Enrich a person from an email:
@@ -94,8 +107,7 @@ marmot enrich --type person --email tcook@apple.com
 
 | Category | Command | Purpose |
 | --- | --- | --- |
-| **AI** | `marmot <prompt>` | Text generation (alias for `marmot run`) |
-| | `marmot run [prompt]` | Text generation, explicit |
+| **AI** | `marmot <prompt>` | Text generation |
 | | `marmot image <prompt>` | Image generation |
 | | `marmot speak <text>` | Text-to-speech |
 | | `marmot transcribe <audio>` | Speech-to-text |
@@ -139,7 +151,7 @@ git diff | marmot --stream "commit message under 60 chars" | pbcopy
 The `--json` flag forces a structured envelope for verbs that default to plain text:
 
 ```bash
-marmot run --json "give me 3 ideas" | jq -r '.text'
+marmot --json "give me 3 ideas" | jq -r '.text'
 ```
 
 ## Presets
@@ -158,15 +170,15 @@ Other modes: `image`, `speech`, `transcription`. Same pattern works for image st
 
 ## Sessions
 
-Persist chat history across `marmot run` invocations.
+Persist chat history across `marmot` invocations.
 
 ```bash
 marmot session create research --mode chat
 marmot session use research
 
-marmot run "What are the leading vector databases in 2026?"
-marmot run "Of those, which support hybrid search?"
-marmot run "Pick one and write a setup script"
+marmot "What are the leading vector databases in 2026?"
+marmot "Of those, which support hybrid search?"
+marmot "Pick one and write a setup script"
 
 marmot session show research      # totals, message count, window usage
 marmot session export research    # export as jsonl or markdown
@@ -191,26 +203,12 @@ Either path installs to the canonical `~/.agents/skills/marmot/` and creates per
 Full docs at [marmot.sh/docs](https://marmot.sh/docs?utm_source=github&utm_medium=main):
 
 - [Quickstart](https://marmot.sh/docs/quickstart) — set a key, run a prompt.
-- [Installation](https://marmot.sh/docs/installation) — install the binary.
 - [Providers](https://marmot.sh/docs/reference/providers) — capability matrix and env vars.
-- [Configuration](https://marmot.sh/docs/reference/configuration) — config schema.
-- [Caching](https://marmot.sh/docs/reference/caching) — response cache details.
 - [Command reference](https://marmot.sh/docs/reference/commands/overview) — all verbs.
 
 ## Contributing
 
-Contributions welcome. The repo is a pnpm + Turborepo monorepo:
-
-```bash
-git clone https://github.com/marmot-sh/marmot
-cd marmot
-pnpm install
-pnpm test          # run all tests
-pnpm typecheck     # run typecheck
-pnpm check         # lint + typecheck across the workspace
-```
-
-The `marmot` CLI source lives under `apps/cli/`. Provider adapters live under `packages/<provider>/`. See individual package READMEs for adapter-specific notes.
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/marmot-sh/marmot/blob/main/CONTRIBUTING.md) for details.
 
 ## License
 
