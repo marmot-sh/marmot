@@ -1,0 +1,48 @@
+---
+title: Findall
+description: marmot findall — async list-of-entities builder.
+---
+
+```bash
+marmot findall <objective> [flags…]
+```
+
+Always async. Submits an entity-list task and polls (or returns the task id with `--async`).
+
+## Providers
+
+`exa`, `parallel`.
+
+| Provider | Notes |
+| --- | --- |
+| Exa | Uses Websets API. Requires Pro plan. |
+| Parallel | Uses FindAll beta. Requires `entity_type` (handled via `--entity-type`). |
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | `exa` or `parallel`. Falls back to `defaults.findall.provider`. |
+| `--api-key <key>` | Override the env var. |
+| `--limit <n>` | Max items to find. Parallel clamps to 5–1000. |
+| `--entity-type <name>` | Required by Parallel (e.g. `company`, `person`, `cloud_provider`). Ignored by Exa. |
+| `--match-conditions <json>` | Optional JSON array of `{name, description}` criteria (Parallel). Defaults to a single condition synthesized from the objective. |
+| `--schema <json>` / `--schema-file <path>` | Optional JSON Schema for items. |
+| `--wait` | Block and poll until done (default). |
+| `--async` | Return the task id immediately. |
+| `--raw` | Emit the provider's native response under `raw`. |
+| `--json` | Emit the structured envelope (default). |
+| `--retries <n>` | Retry the initial submission up to N times. Polling is unaffected. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt submit timeout. Default 120. |
+
+## Async behavior
+
+Default is `--wait`. Pass `--async` to get the task id and follow up with `marmot get <id>`.
+
+See [Async tasks](/docs/reference/commands/async-tasks).
+
+## Config keys
+
+```json
+{ "defaults": { "findall": { "provider": "parallel" } } }
+```

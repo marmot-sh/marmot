@@ -1,0 +1,83 @@
+---
+title: Context and history
+description: Use sessions to group calls, keep logs, and carry chat history.
+---
+
+Use a session when several Marmot calls belong to the same piece of work. Sessions can log calls, and chat sessions can also carry text history so later `marmot run` calls see earlier turns.
+
+By default Marmot does **not** log calls to disk beyond what `-o` writes. Logging starts only when a call is bound to a session.
+
+```bash
+marmot session create market-q3 --mode chat --preset deep-research
+marmot session use market-q3
+
+marmot "kick off the market sizing for Q3"
+marmot "now break down by region"
+
+marmot session log market-q3 --limit 5
+marmot session end
+```
+
+## Modes
+
+A session's mode is fixed at creation.
+
+| Mode | What it adds | When to use |
+| --- | --- | --- |
+| `stateless` | Logging only. Each call is independent. | Research workflows, image batches, scrape/enrich/lookup sequences. |
+| `chat` | Logging plus accumulated text history. | Multi-turn analysis where the model needs earlier turns. |
+
+Only text calls participate in chat history. Image, speech, transcription, and data calls can log to a chat session, but they do not read or write the conversation.
+
+## Bind a call
+
+The current-session pointer tags every call until you clear it:
+
+```bash
+marmot session use market-q3
+marmot "summarize this"
+marmot session end
+```
+
+For one call, pass `--session <name>`:
+
+```bash
+marmot --session ad-hoc-test "draft an email"
+```
+
+The explicit flag wins over the pointer.
+
+## Chat history
+
+Chat sessions append each user and assistant message to local history. Later text calls prepend that history before sending the next prompt.
+
+```bash
+marmot session create research --mode chat --preset deep-research
+marmot session use research
+
+marmot "what are the dominant business models in vertical SaaS?"
+marmot "give me three examples for each"
+
+marmot session context research
+```
+
+Use `session reset` to clear chat history while keeping the session log and metadata.
+
+## Context management
+
+Long chat sessions can be compacted manually.
+
+```bash
+marmot session mark research "before pricing pivot"
+marmot session compact research --keep-last 4 --target-tokens 8000
+```
+
+`mark` protects recent or important history. `compact` summarizes older messages and keeps the latest messages verbatim.
+
+## Compared to presets
+
+A preset says *how to call*. A session says *what this call is part of*. They compose freely.
+
+Use a preset to bundle flags. Use a session to bundle calls.
+
+For every session subcommand and flag, see [Sessions command reference](/docs/reference/commands/sessions).

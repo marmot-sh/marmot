@@ -1,0 +1,40 @@
+---
+title: Map
+description: marmot map — list URLs on a domain.
+---
+
+```bash
+marmot map <url> [flags…]
+```
+
+## Providers
+
+`firecrawl`, `tavily`.
+
+| Provider | Returns |
+| --- | --- |
+| Firecrawl | URLs with optional title + description |
+| Tavily | URLs only |
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | `firecrawl` or `tavily`. Falls back to `defaults.map.provider`. |
+| `--api-key <key>` | Override the env var. |
+| `--search <query>` | Optional relevance ordering query (Firecrawl). |
+| `--limit <n>` | Max URLs returned. |
+| `--raw` | Emit the provider's native response under `raw`. |
+| `--json` | Emit the structured envelope (default). |
+| `--no-cache` | Bypass the response cache for this call. Skip read and skip write. |
+| `--refresh` | Skip cache read but write the fresh response, overwriting any cached entry. |
+| `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt request timeout. Default 120. |
+
+Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
+
+## Config keys
+
+```json
+{ "defaults": { "map": { "provider": "tavily" } } }
+```

@@ -1,0 +1,39 @@
+---
+title: Agent workflows
+description: Use the Marmot skill from Claude Code, Codex, OpenCode, and similar agents.
+---
+
+Agents are better when their main context stays focused. Marmot gives them a shell command for outside work: search, scrape, enrich, verify, summarize, and transform data without pasting every intermediate result into the main conversation.
+
+## Install the skill
+
+Run setup and choose **Install agent skill**.
+
+```bash
+marmot setup
+```
+
+Marmot detects supported harnesses and links the skill into the right skill directory. You can also install it with the `skills` CLI:
+
+```bash
+npx skills add https://github.com/marmot-sh/marmot --skill marmot
+```
+
+## What the skill gives the agent
+
+The skill teaches the agent Marmot's command shape, provider matrix, and output conventions. Instead of asking the agent to remember several provider APIs, you give it one interface.
+
+Good agent tasks are concrete:
+
+```text
+Use Marmot to search for recent RAG papers, summarize the useful findings,
+and keep raw search output out of the main context.
+```
+
+For repeat work, create a preset and tell the agent to use it. For related calls, create a session so the agent can keep a local log.
+
+## Keep context small
+
+Prefer Marmot when the agent needs outside data but not every raw page, result, or provider response in its context. Let Marmot fetch and normalize the data, then ask the agent to bring back the result that matters.
+
+Next: [Reusable commands](/docs/guides/reusable-commands) for presets, or [Context and history](/docs/guides/context-and-history) for sessions.

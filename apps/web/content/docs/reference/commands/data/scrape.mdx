@@ -1,0 +1,35 @@
+---
+title: Scrape
+description: marmot scrape — extract markdown from one or more URLs.
+---
+
+```bash
+marmot scrape <url> [<url> …] [flags…]
+```
+
+## Providers
+
+`exa`, `firecrawl`, `parallel`, `tavily`.
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | One of the four. Falls back to `defaults.scrape.provider`. |
+| `--api-key <key>` | Override the env var for this call. |
+| `--format <markdown\|text\|html>` | Output format. Provider may return a subset. Default `markdown`. |
+| `--query <text>` | Optional intent for chunk reranking (Tavily). |
+| `--raw` | Emit the provider's native response under `raw`. |
+| `--json` | Emit the structured envelope (default). |
+| `--no-cache` | Bypass the response cache for this call. Skip read and skip write. |
+| `--refresh` | Skip cache read but write the fresh response, overwriting any cached entry. |
+| `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt request timeout. Default 120. |
+
+Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
+
+## Config keys
+
+```json
+{ "defaults": { "scrape": { "provider": "firecrawl" } } }
+```

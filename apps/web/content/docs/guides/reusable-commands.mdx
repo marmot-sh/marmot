@@ -1,0 +1,71 @@
+---
+title: Reusable commands
+description: Use presets to shorten repeated Marmot calls.
+---
+
+Use presets when a Marmot call gets too long to type or repeat safely. A preset stores provider, model, and mode-specific flags under a name, so scripts stay short and you can change the details in one place.
+
+A preset belongs to one mode: `text`, `image`, `speech`, or `transcription`. Marmot rejects mode mismatches early, so an image preset cannot accidentally run as text.
+
+```bash
+# Without a preset
+marmot run --provider anthropic --model claude-opus-4-7 --system "be terse" "explain merge sort"
+
+# With a preset
+marmot run --preset deep-research "explain merge sort"
+
+# Shorthand
+marmot @deep-research "explain merge sort"
+```
+
+## Create one
+
+Create a preset with the flags you would otherwise type by hand.
+
+```bash
+marmot preset create deep-research \
+  --mode text \
+  --provider anthropic \
+  --model claude-opus-4-7 \
+  --system "Be terse and cite sources."
+```
+
+Then use it by name:
+
+```bash
+marmot @deep-research "summarize this paper"
+```
+
+Explicit flags still win. This keeps the preset but overrides the model for one call:
+
+```bash
+marmot @deep-research --model claude-haiku-4-5 "summarize this paper"
+```
+
+## Resolution order
+
+`--preset` sits between explicit flags and config defaults.
+
+1. Explicit flag on the command line
+2. Preset values from `--preset <name>` or `@name`
+3. Config defaults from `~/.marmot/ai/config.json`
+4. First-run auto-config for AI verbs only
+5. Error if nothing can be resolved
+
+## Naming
+
+Preset names are slugs:
+
+- lowercase letters, digits, `-`, and `_` only
+- no leading or trailing separator
+- no consecutive separators
+
+Examples: `deep-research`, `cheap_text`, `square-1024`, `whisper_en`.
+
+## Compared to defaults
+
+A default answers, "What should this verb use when I pass nothing?" A preset answers, "Which saved bundle do I want for this call?"
+
+Use defaults for your normal provider and model. Use presets for recurring command styles.
+
+For every preset subcommand and flag, see [Presets command reference](/docs/reference/commands/presets).

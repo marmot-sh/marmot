@@ -1,0 +1,90 @@
+---
+title: Overview
+description: Every top-level command, with a one-line purpose and a link to its docs.
+---
+
+## AI
+
+| Command | Purpose | Docs |
+| --- | --- | --- |
+| `marmot <prompt>` | Text generation (default verb, alias for `marmot run`) | [Text](/docs/reference/commands/ai/text) |
+| `marmot run [prompt]` | Text generation, explicit | [Text](/docs/reference/commands/ai/text) |
+| `marmot image <prompt>` | Image generation | [Image](/docs/reference/commands/ai/image) |
+| `marmot speak <text>` | Text-to-speech | [Speech](/docs/reference/commands/ai/speech) |
+| `marmot transcribe <audio>` | Speech-to-text | [Transcription](/docs/reference/commands/ai/transcription) |
+
+## Search and enrichment
+
+| Command | Purpose | Docs |
+| --- | --- | --- |
+| `marmot search <query>` | Web search | [Search](/docs/reference/commands/data/search) |
+| `marmot scrape <url...>` | URL(s) → markdown | [Scrape](/docs/reference/commands/data/scrape) |
+| `marmot answer <query>` | Answer with citations | [Answer](/docs/reference/commands/data/answer) |
+| `marmot map <url>` | Enumerate URLs on a domain | [Map](/docs/reference/commands/data/map) |
+| `marmot crawl <url>` | Walk a domain, return pages | [Crawl](/docs/reference/commands/data/crawl) |
+| `marmot research <query>` | Async deep research with optional schema | [Research](/docs/reference/commands/data/research) |
+| `marmot findall <objective>` | Async list-of-entities builder | [Findall](/docs/reference/commands/data/findall) |
+| `marmot get <id>` | Poll/retrieve an async task | [Async tasks](/docs/reference/commands/async-tasks) |
+| `marmot tasks list/show/remove/prune` | Manage the local async-task index | [Async tasks](/docs/reference/commands/async-tasks) |
+| `marmot enrich --type person\|org [identifiers…]` | Identifier → full record (Apollo, Hunter, PDL, Tomba, Datagma) | [Enrich](/docs/reference/commands/data/enrich) |
+| `marmot lookup --type person\|org\|email [filters…]` | Filters → list of entities (Apollo, PDL, Tomba; Hunter/Tomba for emails) | [Lookup](/docs/reference/commands/data/lookup) |
+| `marmot verify <email>` | Email deliverability (Hunter, Tomba, Bouncer, Datagma, ZeroBounce, Kickbox) | [Verify](/docs/reference/commands/data/verify) |
+
+## Config / setup
+
+| Command | Purpose | Docs |
+| --- | --- | --- |
+| `marmot setup` | Interactive default-provider picker for every verb | [Installation](/docs/installation) |
+| `marmot config show` | Print the resolved config (human-readable; `--json` for envelope) | [Configuration](/docs/reference/configuration) |
+| `marmot config path` | Print the config file path | [Configuration](/docs/reference/configuration) |
+| `marmot config init` | Create an empty config (`--force` to overwrite) | [Configuration](/docs/reference/configuration) |
+| `marmot config set <key> <val>` | Set a dotted-path config key | [Configuration](/docs/reference/configuration) |
+| `marmot config unset <key>` | Remove a config key | [Configuration](/docs/reference/configuration) |
+| `marmot providers list` | Show every supported provider, env-var status, defaults | [Providers](/docs/reference/providers) |
+| `marmot cache refresh [target]` | Refresh provider model catalogs (one provider or `all`) | [Caching](/docs/reference/caching) |
+| `marmot cache stats [--provider X]` | Show response cache size and entry count per provider | [Caching](/docs/reference/caching) |
+| `marmot cache clear [--provider X \| --all] [--query "..."] [--older-than N]` | Invalidate response cache entries | [Caching](/docs/reference/caching) |
+| `marmot about` | Banner + provider summary | — |
+
+## Presets
+
+| Command | Purpose | Docs |
+| --- | --- | --- |
+| `marmot preset create <name>` | Save a named bundle of provider/model/flags | [Presets](/docs/reference/commands/presets) |
+| `marmot preset update <name>` | Patch fields on an existing preset | [Presets](/docs/reference/commands/presets) |
+| `marmot preset delete <name>` | Remove a preset | [Presets](/docs/reference/commands/presets) |
+| `marmot preset list` | List all presets | [Presets](/docs/reference/commands/presets) |
+| `marmot preset show <name>` | Show full settings for one preset | [Presets](/docs/reference/commands/presets) |
+| `marmot @<preset> …` | Sigil shorthand for `--preset <preset>` on any verb | [Presets](/docs/reference/commands/presets) |
+
+## Sessions
+
+| Command | Purpose | Docs |
+| --- | --- | --- |
+| `marmot session create <name>` | Create a named session (mode: stateless or chat) | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session use <name>` | Set the global current-session pointer | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session current` | Print the active session | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session end` | Clear the current-session pointer | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session list` | List all sessions | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session show <name>` | Show metadata, totals, window usage | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session delete <name>` | Delete a session (`--keep-log` to preserve `log.jsonl`) | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session log <name>` | Print log records | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session tail <name>` | Follow log output | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session stats <name>` | Token totals and cache hit rate | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session context <name>` | Print accumulated chat history (chat mode) | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session reset <name>` | Clear messages, keep log + meta | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session fork <src> <new>` | Branch a session from current state | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session export <name>` | Export a session as JSONL or Markdown | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session mark <name> "label"` | Watermark for compaction boundaries | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session compact <name>` | Summarize older messages | [Sessions](/docs/reference/commands/sessions) |
+
+## Raw API passthrough
+
+For provider-specific endpoints that don't fit marmot's normalized verbs, use `marmot api <provider> <subcommand>`. The response is returned in the provider's native shape, not marmot's envelope.
+
+- `marmot api brave summarizer --key <k>` (Brave Pro plan)
+- `marmot api exa find-similar <url>`
+- `marmot api firecrawl llmstxt --url <url>` / `marmot api firecrawl llmstxt-status <id>` / `marmot api firecrawl usage`
+- `marmot api tavily usage`
+
+For cross-cutting flags every verb shares, see [Common flags](/docs/reference/commands/common-flags).

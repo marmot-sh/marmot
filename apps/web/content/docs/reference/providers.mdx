@@ -1,0 +1,106 @@
+---
+title: Providers
+description: Supported providers and the capability matrix.
+---
+
+Every verb runs through a provider. Set a default per verb (run `marmot setup`, or write directly to `~/.marmot/ai/config.json`), or override per call with `--provider <slug>`.
+
+## AI providers
+
+| Provider | Slug | Capabilities | Env var |
+| --- | --- | --- | --- |
+| OpenRouter | `openrouter` | text, image, speech, transcription | `OPENROUTER_API_KEY` |
+| Anthropic | `anthropic` | text | `ANTHROPIC_API_KEY` |
+| OpenAI | `openai` | text, image, speech, transcription | `OPENAI_API_KEY` |
+| Vercel AI Gateway | `vercel` | text, image, speech, transcription | `AI_GATEWAY_API_KEY` |
+| Cloudflare Workers AI | `cloudflare` | text, image, speech, transcription | `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` |
+| Ollama | `ollama` | text (local) | `OLLAMA_HOST` (no key) |
+
+## Web data providers
+
+| Provider | Slug | Env var |
+| --- | --- | --- |
+| Brave Search | `brave` | `BRAVE_API_KEY` |
+| Exa | `exa` | `EXA_API_KEY` |
+| Firecrawl | `firecrawl` | `FIRECRAWL_API_KEY` |
+| Parallel | `parallel` | `PARALLEL_API_KEY` |
+| Tavily | `tavily` | `TAVILY_API_KEY` |
+
+## People and org providers
+
+| Provider | Slug | Capabilities | Env var |
+| --- | --- | --- | --- |
+| Apollo | `apollo` | `enrich`, `lookup` (paid plan only for `lookup` and `enrich --type person`) | `APOLLO_API_KEY` |
+| Hunter | `hunter` | `enrich`, `lookup --type email`, `verify --type email` | `HUNTER_API_KEY` |
+| People Data Labs | `pdl` | `enrich`, `lookup` | `PDL_API_KEY` |
+| Tomba | `tomba` | `enrich`, `lookup --type email`, `lookup --type org`, `verify --type email` | `TOMBA_API_KEY` + `TOMBA_SECRET_KEY` |
+| Bouncer | `bouncer` | `verify --type email` | `BOUNCER_API_KEY` |
+| Datagma | `datagma` | `enrich --type person` (with mobile phone), `verify --type email` | `DATAGMA_API_KEY` |
+| ZeroBounce | `zerobounce` | `verify --type email` | `ZEROBOUNCE_API_KEY` |
+| Kickbox | `kickbox` | `verify --type email` | `KICKBOX_API_KEY` |
+
+## Capability matrix
+
+Not every provider supports every verb. Marmot validates the verb-provider pair at parse time. If the pair is unsupported, the call errors and lists the providers that do support the verb.
+
+### Web data verbs
+
+| Verb | Brave | Exa | Firecrawl | Parallel | Tavily |
+| --- | :-: | :-: | :-: | :-: | :-: |
+| `search` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `scrape` |  | ✓ | ✓ | ✓ | ✓ |
+| `answer` | ✓ chained | ✓ |  |  | ✓ inline |
+| `map` |  |  | ✓ |  | ✓ |
+| `crawl` |  |  | ✓ async |  | ✓ sync |
+| `research` |  | ✓ | ✓ | ✓ | ✓ |
+| `findall` |  | ✓ |  | ✓ |  |
+
+### People and org verbs
+
+| Verb and type | Apollo | Hunter | PDL | Tomba | Bouncer | Datagma | ZeroBounce | Kickbox |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `enrich --type person` | ✓ | ✓ | ✓ | ✓ |  | ✓ ¹ |  |  |
+| `enrich --type org` | ✓ | ✓ | ✓ | ✓ |  |  |  |  |
+| `lookup --type person` | ✓ |  | ✓ |  |  |  |  |  |
+| `lookup --type org` | ✓ |  | ✓ | ✓ |  |  |  |  |
+| `lookup --type email` |  | ✓ |  | ✓ |  |  |  |  |
+| `verify --type email` |  | ✓ |  | ✓ | ✓ ² | ✓ | ✓ ³ | ✓ ⁴ |
+
+¹ Datagma is the only enrichment provider that returns mobile phone numbers on the free tier.
+² Bouncer is the only verifier that returns a `retryAfter` hint for greylisted addresses, plus toxicity (0–5) and resolved MX provider in the raw response.
+³ ZeroBounce returns the deepest sub-status taxonomy (30+ values) for diagnosing why an email failed verification.
+⁴ Kickbox is owned by Sendgrid/Twilio and returns a unique `sendex` confidence score (0–1, projected to 0–100 in the envelope's `score`).
+
+## Plan-tier notes
+
+A handful of cells in the matrix above need a paid plan to work. Listed here so the matrix stays scannable.
+
+- **Brave `answer`** chains `web/search` into the Summarizer API, which requires a Pro Brave Search plan. Free-tier keys never receive a `summarizer.key`.
+- **Exa `findall`** uses the Websets API, which requires a Pro Exa plan. Personal plans return 401.
+- **Apollo `lookup` and `enrich --type person`** require a paid plan with master-key access. Free-tier keys return 403 with `error_code: API_INACCESSIBLE`.
+
+## API key precedence
+
+Per call:
+
+1. `--api-key <key>` flag, where supported
+2. Custom env var name from `providers.<slug>.apiKeyEnvVar` in config, if set
+3. The provider's built-in env var (`APOLLO_API_KEY`, `TAVILY_API_KEY`, etc.)
+4. Auth error if none is set
+
+## Per-provider settings
+
+In addition to verb defaults, each provider supports its own settings block. See [Configuration](/docs/reference/configuration#providers) for the full schema. Three knobs:
+
+- **Enable / disable.** Pause a provider without removing its key. Disabled providers error early on every call routed to them.
+- **Custom env var names.** Override the built-in env var name (e.g. read `MY_APOLLO_KEY` instead of `APOLLO_API_KEY`). Useful when you already use the default name for another tool.
+- **Response cache.** Web and data providers only. Cache responses on disk for a configurable TTL so repeat calls skip the network. Disabled by default. See [Caching](/docs/reference/caching).
+
+Walk through these via `marmot setup` (the "Configure provider settings" entry) or set them directly:
+
+```bash
+marmot config set providers.tavily.enabled false
+marmot config set providers.tavily.cache.enabled true
+marmot config set providers.tavily.cache.ttlDays 14
+marmot config set providers.apollo.apiKeyEnvVar MY_APOLLO_KEY
+```

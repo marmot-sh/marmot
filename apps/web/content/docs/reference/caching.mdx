@@ -1,0 +1,107 @@
+---
+title: Caching
+description: Cache web and data provider responses locally so repeat calls within a TTL skip the network.
+---
+
+Web and data calls are metered. Marmot can cache responses on disk and short-circuit repeat calls within a TTL so you don't pay twice for the same query. Caching is **disabled by default** and configured per provider.
+
+## What's cached
+
+Sync verbs only:
+
+- Web: `search`, `scrape`, `answer`, `map`
+- Data: `enrich`, `lookup`, `verify`
+
+Async verbs (`research`, `crawl`, `findall`, `get`) are not cached. They tend to be one-off, run for minutes, and produce large responses that don't usefully replay.
+
+AI verbs (`run`, `image`, `speak`, `transcribe`) are not cached either. AI inputs vary every call and per-token billing is usually cheaper than the cost of cache management.
+
+## Enable caching
+
+Per provider, in `~/.marmot/ai/config.json`:
+
+```json
+{
+  "providers": {
+    "tavily": { "cache": { "enabled": true, "ttlDays": 30 } },
+    "exa": { "cache": { "enabled": true, "ttlDays": 14 } }
+  }
+}
+```
+
+Default `ttlDays` is 30 when caching is enabled. Set with the CLI:
+
+```bash
+marmot config set providers.tavily.cache.enabled true
+marmot config set providers.tavily.cache.ttlDays 14
+```
+
+Or run `marmot setup` and pick caching settings during the walkthrough.
+
+## How it works
+
+When a sync verb runs:
+
+1. Marmot computes a SHA-256 hash of the canonical request payload (verb plus normalized input; `apiKey`, `apiSecret`, `fetchFn`, `abortSignal` are excluded).
+2. If `providers.<slug>.cache.enabled` is true, Marmot checks `~/.marmot/ai/cache/responses/<provider>/<hash>.json`.
+3. On a hit within the TTL, the cached response is returned. The envelope includes `"cached": true`.
+4. On a miss or expiry, the adapter is called and the fresh response is written to the cache.
+
+Identical inputs map to the same hash regardless of key order, so `{q: 'x', limit: 5}` and `{limit: 5, q: 'x'}` share an entry.
+
+## Per-call flags
+
+| Flag | Effect |
+| --- | --- |
+| `--no-cache` | Skip cache read **and** write for this call. Useful for one-off fresh fetches without disturbing the cached entry. |
+| `--refresh` | Skip cache read but write the fresh response. Forces a network call and overwrites the cached entry. |
+
+## Inspect
+
+`marmot config show` includes a "Response cache" section listing the total entry count and bytes on disk, plus a per-provider breakdown:
+
+```
+Response cache:
+  total: 42 entries · 1.2 MB
+  tavily        18 entries · 540 KB
+  parallel      12 entries · 420 KB
+  exa           12 entries · 280 KB
+```
+
+For a deeper view (timestamps of the oldest and newest entries) use the dedicated cache command:
+
+```bash
+marmot cache stats
+marmot cache stats --provider tavily
+```
+
+Both `marmot config show --json` and `marmot cache stats` return the same numbers in the structured envelope under `cache.totals` / `cache.providers`.
+
+## Invalidate
+
+Three granularities, choose the right one:
+
+```bash
+# Wipe everything Marmot has cached.
+marmot cache clear --all
+
+# Wipe one provider's cache.
+marmot cache clear --provider exa
+
+# Drop entries whose query label matches a substring (provider-scoped).
+marmot cache clear --provider exa --query "rag"
+
+# Drop entries older than N days.
+marmot cache clear --provider exa --older-than 7
+marmot cache clear --all --older-than 30
+```
+
+The `--query` filter matches against the human-readable label Marmot stores alongside each entry. For `search` it's the query string; for `enrich` it's the email or LinkedIn URL; for `verify` it's the email. Casing doesn't matter.
+
+## Storage location
+
+```
+~/.marmot/ai/cache/responses/<provider>/<sha256>.json
+```
+
+Each entry holds the request hash, verb, requested-at timestamp, TTL in seconds, the response, and an optional `query` label. Files are written with mode `0o600` (owner read/write only); directories are `0o700`.

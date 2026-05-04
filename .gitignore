@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/cache
+.yarn/install-state.gz
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+.turbo/
+.vite/
+*.tgz
+*.tsbuildinfo
+
+# Compiled artifacts that occasionally leak into src/ when tsc is run with a
+# misconfigured rootDir/outDir. Source is *.ts; everything else here is generated.
+**/src/**/*.js
+**/src/**/*.js.map
+**/src/**/*.d.ts
+**/src/**/*.d.ts.map
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+.eslintcache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local overrides
+*.local
+
+# Deployment
+.vercel/
+.netlify/
+
+# Stray test artifacts at repo root (CLI image/speak/transcribe outputs).
+# Catches both default-named provider outputs (openai-*.png, etc.) and one-off
+# names used while debugging (cat.png, hello.mp3). Real assets live nested
+# under apps/*/public/ or similar, so this is root-level only.
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.mp3
+/*.wav
+/*.flac
+/*.m4a
+/*.ogg
+
+# Private / local-only
+_docs/
+.agents/
+.claude/
+skills-lock.json

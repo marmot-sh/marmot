@@ -1,0 +1,97 @@
+{
+  "name": "@marmot-sh/cli",
+  "version": "0.1.0",
+  "description": "Marmot — unified CLI for AI generation, web research, and data lookup.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Marmot",
+  "homepage": "https://marmot.sh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marmot-sh/marmot.git",
+    "directory": "apps/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/marmot-sh/marmot/issues"
+  },
+  "keywords": [
+    "cli",
+    "ai",
+    "openrouter",
+    "anthropic",
+    "openai",
+    "tavily",
+    "exa",
+    "firecrawl",
+    "parallel",
+    "brave-search",
+    "search",
+    "scraping",
+    "research"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "marmot": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --exclude=\"**/run-*-command.test.ts\" --exclude=\"**/run-command.test.ts\" --exclude=\"**/stream-run-command.test.ts\" --exclude=\"**/object-run-command.test.ts\" --exclude=\"**/retry-run-command.test.ts\"",
+    "test:text": "vitest run tests/run-command.test.ts tests/stream-run-command.test.ts tests/object-run-command.test.ts tests/retry-run-command.test.ts",
+    "test:image": "vitest run tests/run-image-command.test.ts",
+    "test:speech": "vitest run --passWithNoTests tests/run-speak-command.test.ts",
+    "test:transcribe": "vitest run --passWithNoTests tests/run-transcribe-command.test.ts",
+    "test:all": "vitest run",
+    "clean": "rm -rf dist",
+    "lint": "eslint src",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "check": "pnpm lint && pnpm check-types && echo \"✅ All checks passed\" || { echo \"❌ Checks failed\"; exit 1; }",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@clack/prompts": "^1.3.0",
+    "@marmot-sh/anthropic": "workspace:*",
+    "@marmot-sh/apollo": "workspace:*",
+    "@marmot-sh/bouncer": "workspace:*",
+    "@marmot-sh/brave": "workspace:*",
+    "@marmot-sh/cloudflare": "workspace:*",
+    "@marmot-sh/core": "workspace:*",
+    "@marmot-sh/datagma": "workspace:*",
+    "@marmot-sh/exa": "workspace:*",
+    "@marmot-sh/firecrawl": "workspace:*",
+    "@marmot-sh/hunter": "workspace:*",
+    "@marmot-sh/kickbox": "workspace:*",
+    "@marmot-sh/ollama": "workspace:*",
+    "@marmot-sh/openai": "workspace:*",
+    "@marmot-sh/openrouter": "workspace:*",
+    "@marmot-sh/parallel": "workspace:*",
+    "@marmot-sh/pdl": "workspace:*",
+    "@marmot-sh/tavily": "workspace:*",
+    "@marmot-sh/tomba": "workspace:*",
+    "@marmot-sh/tsconfig": "workspace:*",
+    "@marmot-sh/vercel": "workspace:*",
+    "@marmot-sh/zerobounce": "workspace:*",
+    "@types/node": "^25.6.0",
+    "ai": "^6.0.168",
+    "commander": "^14.0.3",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5",
+    "zod": "^4.3.6"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ansis": "^4.2.0"
+  }
+}

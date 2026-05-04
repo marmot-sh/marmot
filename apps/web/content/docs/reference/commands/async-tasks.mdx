@@ -1,0 +1,130 @@
+---
+title: Async tasks
+description: marmot get and marmot tasks — poll and manage long-running provider tasks.
+---
+
+Some verbs take seconds or minutes to finish. `research`, Firecrawl `crawl`, and `findall` submit a task to the provider and either poll on your behalf (the default) or hand you the task id to follow up later. A local index at `~/.marmot/ai/tasks.json` keeps track of every submission so nothing gets lost.
+
+```bash
+marmot research <query> [--async | --wait] [flags…]
+marmot crawl <url> [--async | --wait] [flags…]
+marmot findall <objective> [--async | --wait] [flags…]
+marmot get <id> [flags…]
+marmot tasks list [flags…]
+marmot tasks show <id>
+marmot tasks remove <id>
+marmot tasks prune [flags…]
+```
+
+## Submit and wait
+
+With no flags, marmot blocks, polls until the task reaches a terminal status (done, failed, or cancelled), and prints the final envelope. A spinner ticks elapsed time on stderr.
+
+```bash
+marmot research "compare postgres 17 vs 16" --provider parallel
+```
+
+`--retries <n>` retries the **initial submission** up to N times with exponential backoff if the provider returns a transient error (network blip, 5xx, 429). The polling loop has its own retry behavior and is unaffected. `--timeout <seconds>` sets the per-attempt submit timeout.
+
+```bash
+marmot research "..." --provider parallel --retries 3
+```
+
+## Submit and exit
+
+Pass `--async` to return the task id immediately and exit. Useful for scripts that kick off work and check back later.
+
+```bash
+marmot research "..." --async --provider parallel
+```
+
+The response includes a `next` field with the exact follow-up command:
+
+```json
+{
+  "ok": true,
+  "provider": "parallel",
+  "verb": "research",
+  "taskId": "trun_abc...",
+  "status": "queued",
+  "next": "marmot get trun_abc..."
+}
+```
+
+Whether you used `--wait` or `--async`, the task is recorded locally. If you Ctrl-C a `--wait` mid-poll, the id is still in the index, and `marmot tasks list` will surface it.
+
+## Polling tasks
+
+```bash
+marmot get <id> [flags…]
+```
+
+`marmot get` is the universal poll and retrieve verb for `research`, `crawl`, and `findall` tasks. A single status check by default; add `--wait` to poll to completion.
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | Provider that issued the task id. Inferred from the local task index when present; required only when the task is not in the index. |
+| `--verb <name>` | `research`, `crawl`, or `findall`. Inferred from the local task index when possible. Required when the id is not in the index. |
+| `--api-key <key>` | Override the env var. |
+| `--wait` | Block and re-poll until terminal status. Otherwise a single check. |
+| `--raw` | Emit the provider's native response under `raw`. |
+| `--json` | Emit the structured envelope. The default. |
+
+Every poll updates `lastCheckedAt` and `status` on the local record. On terminal status, `completedAt` is stamped.
+
+## Managing tasks
+
+`marmot tasks` browses and cleans up the local index. Records live at `~/.marmot/ai/tasks.json`, file mode `0o600`. Every async submission writes a record automatically. `marmot get` updates it.
+
+```bash
+marmot tasks list   [flags…]
+marmot tasks show   <id>
+marmot tasks remove <id>
+marmot tasks prune  [flags…]
+```
+
+### `tasks list`
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | Filter by provider. |
+| `--verb <name>` | Filter by verb. |
+| `--status <name>` | `queued`, `running`, `done`, `failed`, or `cancelled`. |
+| `--limit <n>` | Cap rows returned. Newest first. |
+
+### `tasks show <id>`
+
+Print one record.
+
+### `tasks remove <id>`
+
+Drop a record from the local index. This does **not** cancel on the provider. Cancellation is not yet exposed as a marmot flag — use the provider's dashboard or API to cancel an in-flight task; the local index will pick up the terminal status on the next `marmot get` poll.
+
+### `tasks prune`
+
+| Flag | Description |
+| --- | --- |
+| `--older-than <days>` | Cutoff in days (default 30). Only terminal-state records are removed. |
+
+`prune` only removes terminal-state records (done, failed, cancelled). In-flight tasks are never auto-removed.
+
+## Record shape
+
+```json
+{
+  "taskId": "trun_abc…",
+  "provider": "parallel",
+  "verb": "research",
+  "status": "done",
+  "createdAt": "2026-05-02T15:00:00.000Z",
+  "lastCheckedAt": "2026-05-02T15:02:30.000Z",
+  "completedAt": "2026-05-02T15:02:30.000Z",
+  "label": "first 80 chars of the original query"
+}
+```
+
+## Limitations
+
+- Streaming. `--stream` is reserved for `marmot run`. Web and data verbs poll; they do not stream.
+- Webhooks. Marmot polls and does not accept callbacks.
+- Recurring monitors. Only one-shot tasks are supported. Cron-like schedules are out of scope.

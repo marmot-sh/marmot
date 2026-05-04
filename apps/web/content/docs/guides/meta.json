@@ -1,0 +1,11 @@
+{
+  "title": "Use Marmot",
+  "pages": [
+    "scripts-and-pipes",
+    "agent-workflows",
+    "reusable-commands",
+    "context-and-history",
+    "caching-data-calls"
+  ],
+  "defaultOpen": true
+}

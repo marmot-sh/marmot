@@ -1,0 +1,137 @@
+---
+title: Sessions
+description: marmot session — create, bind, inspect, and compact local sessions.
+---
+
+Use sessions to group related calls. A session can log calls only (`stateless`) or log calls and carry text history (`chat`).
+
+```bash
+marmot session create <name> [flags…]
+marmot session use <name>
+marmot session current
+marmot session end
+marmot session list
+marmot session show <name>
+marmot session delete <name> [flags…]
+marmot session log <name> [flags…]
+marmot session tail <name>
+marmot session stats <name>
+marmot session context <name> [flags…]
+marmot session reset <name>
+marmot session fork <src> <dest>
+marmot session export <name> [flags…]
+marmot session mark <name> <label>
+marmot session compact <name> [flags…]
+```
+
+## Create
+
+```bash
+marmot session create <name> [flags…]
+```
+
+Creates a session. Session names use the same slug rules as presets.
+
+| Flag | Description |
+| --- | --- |
+| `--mode <mode>` | `stateless` or `chat`. Defaults to `stateless`. |
+| `--preset <name>` | Default preset for calls in this session. Chat sessions only accept text presets. |
+| `--label <text>` | Human-readable label stored in session metadata. |
+| `--record-prompts` | Log full prompt and system bodies. Off by default for privacy. |
+
+## Bind
+
+```bash
+marmot session use <name>
+marmot session current
+marmot session end
+```
+
+`use` sets the global current-session pointer. Calls without `--session <name>` auto-tag into that session until you run `session end` or switch pointers.
+
+To bind one call without changing the pointer:
+
+```bash
+marmot --session <name> "summarize this"
+```
+
+## List and show
+
+```bash
+marmot session list
+marmot session show <name>
+```
+
+`list` prints every session. `show` prints metadata, token totals, and context-window usage for chat sessions.
+
+## Delete
+
+```bash
+marmot session delete <name> [flags…]
+```
+
+| Flag | Description |
+| --- | --- |
+| `--keep-log` | Preserve `log.jsonl`; remove metadata and chat messages. |
+
+## Logs
+
+```bash
+marmot session log <name> [flags…]
+marmot session tail <name>
+marmot session stats <name>
+```
+
+| Flag | Description |
+| --- | --- |
+| `--since <ts>` | ISO timestamp lower bound for `session log`. |
+| `--limit <n>` | Cap `session log` to the most recent N records. |
+| `--table` | Render `session log` as a table. JSON is the default. |
+
+`tail` follows log output until Ctrl-C. `stats` prints token totals and cache hit rate.
+
+## Chat history
+
+```bash
+marmot session context <name> [flags…]
+marmot session reset <name>
+marmot session fork <src> <dest>
+marmot session export <name> [flags…]
+```
+
+These commands operate on chat-mode history. `fork` copies metadata, logs, and messages into a new session.
+
+| Flag | Description |
+| --- | --- |
+| `--json` | Render `session context` as structured JSON instead of text. |
+| `--format <format>` | Export format for `session export`: `jsonl` or `md`. Defaults to `jsonl`. |
+
+## Context window
+
+```bash
+marmot session mark <name> <label>
+marmot session compact <name> [flags…]
+```
+
+`mark` writes a boundary into chat history. `compact` summarizes older messages and rotates the previous `messages.jsonl` file for recovery.
+
+| Flag | Description |
+| --- | --- |
+| `--keep-last <n>` | Preserve the most recent N messages verbatim. Default 4. |
+| `--target-tokens <n>` | Advisory token budget for the summary. |
+
+## Files
+
+Sessions live under `$MARMOT_HOME/sessions/`. `MARMOT_HOME` defaults to `~/.marmot/ai`.
+
+```
+$MARMOT_HOME/
+├── current-session
+└── sessions/
+    └── <name>/
+        ├── meta.json
+        ├── log.jsonl
+        └── messages.jsonl
+```
+
+`messages.jsonl` exists only for chat sessions. API keys are never logged. Prompt bodies are logged only when the session was created with `--record-prompts`.

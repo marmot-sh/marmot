@@ -1,0 +1,113 @@
+---
+title: Enrich
+description: marmot enrich — identifier in, full record out. Backed by Apollo, Hunter, PDL, Tomba, Datagma.
+---
+
+```bash
+marmot enrich --type <person|org> [identifier flags…] [--provider <slug>]
+```
+
+Enrich takes a partial record (an email, a LinkedIn URL, a domain, a name + company) and returns a fuller record from the provider's graph. One identifier in, one record out. No search, no fan-out.
+
+## Capability matrix
+
+| Type | Apollo | Hunter | PDL | Tomba | Datagma |
+| --- | :-: | :-: | :-: | :-: | :-: |
+| `person` | ✓ | ✓ ¹ | ✓ | ✓ ¹ | ✓ ² |
+| `org` | ✓ | ✓ | ✓ | ✓ |  |
+
+¹ Hunter and Tomba person-enrich take either `--email` (routes to `/combined/find`) or `--first-name + --last-name + --domain` (routes to `/email-finder`, which synthesizes the most likely email).
+² Datagma is the only provider that returns mobile phone numbers on the free tier. The adapter sets `phoneFull=true` on every call so the response includes mobile (10 credits per record vs 1 without).
+
+## Identifier flags
+
+Pass any combination. Not every provider accepts every identifier — the adapter routes accordingly.
+
+| Flag | Person | Org | Notes |
+| --- | :-: | :-: | --- |
+| `--email <addr>` | ✓ | — | Apollo, Hunter, PDL, Tomba all accept. |
+| `--email-hash <hex>` | ✓ | — | MD5 or SHA-256. Apollo and PDL only. |
+| `--linkedin <url>` | ✓ | ✓ | Apollo person-only via `linkedin_url`; PDL via `profile`. |
+| `--phone <number>` | ✓ | — | PDL only. |
+| `--name <full>` | ✓ | ✓ | Org name fallback when `--domain` isn't known. |
+| `--first-name <first>` | ✓ | — | Pair with `--last-name` (and `--domain` for Hunter/Tomba). |
+| `--last-name <last>` | ✓ | — | Pair with `--first-name`. |
+| `--middle-name <middle>` | ✓ | — | PDL only. |
+| `--domain <domain>` | sharpens | ✓ | Required for Apollo/Hunter/Tomba org-enrich. |
+| `--company <ref>` | sharpens | — | Employer name, domain, or social URL (PDL). |
+| `--website <url>` | — | ✓ | PDL preferred for org-enrich (high precision). |
+| `--ticker <symbol>` | — | ✓ | PDL only. |
+| `--provider-id <id>` | ✓ | ✓ | Apollo `id` / PDL `pdl_id` for re-fetch. |
+
+## Match controls
+
+| Flag | Description |
+| --- | --- |
+| `--min-likelihood <n>` | Reject below this provider-defined score (PDL: 1–10). |
+| `--require <fields>` | Comma-separated; result must have these fields populated. |
+| `--fields <list>` | Comma-separated; restrict response payload (no cost reduction). |
+
+## Common flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | `apollo`, `hunter`, `pdl`, `tomba`, `datagma` (person only). Falls back to `defaults.enrich.provider`. |
+| `--api-key <key>` | Override the env var for this call. |
+| `--raw` | Emit the provider's native response under `raw` instead of the normalized envelope. |
+| `--no-cache` | Bypass the response cache for this call. Skip read and skip write. |
+| `--refresh` | Skip cache read but write the fresh response, overwriting any cached entry. |
+| `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt request timeout. Default 120. |
+
+Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
+
+## Examples
+
+```bash
+marmot enrich --type person --email tcook@apple.com --provider hunter
+marmot enrich --type person --first-name Tim --last-name Cook --domain apple.com --provider pdl
+marmot enrich --type person --linkedin linkedin.com/in/tcook --provider apollo
+marmot enrich --type org --domain stripe.com --provider pdl
+marmot enrich --type org --domain stripe.com --provider apollo --raw
+```
+
+## Envelope
+
+```json
+{
+  "ok": true,
+  "provider": "hunter",
+  "verb": "enrich",
+  "type": "person",
+  "data": {
+    "person": {
+      "fullName": "…", "firstName": "…", "lastName": "…",
+      "email": "…", "phone": null, "linkedin": "…", "twitter": "…",
+      "title": "…", "seniority": null, "department": null,
+      "providerId": "…", "confidence": 97, "location": "…",
+      "org": { "name": "…", "domain": "…", "industry": "…", "headcount": 500, "…": "…" }
+    }
+  },
+  "raw": null,
+  "usage": null,
+  "timestamp": "2026-05-02T21:17:19.600Z"
+}
+```
+
+For `--type org`, `data` is `{ "org": {…} }` instead. Both shapes return `{ "person": null }` / `{ "org": null }` when the provider has no match (no error, just an empty result).
+
+## Config
+
+```json
+{ "defaults": { "enrich": { "provider": "pdl" } } }
+```
+
+Set via `marmot setup` (Configure data verb defaults) or `marmot config set enrich.provider <slug>`.
+
+## Plan-tier notes
+
+- **Apollo `/people/match`** is gated on free plans. Free-tier keys get HTTP 403 with `error_code: API_INACCESSIBLE`. Upgrade or switch providers.
+- **PDL `dataset=mobile_phone`** and `dataset=street_address` are plan-gated. The adapter passes provider 403s through verbatim.
+- **Hunter** has separate counters for `searches` / `verifications` / `credits`. `marmot enrich` consumes `credits`.
+- **Tomba** uses dual-key auth (`TOMBA_API_KEY` + `TOMBA_SECRET_KEY`); both must be set. Credit-counter shape mirrors Hunter (`searches`, `verifications`, `credits`).
+- **Datagma** charges 10 credits per enrich call when `phoneFull` is enabled (the adapter always enables it for `enrich.person`). Single API key passed via `?apiId=` query param. Org enrichment is not supported; use Apollo, Hunter, PDL, or Tomba for `enrich --type org`.

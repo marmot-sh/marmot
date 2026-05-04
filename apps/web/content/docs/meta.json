@@ -1,0 +1,11 @@
+{
+  "title": "Marmot Documentation",
+  "pages": [
+    "index",
+    "installation",
+    "quickstart",
+    "guides",
+    "reference"
+  ],
+  "defaultOpen": true
+}

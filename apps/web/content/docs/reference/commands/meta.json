@@ -1,0 +1,13 @@
+{
+  "title": "Commands",
+  "pages": [
+    "overview",
+    "common-flags",
+    "presets",
+    "sessions",
+    "async-tasks",
+    "ai",
+    "data"
+  ],
+  "defaultOpen": true
+}

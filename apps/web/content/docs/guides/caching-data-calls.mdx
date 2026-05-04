@@ -1,0 +1,41 @@
+---
+title: Caching data calls
+description: Cache repeat web and data calls when freshness is less important than speed and cost.
+---
+
+Web search, scraping, enrichment, and verification calls are often metered. Marmot can cache provider responses on disk so repeated calls with the same input return quickly and skip the network.
+
+Caching is disabled by default. Enable it per provider when repeated inputs are likely and the data does not need to be fresh every time.
+
+## When to use it
+
+Use caching for:
+
+- repeatable search or lookup scripts
+- local demos
+- enrichment or verification batches that may be rerun
+- agent workflows where a search or scrape may be retried
+
+Skip caching when every call must be fresh, or when the input is unlikely to repeat.
+
+## Enable it
+
+```bash
+marmot config set providers.tavily.cache.enabled true
+marmot config set providers.tavily.cache.ttlDays 14
+```
+
+Caching applies to sync web and data verbs: `search`, `scrape`, `answer`, `map`, `enrich`, `lookup`, and `verify`.
+
+It does not cache AI verbs, and it does not cache async task results from `research`, `crawl`, or `findall`.
+
+## Force freshness
+
+Use per-call flags when one call needs different cache behavior.
+
+| Flag | What it does |
+| --- | --- |
+| `--no-cache` | Skip cache read and write for this call. |
+| `--refresh` | Skip cache read, make a fresh provider call, and overwrite the cached entry. |
+
+For storage paths, invalidation commands, and exact cache-key behavior, see [Caching reference](/docs/reference/caching).

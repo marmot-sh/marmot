@@ -1,0 +1,48 @@
+---
+title: Scripts and pipes
+description: Compose Marmot with stdin, stdout, files, retries, and async tasks.
+---
+
+Marmot is meant to fit into normal shell workflows. It reads from stdin, writes useful output to stdout, and keeps status output on stderr so scripts can pipe results without cleaning up progress messages.
+
+```bash
+git diff | marmot 'summarize the risky changes'
+marmot search 'recent pgvector benchmarks' --provider tavily | marmot 'summarize the useful claims'
+```
+
+## Clean output
+
+Text generation prints plain text by default. Web and data verbs print JSON envelopes by default because they return structured records.
+
+Use output flags when a script needs a specific shape:
+
+| Flag | What it is for |
+| --- | --- |
+| `--json` | Structured envelope for parsing with `jq` or another tool. |
+| `--text` | Plain text output when a command supports it. |
+| `--raw` | Provider-native body for web and data calls. |
+| `-o <path>` | Write the main output to a file. |
+
+## Reliable calls
+
+Use retries and timeouts around provider calls that may fail transiently.
+
+```bash
+marmot search 'new SEC climate disclosure rules' \
+  --provider tavily \
+  --retries 3 \
+  --timeout 30
+```
+
+`--retries` retries retryable provider errors such as 429s, 5xxs, and network failures. `--timeout` caps each attempt.
+
+## Long work
+
+Some data verbs take longer than a normal command. `research`, Firecrawl `crawl`, and `findall` poll by default. Add `--async` when a script should submit work and check back later.
+
+```bash
+marmot research 'compare Postgres 17 and 16' --provider parallel --async
+marmot get trun_abc...
+```
+
+For every shared flag, see [Common flags](/docs/reference/commands/common-flags). For polling and task cleanup, see [Async tasks](/docs/reference/commands/async-tasks).

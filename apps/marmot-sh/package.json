@@ -1,0 +1,59 @@
+{
+  "name": "marmot-sh",
+  "version": "0.1.0",
+  "description": "Unscoped install alias for marmot — the unified CLI for AI, search, and enrichment. `npm install -g marmot-sh`. Identical artifact to @marmot-sh/cli; published under the bare name for shorter install commands and npm search discoverability.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Marmot",
+  "homepage": "https://marmot.sh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marmot-sh/marmot.git",
+    "directory": "apps/marmot-sh"
+  },
+  "bugs": {
+    "url": "https://github.com/marmot-sh/marmot/issues"
+  },
+  "keywords": [
+    "cli",
+    "ai",
+    "openrouter",
+    "anthropic",
+    "openai",
+    "tavily",
+    "exa",
+    "firecrawl",
+    "parallel",
+    "brave-search",
+    "search",
+    "scraping",
+    "research",
+    "enrichment",
+    "marmot"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "marmot": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "node scripts/sync-from-cli.js",
+    "typecheck": "echo \"marmot-sh: shim package, no source\" && exit 0",
+    "test": "echo \"marmot-sh: shim package, no tests\" && exit 0",
+    "test:all": "echo \"marmot-sh: shim package, no tests\" && exit 0",
+    "lint": "echo \"marmot-sh: shim package, no source\" && exit 0",
+    "check-types": "echo \"marmot-sh: shim package, no source\" && exit 0",
+    "check": "echo \"marmot-sh: shim package, nothing to check\" && exit 0",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm --filter @marmot-sh/cli build && pnpm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,41 @@
+---
+title: Answer
+description: marmot answer — query → answer with citations.
+---
+
+```bash
+marmot answer <query> [flags…]
+```
+
+## Providers
+
+`brave`, `exa`, `tavily`.
+
+| Provider | How it works |
+| --- | --- |
+| Brave | Chained: `web/search?summary=1` → `summarizer/search`. Requires Brave Pro plan. |
+| Exa | Single `/answer` call. |
+| Tavily | Inline via `/search` with `include_answer=advanced`. |
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | One of the three. Falls back to `defaults.answer.provider`. |
+| `--api-key <key>` | Override the env var. |
+| `--max-citations <n>` | Cap citations included (default 8). |
+| `--include-search` | Also return the underlying search results alongside the answer. |
+| `--raw` | Emit the provider's native response under `raw`. |
+| `--json` | Emit the structured envelope (default). |
+| `--no-cache` | Bypass the response cache for this call. Skip read and skip write. |
+| `--refresh` | Skip cache read but write the fresh response, overwriting any cached entry. |
+| `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt request timeout. Default 120. |
+
+Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
+
+## Config keys
+
+```json
+{ "defaults": { "answer": { "provider": "tavily" } } }
+```

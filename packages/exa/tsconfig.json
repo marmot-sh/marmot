@@ -1,0 +1,12 @@
+{
+  "extends": "@marmot-sh/tsconfig/library.json",
+  "compilerOptions": {
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/**/*",
+    "tests/**/*"
+  ]
+}

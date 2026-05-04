@@ -1,0 +1,92 @@
+---
+title: Installation
+description: Install Marmot and connect your first provider.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Install
+
+```bash
+npm install -g marmot-sh
+```
+
+This installs the `marmot` command. It requires Node 20 or later.
+
+If you prefer scoped packages, install the canonical package instead:
+
+```bash
+npm install -g @marmot-sh/cli
+```
+
+Both packages publish the same binary.
+
+## Add one provider
+
+For the fastest cloud setup, set an OpenRouter key:
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+Marmot reads keys from environment variables. It does not write key values to
+`~/.marmot/ai/config.json`.
+
+If you use local models, start Ollama instead. Ollama needs no API key.
+
+```bash
+ollama serve
+```
+
+If Ollama is not running on `http://localhost:11434`, set `OLLAMA_HOST`.
+
+## Run it
+
+```bash
+marmot 'write a haiku about caching'
+```
+
+On the first AI call, Marmot detects the providers available in your shell,
+chooses a default, writes it to `~/.marmot/ai/config.json`, and continues the
+call. You can change that default later with `marmot setup`.
+
+<Callout>
+  Web and data verbs do not auto-configure. On first use, pass `--provider`
+  or set a default with `marmot setup`.
+</Callout>
+
+## Optional setup
+
+Run setup when you want to choose defaults interactively.
+
+```bash
+marmot setup
+```
+
+Use it to:
+
+- choose providers and models
+- set custom environment variable names
+- enable response caching
+- install the Marmot agent skill
+
+## Agent skill
+
+If you use Claude Code, Codex, OpenCode, or a similar harness, install the
+Marmot skill so the agent knows the command shape and provider matrix.
+
+```bash
+marmot setup
+```
+
+Choose **Install agent skill**. Marmot detects installed harnesses and links the
+skill into the right skill directory.
+
+You can also install with the `skills` CLI:
+
+```bash
+npx skills add https://github.com/marmot-sh/marmot --skill marmot
+```
+
+Next: [Quickstart](/docs/quickstart), then [Agent workflows](/docs/guides/agent-workflows)
+if you want an agent to call Marmot directly.

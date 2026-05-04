@@ -1,0 +1,110 @@
+---
+title: Verify
+description: marmot verify — email deliverability check via Hunter, Tomba, Bouncer, Datagma, ZeroBounce, or Kickbox.
+---
+
+```bash
+marmot verify <email> [--provider hunter|tomba|bouncer|datagma|zerobounce|kickbox]
+marmot verify --email <email> [--provider <slug>]
+```
+
+Verify checks an email's deliverability against one of six providers. Each returns the same normalized `{deliverable, status, score, checks{...}}` envelope so callers don't have to special-case the provider.
+
+## Capability matrix
+
+| Type | Hunter | Tomba | Bouncer | Datagma | ZeroBounce | Kickbox |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: |
+| `email` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+## Picking a provider
+
+| If you want… | Use |
+| --- | --- |
+| Deepest diagnostic detail (30+ sub-statuses) | **ZeroBounce** |
+| Greylist-aware retry hints + toxicity scoring | **Bouncer** |
+| Verify alongside enrich+phone in one provider | **Datagma** |
+| Cheapest free tier (`searches`/`verifications` split) | **Hunter** |
+| 30-day request dedup as a built-in saving | **Tomba** |
+| Sendgrid/Twilio brand trust + 0–1 Sendex confidence | **Kickbox** |
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `<email>` (positional) | Email address to verify. Optional if `--email` is set. |
+| `--email <addr>` | Alternative to the positional argument. |
+| `--provider <slug>` | `hunter`, `tomba`, `bouncer`, `datagma`, `zerobounce`, or `kickbox`. Falls back to `defaults.verify.provider`. |
+| `--api-key <key>` | Override the env var for this call. |
+| `--raw` | Emit the provider's native response under `raw` instead of the normalized envelope. |
+| `--no-cache` | Bypass the response cache for this call. Skip read and skip write. |
+| `--refresh` | Skip cache read but write the fresh response, overwriting any cached entry. |
+| `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt request timeout. Default 120. |
+
+Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
+
+## Examples
+
+```bash
+marmot verify alice@acme.com --provider hunter
+marmot verify alice@acme.com --provider zerobounce
+marmot verify alice@acme.com --provider bouncer
+marmot verify --email alice@acme.com
+echo 'alice@acme.com' | xargs marmot verify
+```
+
+## Envelope
+
+```json
+{
+  "ok": true,
+  "provider": "hunter",
+  "verb": "verify",
+  "type": "email",
+  "data": {
+    "email": "alice@acme.com",
+    "deliverable": true,
+    "status": "valid",
+    "score": 99,
+    "checks": {
+      "regexp": true,
+      "mxRecords": true,
+      "smtpServer": true,
+      "smtpCheck": true,
+      "acceptAll": false,
+      "disposable": false,
+      "webmail": false,
+      "gibberish": false,
+      "block": false
+    }
+  },
+  "raw": null,
+  "usage": null,
+  "timestamp": "2026-05-02T21:17:26.252Z"
+}
+```
+
+`deliverable` is true when `status` is `valid` or `accept_all` (or `catch-all` for ZeroBounce). The `checks` block exposes the per-step result the provider ran. Providers that don't expose a particular check return `null` for it, not `false` — e.g. Bouncer doesn't break out `gibberish` so `checks.gibberish` is null on Bouncer responses.
+
+## Provider-specific notes
+
+- **Hunter** sometimes returns HTTP 202 with `status: "unknown"` while it runs the SMTP probe. The adapter polls on a 1s → 2s → 4s → 8s → 15s backoff (capped at 30s total) until `status` settles. The CLI shows a stderr spinner during polling. If the deadline expires the adapter returns the last `status` (typically `unknown`).
+- **Tomba** returns synchronously; no polling needed.
+- **Bouncer** returns synchronously and surfaces a `retryAfter` field on greylisted addresses. The normalized envelope downgrades these to `status: "unknown"` so callers can re-check; the original `retryAfter` value is preserved in `--raw`. Bouncer also returns `toxicity` (0–5) and `provider` (resolved MX brand like `gsuite`) in `--raw`.
+- **Datagma** authenticates via `?apiId=<key>` query param (not a header). Datagma proxies ZeroBounce internally for verification; the response shape is similar.
+- **ZeroBounce** uses query-param auth (`?api_key=<key>&email=<addr>`). Returns the deepest sub-status taxonomy of any verifier (30+ values like `mailbox_not_found`, `failed_smtp_connection`). The score field is null for the `/validate` endpoint; ZeroBounce's AI scoring is a separate file-only endpoint not yet wired. Regional URLs (US/EU) for data residency are also not yet wired — v1 uses the default endpoint.
+- **Kickbox** uses `Authorization: <key>` header (no `Bearer` prefix). Returns a four-value `result` taxonomy (`deliverable` / `undeliverable` / `risky` / `unknown`) and a unique `sendex` confidence float (0.0–1.0). The adapter projects sendex to 0–100 in `score`. Role-based addresses (`info@`, `sales@`) flow into `checks.block`. Owned by Sendgrid/Twilio. The free `open.kickbox.com/v1/disposable/{email}` endpoint is unauthenticated but not yet wired into the adapter.
+
+## Config
+
+```json
+{ "defaults": { "verify": { "provider": "hunter" } } }
+```
+
+Set via `marmot setup` (Configure data verb defaults) or `marmot config set verify.provider hunter`.
+
+## Counter
+
+Hunter and Tomba both charge email verification against a separate `verifications` counter (distinct from `searches` and `credits`). Run `marmot config show` or hit each provider's `/account` (`/me` for Tomba) for current quota.
+
+Tomba uses dual-key auth (`TOMBA_API_KEY` + `TOMBA_SECRET_KEY`); both must be set.

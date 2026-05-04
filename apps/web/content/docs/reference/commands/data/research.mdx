@@ -1,0 +1,43 @@
+---
+title: Research
+description: marmot research — async deep research with optional structured output.
+---
+
+```bash
+marmot research <query> [flags…]
+```
+
+Always async. Submits a research task on the provider, optionally polls until done.
+
+## Providers
+
+`exa`, `firecrawl`, `parallel`, `tavily`.
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | One of the four. Falls back to `defaults.research.provider`. |
+| `--api-key <key>` | Override the env var. |
+| `--depth <basic\|standard\|deep>` | Effort tier. Maps to per-provider model/processor. |
+| `--instructions <text>` | Optional system instructions. |
+| `--schema <json>` | Inline JSON Schema for structured output. |
+| `--schema-file <path>` | JSON Schema from a file. |
+| `--wait` | Block and poll until terminal status (default). |
+| `--async` | Return the task id immediately. |
+| `--raw` | Emit the provider's native response under `raw`. |
+| `--json` | Emit the structured envelope (default). |
+| `--retries <n>` | Retry the initial submission up to N times. Polling is unaffected. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt submit timeout. Default 120. |
+
+## Async behavior
+
+Default is `--wait` (poll until done). Pass `--async` to get the task id and follow up with `marmot get <id>`.
+
+See [Async tasks](/docs/reference/commands/async-tasks).
+
+## Config keys
+
+```json
+{ "defaults": { "research": { "provider": "parallel" } } }
+```

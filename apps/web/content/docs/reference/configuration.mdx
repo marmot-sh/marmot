@@ -1,0 +1,162 @@
+---
+title: Configuration
+description: Every key the Marmot config file accepts.
+---
+
+Marmot keeps your default provider and model for each verb in a single config file at `~/.marmot/ai/config.json`. `marmot setup` and `marmot config set` write to it for you. This page lists every key the file accepts.
+
+## Top level
+
+```json
+{
+  "version": 1,
+  "defaults":  { … },
+  "providers": { … },
+  "presets":   { … }
+}
+```
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `version` | number | Always `1`. Bumped on breaking schema changes. |
+| `defaults` | object | Per-verb defaults (which provider backs each verb, which model). |
+| `providers` | object | Per-provider settings (enable, response cache, custom env vars). |
+| `presets` | object | Saved bundles of flags, used via `marmot @<name>` and `--preset`. |
+
+## Defaults
+
+Every key under `defaults` is optional. Resolution differs by verb type:
+
+- **AI verbs** (`text`, `image`, `speech`, `transcription`): with no default and no `--provider` flag, marmot runs first-run auto-config — it detects available API keys in your env, picks the first ready provider in pecking order (`ollama` → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`; image/speech/transcription skip `ollama` and `anthropic`), persists the choice to this file, and continues the call. A one-line stderr note announces it.
+- **Web/data verbs** (`search`, `scrape`, `enrich`, `lookup`, `verify`, etc.): no auto-config. With no default and no `--provider`, the call errors and points you at `marmot setup`.
+
+```json
+{
+  "defaults": {
+    "text":          { "provider": "openrouter", "model": "openai/gpt-oss-120b" },
+    "image":         { "provider": "openrouter", "model": "google/gemini-2.5-flash-image-preview" },
+    "speech":        { "provider": "openrouter", "model": "openai/tts-1", "voice": "alloy" },
+    "transcription": { "provider": "openrouter", "model": "openai/whisper-1" },
+
+    "search":   { "provider": "tavily" },
+    "scrape":   { "provider": "firecrawl" },
+    "answer":   { "provider": "tavily" },
+    "map":      { "provider": "tavily" },
+    "crawl":    { "provider": "firecrawl" },
+    "research": { "provider": "parallel" },
+    "findall":  { "provider": "parallel" }
+  }
+}
+```
+
+### AI verbs
+
+| Path | Type | Allowed values |
+| --- | --- | --- |
+| `defaults.text.provider` | string | `openrouter`, `anthropic`, `openai`, `vercel`, `cloudflare`, `ollama` |
+| `defaults.text.model` | string | Any model id valid for the chosen provider |
+| `defaults.image.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
+| `defaults.image.model` | string | Any image model valid for the chosen provider |
+| `defaults.speech.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
+| `defaults.speech.model` | string | TTS model id |
+| `defaults.speech.voice` | string | Voice id (provider-specific) |
+| `defaults.transcription.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
+| `defaults.transcription.model` | string | STT model id |
+
+### Web data verbs
+
+| Path | Type | Allowed providers |
+| --- | --- | --- |
+| `defaults.search.provider` | string | `brave`, `exa`, `firecrawl`, `parallel`, `tavily` |
+| `defaults.scrape.provider` | string | `exa`, `firecrawl`, `parallel`, `tavily` |
+| `defaults.answer.provider` | string | `brave`, `exa`, `tavily` |
+| `defaults.map.provider` | string | `firecrawl`, `tavily` |
+| `defaults.crawl.provider` | string | `firecrawl`, `tavily` |
+| `defaults.research.provider` | string | `exa`, `firecrawl`, `parallel`, `tavily` |
+| `defaults.findall.provider` | string | `exa`, `parallel` |
+
+### People and org verbs
+
+| Path | Type | Allowed providers |
+| --- | --- | --- |
+| `defaults.enrich.provider` | string | `apollo`, `hunter`, `pdl`, `tomba`, `datagma` |
+| `defaults.lookup.provider` | string | `apollo`, `hunter`, `pdl`, `tomba` |
+| `defaults.verify.provider` | string | `hunter`, `tomba`, `bouncer`, `datagma`, `zerobounce`, `kickbox` |
+
+Data verbs only store `provider`. There is no per-verb model concept on these. The `enrich`, `lookup`, and `verify` defaults gate which provider serves the verb. The capability matrix per `--type` (person, org, email) lives on each verb's page.
+
+## Providers
+
+Per-provider settings, keyed by provider slug. All fields optional. Applies to AI, web, and data providers uniformly.
+
+```json
+{
+  "providers": {
+    "tavily": {
+      "enabled": true,
+      "cache": { "enabled": true, "ttlDays": 30 }
+    },
+    "apollo": {
+      "apiKeyEnvVar": "MY_APOLLO_KEY"
+    },
+    "tomba": {
+      "apiKeyEnvVar": "WORK_TOMBA_KEY",
+      "apiSecretEnvVar": "WORK_TOMBA_SECRET"
+    }
+  }
+}
+```
+
+| Path | Type | Notes |
+| --- | --- | --- |
+| `providers.<slug>.enabled` | boolean | `false` blocks all calls routed to this provider. Default: enabled. |
+| `providers.<slug>.apiKeyEnvVar` | string | Custom env var name for the API key. Default: each provider's built-in (e.g. `APOLLO_API_KEY`). |
+| `providers.<slug>.apiSecretEnvVar` | string | Custom env var name for a secondary credential (Tomba secret, Cloudflare account id). |
+| `providers.<slug>.cache.enabled` | boolean | Cache responses for this provider's sync verbs. Web/data only. Default: `false`. |
+| `providers.<slug>.cache.ttlDays` | integer (≥1) | TTL for cached responses. Default: 30. |
+
+Auth resolution order, per credential:
+
+1. `--api-key` flag on the command line
+2. `providers.<slug>.apiKeyEnvVar` env var if configured
+3. Built-in env var (`APOLLO_API_KEY`, `TAVILY_API_KEY`, etc.)
+
+See [Caching](/docs/reference/caching) for the full cache model.
+
+## Resolution order
+
+1. Command-line flag for the call
+2. `~/.marmot/ai/config.json`
+3. Error, with a hint to run `marmot setup`
+
+## Setting keys from the CLI
+
+Three key shapes are accepted:
+
+```bash
+# AI verb defaults (under defaults.<verb>.<field>)
+marmot config set text.provider anthropic
+marmot config set image.model google/gemini-2.5-flash-image-preview
+marmot config set speech.voice alloy
+
+# Web/data verb defaults (under defaults.<verb>.provider)
+marmot config set search.provider tavily
+marmot config set enrich.provider pdl
+
+# Per-provider settings (under providers.<slug>.<field>)
+marmot config set providers.tavily.cache.enabled true
+marmot config set providers.tavily.cache.ttlDays 14
+marmot config set providers.apollo.apiKeyEnvVar MY_APOLLO_KEY
+marmot config set providers.openrouter.enabled false
+```
+
+Boolean values must be `true` or `false`. `ttlDays` must be a positive integer.
+
+```bash
+marmot config unset providers.tavily.cache.ttlDays  # remove a single key
+marmot config show                                  # human-readable
+marmot config show --json                           # raw envelope
+marmot config path                                  # print the config file path
+```
+
+`marmot config show` also reports the total response cache size and entry count, broken down per provider. See [Caching](/docs/reference/caching).

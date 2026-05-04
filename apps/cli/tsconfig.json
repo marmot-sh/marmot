@@ -1,0 +1,7 @@
+{
+  "extends": "@marmot-sh/tsconfig/node-app.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "tests/**/*"]
+}

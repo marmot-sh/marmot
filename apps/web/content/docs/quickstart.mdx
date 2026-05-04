@@ -1,0 +1,98 @@
+---
+title: Quickstart
+description: Run your first commands and learn the basic workflow.
+---
+
+## First command
+
+Set one AI provider key, then ask Marmot for text.
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+marmot 'write a haiku about caching'
+```
+
+The first AI call auto-configures a default provider from your environment and
+stores it in `~/.marmot/ai/config.json`. After that, the same command runs
+without extra setup.
+
+## Pipe real input
+
+Marmot reads stdin and appends it to your prompt.
+
+```bash
+git diff | marmot 'summarize the risky changes'
+git diff | marmot --stream 'write a commit message under 60 chars' | pbcopy
+```
+
+By default, text output goes to stdout. Status, spinners, and warnings go to
+stderr, so pipes stay clean.
+
+## Use web and data verbs
+
+Use the same shape for web search, scraping, and enrichment. Pass a provider on
+first use, or set defaults later with `marmot setup`.
+
+```bash
+marmot search 'recent papers on RAG' --provider tavily
+marmot scrape https://example.com --provider firecrawl
+marmot enrich --type person --email jdo@example.com --provider pdl
+```
+
+Long-running verbs such as `research`, Firecrawl `crawl`, and `findall` poll by
+default. Add `--async` when you want a task id and plan to check back later.
+
+## Save a reusable command
+
+Use a preset for a command style you reach for often.
+
+```bash
+marmot preset create terse \
+  --mode text \
+  --provider openrouter \
+  --model openai/gpt-oss-120b \
+  --system 'Answer in three bullets.'
+
+marmot @terse 'explain prompt caching'
+```
+
+Explicit flags still win, so you can override the preset for one call.
+
+## Keep context across calls
+
+Use a chat session when later text calls should see earlier turns.
+
+```bash
+marmot session create research --mode chat
+marmot session use research
+
+marmot 'compare Postgres 17 and 16'
+marmot 'turn that into an upgrade checklist'
+
+marmot session end
+```
+
+Sessions are local. They log calls under `~/.marmot/ai/sessions/`. Only text
+calls participate in chat history; image, speech, transcription, and data calls
+can still log to the session.
+
+## Use it from an agent
+
+Install the Marmot skill if you want Claude Code, Codex, OpenCode, or another
+agent harness to call Marmot directly.
+
+```bash
+marmot setup
+```
+
+Choose **Install agent skill**. After that, ask your agent for work that needs
+outside context, for example:
+
+```text
+Use Marmot to search for recent RAG papers, summarize the useful findings,
+and keep the raw search output out of your main context.
+```
+
+Next: [Scripts and pipes](/docs/guides/scripts-and-pipes) for shell workflows,
+[Agent workflows](/docs/guides/agent-workflows) for skill usage, or
+[Command reference](/docs/reference/commands/overview) for every verb and flag.

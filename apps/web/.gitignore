@@ -1,0 +1,21 @@
+node_modules
+dist
+.output
+.tanstack
+.vite
+.tsbuildinfo
+*.log
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+
+# Generated
+src/routeTree.gen.ts
+.source

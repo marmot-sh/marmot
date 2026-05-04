@@ -1,0 +1,91 @@
+---
+title: Common flags
+description: Cross-cutting flags every verb supports.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Every verb supports the same cross-cutting flags. Verb-specific flags live on each verb's page.
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | Override the configured default provider for this verb. |
+| `--api-key <key>` | Override the env-var API key. No effect for Ollama. |
+| `-o, --output <path>` | Write the result to a file. With `--stream`, written incrementally. |
+| `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt timeout. Default 120, max 86400. |
+
+`--retries` and `--timeout` are scoped:
+
+- **Available on:** AI generation (`run`, `image`, `speak`, `transcribe`), sync data verbs (`search`, `scrape`, `answer`, `map`, `enrich`, `lookup`, `verify`), and the initial submission of async verbs (`research`, `crawl`, `findall`).
+- **Not available on:** `get` (already a polling primitive — control retry via your own loop) or `api <provider>` (raw passthrough — wrap your own retry).
+- **On async verbs**, `--retries` retries the *initial submission* only. The polling loop has its own backoff and is not affected.
+- **When a retry fires**, marmot prints a one-line note to stderr: `[retry 1/3] tavily search: HTTP 429 — backing off 800ms`. Useful for spotting silent-double-billing on paid providers.
+
+## Output
+
+Each verb has a default output format and a flag to override it.
+
+| Verb | Default output |
+| --- | --- |
+| `run` (text), `transcribe`, `answer`, `research` | Plain text |
+| `image` | TTY: file path on stdout. Piped: raw bytes (n=1). |
+| `speak` | TTY: plays audio. Piped: raw bytes. |
+| Other web and data verbs | Structured JSON envelope |
+
+Override flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | Force the structured `{ok, provider, data, ...}` envelope. |
+| `--text` | Force plain text. Default for the verbs above; the flag is kept for back-compat. |
+| `--raw` | Web and data verbs only. Emit the provider's native body under `raw` instead of the normalized `data`. |
+| `--binary` | `image` and `speak` only. Force raw bytes to stdout. |
+| `--b64` | `image` and `speak` only. JSON envelope with inline base64. |
+| `--stream` | `run` only. Stream tokens as they arrive. Implies plain text. |
+
+## Async verbs
+
+`research`, `crawl`, and `findall` are async. They take two extra flags.
+
+| Flag | Description |
+| --- | --- |
+| `--wait` | Block and poll until terminal status. The default. |
+| `--async` | Submit and return the task id immediately. |
+
+See [Async tasks](/docs/reference/commands/async-tasks).
+
+## Cache flags (web and data sync verbs)
+
+`search`, `scrape`, `answer`, `map`, `enrich`, `lookup`, and `verify` all share two flags for the response cache. Caching is opt-in per provider; these flags only matter when `providers.<slug>.cache.enabled` is `true`.
+
+| Flag | Effect |
+| --- | --- |
+| `--no-cache` | Skip cache read **and** write for this call. |
+| `--refresh` | Skip cache read but write the fresh response, overwriting any existing entry. |
+
+See [Caching](/docs/reference/caching) for the full model and the `marmot cache` subcommands.
+
+## stdout vs stderr
+
+Marmot keeps results on stdout and status on stderr, so pipelines stay clean.
+
+| Channel | Carries |
+| --- | --- |
+| stdout | The rendered result: text, envelope, raw bytes, or file path. |
+| stderr | Spinners, cache messages, fallbacks, warnings. |
+
+Spinners and cache messages disable themselves automatically when stderr is not a TTY (CI runners, redirected output) or when `CI=true` or `NO_COLOR=1` is set.
+
+<Callout>
+Streaming runs (`--stream`) skip the spinner because tokens go live to stdout and a spinner on the same terminal would interfere. Cache messages still apply on first use of a provider.
+</Callout>
+
+## Resolution order
+
+For `--provider`, `--model`, and any other configurable default:
+
+1. Explicit flag on the command line
+2. `~/.marmot/ai/config.json`, set via `marmot setup` or `marmot config set`
+3. **First-run auto-config:** if no default is set for an AI verb (`text`, `image`, `speech`, `transcription`), marmot detects available API keys in your environment and picks the first ready provider in this order: ollama (local) → openrouter → vercel → cloudflare → openai → anthropic. The choice is persisted to `~/.marmot/ai/config.json` and a one-line stderr note announces it. You can override later with `marmot setup` or `marmot config set`.
+4. Error, with a hint listing every supported provider's env var and a link to where to get a key.

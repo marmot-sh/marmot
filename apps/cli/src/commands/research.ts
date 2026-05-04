@@ -1,0 +1,262 @@
+import { Command } from 'commander';
+
+import {
+  AICliError,
+  appendTaskRecord,
+  assertProviderEnabled,
+  readMarmotConfig,
+  resolveProviderAuth,
+  resolveRetryOptions,
+  resolveWebVerbDefaults,
+  runWithPolling,
+  runWithRetries,
+  updateTaskRecord,
+  withSpinner,
+  type StatusStream,
+  type WebProviderSlug,
+  type WebResearchInput,
+  type WebTaskStatus,
+} from '@marmot-sh/core';
+
+import {
+  assertProviderSupportsVerb,
+  getWebProviderAdapter,
+} from '../providers/web-index.js';
+import { makeRetryNotifier } from '../lib/retry-notifier.js';
+
+export type ResearchCommandOptions = {
+  provider?: string;
+  apiKey?: string;
+  schema?: string;
+  schemaFile?: string;
+  depth?: 'basic' | 'standard' | 'deep';
+  instructions?: string;
+  wait?: boolean;
+  async?: boolean;
+  pollInterval?: string;
+  maxWait?: string;
+  raw?: boolean;
+  retries?: string;
+  timeout?: string;
+};
+
+export type ResearchCommandDependencies = {
+  env?: NodeJS.ProcessEnv;
+  stdout?: { write(s: string): boolean | void };
+  stderr?: StatusStream;
+  fetchFn?: typeof fetch;
+};
+
+function parsePositiveSeconds(value: string, label: string): number {
+  const n = Number.parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    throw new AICliError(
+      'validation',
+      `--${label} must be a positive integer (got "${value}").`,
+    );
+  }
+  return n;
+}
+
+/**
+ * Build a poll schedule (in ms) from a `--poll-interval` value. Accepts
+ * a single integer ("5" → repeat 5s) or a csv ("5,10,30" → 5s, 10s, then
+ * 30s repeating) so users can shape their own backoff.
+ */
+function buildSchedule(raw: string): number[] {
+  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) {
+    throw new AICliError('validation', '--poll-interval must not be empty.');
+  }
+  return parts.map((p, i) => parsePositiveSeconds(p, `poll-interval[${i}]`) * 1_000);
+}
+
+async function loadSchema(
+  options: ResearchCommandOptions,
+): Promise<unknown | undefined> {
+  if (options.schema) {
+    try {
+      return JSON.parse(options.schema);
+    } catch (error) {
+      throw new AICliError('validation', '--schema is not valid JSON.', { cause: error });
+    }
+  }
+  if (options.schemaFile) {
+    const { readFile } = await import('node:fs/promises');
+    let raw: string;
+    try {
+      raw = await readFile(options.schemaFile, 'utf8');
+    } catch (error) {
+      throw new AICliError('io', `Failed to read schema file "${options.schemaFile}".`, { cause: error });
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      throw new AICliError('validation', `Schema file "${options.schemaFile}" is not valid JSON.`, { cause: error });
+    }
+  }
+  return undefined;
+}
+
+export async function handleResearchCommand(
+  queryParts: string[],
+  options: ResearchCommandOptions,
+  deps: ResearchCommandDependencies = {},
+): Promise<void> {
+  const env = deps.env ?? process.env;
+  const stdout = deps.stdout ?? process.stdout;
+  const stderr = deps.stderr ?? process.stderr;
+  const fetchFn = deps.fetchFn ?? fetch;
+
+  if (options.wait && options.async) {
+    throw new AICliError(
+      'validation',
+      '--wait and --async are mutually exclusive.',
+    );
+  }
+
+  const query = queryParts.join(' ').trim();
+  if (!query) throw new AICliError('validation', 'Query is required.');
+
+  const config = await readMarmotConfig(env);
+  const { provider } = resolveWebVerbDefaults('research', config, {
+    provider: options.provider,
+  });
+  assertProviderSupportsVerb('research', provider);
+  assertProviderEnabled(provider, config);
+  const adapter = getWebProviderAdapter(provider);
+  if (!adapter.research || !adapter.getTask) {
+    throw new AICliError(
+      'provider',
+      `Adapter for "${provider}" lacks research or getTask method.`,
+    );
+  }
+
+  const { apiKey } = resolveProviderAuth(provider, config, env, {
+    apiKey: options.apiKey,
+  });
+  const { retries, timeoutMs } = resolveRetryOptions({
+    retries: options.retries,
+    timeout: options.timeout,
+  });
+  const onRetry = makeRetryNotifier(stderr, provider, 'research', retries);
+  const schema = await loadSchema(options);
+
+  const input: WebResearchInput = {
+    query,
+    schema,
+    depth: options.depth,
+    instructions: options.instructions,
+    apiKey,
+    fetchFn,
+  };
+
+  const submission = await withSpinner(
+    `Submitting research to ${provider}…`,
+    () =>
+      runWithRetries(
+        (abortSignal) => adapter.research!({ ...input, abortSignal }),
+        { retries, timeoutMs, onRetry },
+      ),
+    { stream: stderr, env },
+  );
+  await appendTaskRecord(
+    {
+      taskId: submission.taskId,
+      provider: provider as WebProviderSlug,
+      verb: 'research',
+      status: 'queued',
+      label: query.slice(0, 256),
+    },
+    env,
+  );
+
+  // --async: return immediately.
+  if (options.async) {
+    const envelope = {
+      ok: true as const,
+      provider,
+      verb: 'research' as const,
+      taskId: submission.taskId,
+      status: 'queued' as const,
+      createdAt: new Date().toISOString(),
+      next: `marmot get ${submission.taskId} --provider ${provider}`,
+    };
+    stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+    return;
+  }
+
+  // --wait (default): poll until done.
+  const pollSchedule = options.pollInterval
+    ? buildSchedule(options.pollInterval)
+    : undefined;
+  const maxWaitMs = options.maxWait
+    ? parsePositiveSeconds(options.maxWait, 'max-wait') * 1_000
+    : undefined;
+  const finalStatus = await withSpinner(
+    `Researching via ${provider} (${submission.taskId})…`,
+    () =>
+      runWithPolling<WebTaskStatus>({
+        schedule: pollSchedule,
+        maxWaitMs,
+        poll: async () => {
+          const status = await adapter.getTask!({
+            taskId: submission.taskId,
+            verb: 'research',
+            apiKey,
+            fetchFn,
+          });
+          await updateTaskRecord(
+            {
+              taskId: submission.taskId,
+              provider: provider as WebProviderSlug,
+              status: status.status,
+            },
+            env,
+          );
+          if (status.status === 'done' || status.status === 'failed' || status.status === 'cancelled') {
+            return { done: true, value: status };
+          }
+          return { done: false };
+        },
+      }),
+    { stream: stderr, env },
+  );
+
+  const envelope = {
+    ok: finalStatus.status === 'done',
+    provider,
+    verb: 'research' as const,
+    taskId: submission.taskId,
+    status: finalStatus.status,
+    data: options.raw ? null : finalStatus.data ?? null,
+    raw: options.raw ? finalStatus.raw ?? null : null,
+    error: finalStatus.error ?? null,
+    timestamp: new Date().toISOString(),
+  };
+  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+}
+
+export function buildResearchCommand(
+  deps: ResearchCommandDependencies = {},
+): Command {
+  return new Command('research')
+    .description('Run a deep-research task. Async — blocks by default until done.')
+    .argument('<query...>', 'Research question.')
+    .option('--provider <slug>', 'Web provider: exa, firecrawl, parallel, tavily.')
+    .option('--api-key <apiKey>', 'Provider API key override.')
+    .option('--schema <json>', 'Inline JSON Schema for structured output.')
+    .option('--schema-file <path>', 'Path to a JSON Schema file.')
+    .option('--depth <tier>', 'Depth: basic, standard (default), deep.')
+    .option('--instructions <text>', 'Optional system instructions.')
+    .option('--wait', 'Block until done (default).')
+    .option('--async', 'Return the task id immediately and exit.')
+    .option('--poll-interval <s>', 'Override the poll cadence in seconds (advanced). Single value or csv (e.g. "5,10,30") for backoff steps.')
+    .option('--max-wait <s>', 'Maximum total wait time in seconds. Default 900 (15 minutes).')
+    .option('--raw', "Emit the provider's native response under `raw` (only on completion).")
+    .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
+    .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
+    .action(async (queryParts: string[], options: ResearchCommandOptions) => {
+      await handleResearchCommand(queryParts, options, deps);
+    });
+}

@@ -1,0 +1,68 @@
+---
+title: Speech (TTS)
+description: marmot speak. Text in, audio out. TTY-aware so it plays on a terminal and emits bytes when piped.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+```bash
+marmot speak <text> [flags…]
+```
+
+Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. On first run, marmot detects available API keys in the env and auto-configures a default in this order: `openrouter` → `vercel` → `cloudflare` → `openai`. Override any time with `marmot setup`, `marmot config set`, or `--provider`.
+
+## Output
+
+Default behavior is **TTY-aware**:
+
+| Invocation | Output |
+| --- | --- |
+| `marmot speak '...'` (terminal) | Plays through speakers (writes a temp file, plays in foreground, deletes after). |
+| `marmot speak '...' > out.mp3` | Writes raw audio bytes to stdout (auto-binary). |
+| `marmot speak '...' \| next` | Same — bytes on stdout. |
+| `marmot speak '...' -o hi.mp3` | Writes to `hi.mp3`, prints the path. |
+| `marmot speak '...' --play` | Plays. When piped, **also** emits bytes downstream so the pipeline continues. |
+| `marmot speak '...' --binary` | Forces raw bytes regardless. |
+| `marmot speak '...' --b64` | JSON envelope with inline base64. |
+| `marmot speak '...' --json` | Writes file, emits full JSON envelope. |
+
+## Examples
+
+```bash
+marmot speak 'Hello from marmot'                 # plays on TTY
+marmot speak 'Hola mundo' --provider cloudflare --model @cf/myshell-ai/melotts
+marmot speak 'Welcome' --voice nova -o ./hello.mp3
+
+# Pipe bytes to a player
+marmot speak 'Hello' | mpv -
+
+# Play AND continue piping (e.g. round-trip transcribe)
+marmot speak 'Hello from marmot' --play | marmot transcribe
+
+# Steerable voice
+marmot speak 'Welcome aboard' --model gpt-4o-mini-tts --voice ash \
+  --instructions 'cheerful, slow, slightly British'
+```
+
+## Flags
+
+For cross-cutting flags see [Common flags](/docs/reference/commands/common-flags). Speak-specific:
+
+| Flag | Description |
+| --- | --- |
+| `--model <id>` | Speech model. Defaults to provider's default. |
+| `--voice <name>` | Voice id (provider-specific). |
+| `--format <fmt>` | Audio format: `mp3` (default), `wav`, `flac`, `aac`, `opus`. |
+| `--speed <n>` | Playback speed multiplier (0.25–4.0). OpenAI only. |
+| `--instructions <text>` | Steering text for steerable voices (e.g. gpt-4o-mini-tts). |
+| `-o, --output <path>` | Output audio path. |
+| `-p, --prompt-file <path>` | Read text from a file. |
+| `--play` | Play through speakers. Default on a TTY. When piped, also emits bytes downstream. |
+| `--wait` | With `--play`, block until playback finishes. |
+| `--binary` | Force raw audio bytes to stdout. |
+| `--b64` | JSON envelope with inline base64. |
+| `--json` | JSON envelope on stdout (instead of just the path). |
+
+<Callout>
+`--binary` and `--b64` are mutually exclusive. `--play` can combine with binary/pipe — that's the documented "play AND continue piping" mode.
+</Callout>

@@ -1,0 +1,55 @@
+---
+title: Welcome
+description: AI and web data CLI for agents and scripts.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+
+Marmot is an open-source (MIT) CLI for AI, web search, scraping, and enrichment data. It is built for agents, agent skills, and standalone scripts that need reliable access to external providers. Marmot composes naturally with shell pipes and supports presets, caching, retries, sessions, and structured output.
+
+## Why Marmot?
+
+[Claude Code](https://www.anthropic.com/claude-code), [Codex](https://developers.openai.com/codex/), [OpenCode](https://opencode.ai), [OpenClaw](https://www.openclaw.ai/), [Hermes](https://hermes-agent.org/), and similar agents are strongest when their context stays focused. But agent workflows still need web search, scraping, enrichment data, retries, caching, and small helper prompts.
+
+Marmot gives agents one shell-native command shape for external calls. Instead of teaching every agent a dozen provider CLIs, or spinning up subagents for routine lookups, you give them one interface for AI providers, search APIs, scraping tools, and enrichment services. Agents with the Marmot skill can learn the pattern once, pipe results through shell workflows, and bring back only the output the main agent needs.
+
+It also lets each task use the right model. A quick classification, a local or private prompt, and a long synthesis do not need to run through the same model your main agent or subagent is configured with. Marmot lets you choose faster, cheaper, local, or stronger models at the command level.
+
+## How to use it?
+
+Use Marmot as a normal shell command. Choose the provider and model with flags, then pipe results between steps to compose workflows.
+
+```bash
+marmot "write me a poem"
+marmot search "news about apple"
+marmot search "news about apple" | marmot "summarize this"
+```
+
+## Providers
+
+Marmot supports Ollama, OpenRouter, Vercel AI Gateway, OpenAI, Anthropic, and other model routers and direct AI providers. For web and enrichment data, it supports Parallel, Exa, Firecrawl, Brave, and more. See [Providers](/docs/reference/providers) for details.
+
+## Get started
+
+<Cards>
+  <Card
+    title="Quickstart"
+    description="Set a key and run a prompt."
+    href="/docs/quickstart"
+  />
+  <Card
+    title="Installation"
+    description="Install the binary and run setup."
+    href="/docs/installation"
+  />
+  <Card
+    title="Use Marmot"
+    description="Learn the workflow patterns: pipes, agents, presets, sessions, and caching."
+    href="/docs/guides/scripts-and-pipes"
+  />
+  <Card
+    title="Command reference"
+    description="See every command and flag."
+    href="/docs/reference/commands/overview"
+  />
+</Cards>

@@ -1,0 +1,103 @@
+---
+title: Text generation
+description: marmot run, the default verb. Plain text out by default, and --json for the envelope.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+```bash
+marmot [prompt...]              # alias for `marmot run`
+marmot run [prompt...]          # explicit
+```
+
+Providers: `openrouter`, `anthropic`, `openai`, `vercel`, `cloudflare`, `ollama`. On first run, marmot detects available API keys in the env and auto-configures a default in this order: `ollama` → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`. Override any time with `marmot setup`, `marmot config set`, or `--provider`.
+
+## Prompt sources
+
+Prompt is concatenated from up to three sources, joined by a blank line:
+
+1. Positional argument
+2. `-p` / `--prompt-file <path>`
+3. Piped stdin (when stdin is not a TTY)
+
+```bash
+git diff | marmot 'summarize this for the changelog'
+cat user.txt | marmot -p ./prompts/system.txt 'one-line summary'
+```
+
+`--system <text>` / `--system-file <path>` for the system prompt.
+
+## Multimodal input
+
+Vision and PDF/document inputs are flags on `marmot run`. Whether they work depends on whether the model accepts them — non-vision text models reject.
+
+```bash
+marmot --provider openai --model gpt-4o --image ./screenshot.png 'what is in this?'
+marmot --image ./before.png --image ./after.png 'what changed?'
+cat photo.jpg | marmot --image - 'caption this'
+
+marmot --provider anthropic --model claude-sonnet-4-6 --file ./paper.pdf 'summarize'
+curl -s https://example.com/doc.pdf | marmot --file - 'list section headings'
+```
+
+Stdin can carry one of: text prompt, image (via `--image -`), or file (via `--file -`).
+
+## Output
+
+Default is **plain text** on stdout — pipe-friendly.
+
+```bash
+marmot 'haiku about caching' > poem.txt
+git diff | marmot --stream 'commit message under 60 chars' | pbcopy
+```
+
+`--json` for the structured envelope:
+
+```json
+{
+  "ok": true,
+  "provider": "openrouter",
+  "model": "openai/gpt-oss-120b",
+  "text": "…",
+  "usage": { "inputTokens": 18, "outputTokens": 42, "totalTokens": 60 },
+  "finishReason": "stop",
+  "timestamp": "2026-05-02T14:05:00.000Z"
+}
+```
+
+`--stream` streams tokens as they arrive; implies text mode (no envelope).
+
+### Structured output (object mode)
+
+Pass any of `--schema`, `--schema-file`, `--schema-module` to switch to object mode. Output is always the JSON envelope with `output` (parsed object) instead of `text`.
+
+```bash
+marmot --schema-file ./entities.json 'extract entities' < article.txt | jq .output
+```
+
+Object mode rejects `--stream` and `--text`.
+
+## Flags
+
+For cross-cutting flags (`--provider`, `--api-key`, `-o`, `--retries`, `--timeout`) see [Common flags](/docs/reference/commands/common-flags). Run-specific:
+
+| Flag | Description |
+| --- | --- |
+| `--model <id>` | Model id. Defaults to provider's default. Validated against cached model list. |
+| `--system <text>` | Inline system prompt. |
+| `--system-file <path>` | System prompt from a file. |
+| `-p, --prompt-file <path>` | Prompt from a file. |
+| `--image <path>` | Image input. Repeatable. `-` reads stdin. |
+| `--image-mime <mime>` | Override sniffed mime for `--image -`. |
+| `--file <path>` | Document/PDF input. Repeatable. `-` reads stdin. |
+| `--file-mime <mime>` | Override sniffed mime for `--file -`. |
+| `--schema <json>` | Inline JSON Schema (object mode). |
+| `--schema-file <path>` | JSON Schema from a file. |
+| `--schema-module <path>` | Local module exporting a Zod schema as default or `schema`. **Trusted-code only:** the module is executed with full Node privileges — do not point it at code you didn't write or audit. |
+| `--stream` | Stream tokens. Implies text. |
+| `--json` | Emit structured envelope (default is text). |
+| `--text` | Plain text (now the default; flag kept for back-compat). |
+
+<Callout>
+`--json`, `--text`, and `--stream` are mutually exclusive in spirit (text is default; `--json` overrides; `--stream` forces text).
+</Callout>

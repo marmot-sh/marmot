@@ -1,0 +1,106 @@
+---
+title: Presets
+description: marmot preset — create, update, list, and use saved command bundles.
+---
+
+Use presets to save provider, model, and mode-specific flags under a name.
+
+```bash
+marmot preset create <name> --mode <mode> [flags…]
+marmot preset update <name> [flags…]
+marmot preset delete <name>
+marmot preset list
+marmot preset show <name>
+marmot @<name> ...
+```
+
+## Create
+
+```bash
+marmot preset create <name> --mode <mode> [flags…]
+```
+
+Creates a preset. The name must be a slug: lowercase letters, digits, `-`, and `_`, with no leading, trailing, or consecutive separators.
+
+## Update
+
+```bash
+marmot preset update <name> [flags…]
+```
+
+Patches fields on an existing preset. Only supplied flags change. A preset's mode is fixed; delete and recreate it if the mode needs to change.
+
+## Create and update flags
+
+| Flag | Description |
+| --- | --- |
+| `--mode <mode>` | Preset mode: `text`, `image`, `speech`, or `transcription`. Required for `create`; optional on `update` but must match the existing mode. |
+| `--provider <provider>` | Provider slug to use when the preset is active. |
+| `--model <model>` | Model slug to use when the preset is active. |
+| `--system <text>` | System prompt. Text mode only. |
+| `--size <WxH>` | Image size, for example `1024x1024`. Image mode only. |
+| `--quality <level>` | Image quality. Image mode only; provider-specific. |
+| `--style <style>` | Image style. Image mode only; provider-specific. |
+| `--n <count>` | Number of images. Image mode only. |
+| `--voice <voice>` | Voice id. Speech mode only. |
+| `--format <format>` | Output format. Speech and transcription modes. |
+| `--speed <number>` | Playback speed multiplier. Speech mode only. |
+| `--language <code>` | ISO-639-1 language hint. Transcription mode only. |
+| `--retries <count>` | Default retry count for calls using this preset. |
+| `--timeout <seconds>` | Default per-attempt timeout for calls using this preset. |
+
+## Delete
+
+```bash
+marmot preset delete <name>
+```
+
+Removes a preset. The command reports whether a preset was removed.
+
+## List
+
+```bash
+marmot preset list
+```
+
+Lists every preset with its name, mode, provider, and model.
+
+## Show
+
+```bash
+marmot preset show <name>
+```
+
+Prints the full settings for one preset.
+
+## Use
+
+```bash
+marmot run --preset <name> "summarize this"
+marmot @<name> "summarize this"
+```
+
+`@<name>` is shorthand for `--preset <name>`. Explicit flags still win, so this call keeps the preset but overrides the model:
+
+```bash
+marmot @deep-research --model claude-haiku-4-5 "summarize this"
+```
+
+Presets only apply to their own mode. A text preset works with `marmot run`, but not `marmot image`.
+
+## Config keys
+
+Presets live under the top-level `presets` map in `~/.marmot/ai/config.json`.
+
+```json
+{
+  "presets": {
+    "deep-research": {
+      "mode": "text",
+      "provider": "anthropic",
+      "model": "claude-opus-4-7",
+      "system": "Be terse and cite sources."
+    }
+  }
+}
+```

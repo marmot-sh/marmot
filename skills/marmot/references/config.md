@@ -1,0 +1,399 @@
+# Marmot configuration reference
+
+Everything an agent needs to read, mutate, and reason about marmot's on-disk state: config file, presets, sessions, response cache, and the `setup` walkthrough.
+
+## 1. Where the config lives
+
+Single JSON file at `~/.marmot/ai/config.json`.
+
+```bash
+marmot config path        # prints the absolute path (honors $MARMOT_HOME)
+```
+
+| Path | Mode |
+| --- | --- |
+| `~/.marmot/ai/` | `0o700` |
+| `~/.marmot/ai/config.json` | `0o600` |
+| `~/.marmot/ai/cache/responses/<slug>/` | `0o700` |
+| `~/.marmot/ai/sessions/<name>/` | `0o700` |
+
+`MARMOT_HOME` overrides `~/.marmot`. The file is JSON; agents may hand-edit it but the CLI is safer (validates before write).
+
+## 2. Top-level schema
+
+```json
+{
+  "version": 1,
+  "defaults":  { },
+  "providers": { },
+  "presets":   { }
+}
+```
+
+| Key | Type | Purpose |
+| --- | --- | --- |
+| `version` | number | Always `1`. Bumped on breaking schema changes. |
+| `defaults` | object | Per-verb defaults (provider, model, voice). |
+| `providers` | object | Per-provider settings: enable, custom env vars, response cache. |
+| `presets` | object | Saved invocation bundles, used via `--preset` or `@<name>`. |
+
+The whole envelope is validated by Zod (`marmotConfigSchema`) on every write. Unknown keys are rejected (strict object).
+
+## 3. Reading the config
+
+Agents should always start with `marmot config show --json` to learn what's already there.
+
+```bash
+marmot config show          # human-readable: AI table, web/data table, cache section
+marmot config show --json   # raw envelope plus cache.totals + cache.providers
+```
+
+Example `--json` output:
+
+```json
+{
+  "version": 1,
+  "defaults": {
+    "text": { "provider": "anthropic", "model": "claude-opus-4-7" },
+    "image": { "provider": "openai", "model": "gpt-image-1" },
+    "speech": { "provider": "openai", "model": "tts-1", "voice": "alloy" },
+    "transcription": { "provider": "openai", "model": "whisper-1" },
+    "search": { "provider": "tavily" },
+    "enrich": { "provider": "pdl" }
+  },
+  "providers": {
+    "tavily": { "cache": { "enabled": true, "ttlDays": 14 } },
+    "apollo": { "apiKeyEnvVar": "WORK_APOLLO_KEY" },
+    "openrouter": { "enabled": false }
+  },
+  "presets": {
+    "deep-research": { "mode": "text", "provider": "anthropic", "model": "claude-opus-4-7", "system": "Be terse." }
+  },
+  "cache": {
+    "totals": { "entries": 42, "bytes": 1258291 },
+    "providers": [
+      { "provider": "tavily", "entries": 18, "bytes": 540000, "bytesHuman": "527 KB",
+        "oldestRequestedAt": "2026-04-12T...", "newestRequestedAt": "2026-05-01T..." }
+    ]
+  }
+}
+```
+
+`marmot config init` creates an empty config (`{version:1, defaults:{text:{}, image:{}}}`). Pass `--force` to overwrite an existing file. If the file already exists without `--force`, the command no-ops and returns `{ok: true, alreadyExists: true}`.
+
+## 4. `marmot config set <key> <value>`
+
+Three accepted key shapes. Unknown shapes throw `validation`.
+
+### 4a. AI verb defaults (under `defaults.<verb>.<field>`)
+
+| Key | Value type | Allowed providers |
+| --- | --- | --- |
+| `text.provider` | string | `openrouter`, `ollama`, `anthropic`, `openai`, `vercel`, `cloudflare` |
+| `text.model` | string | any model id valid for the provider |
+| `image.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
+| `image.model` | string | any image model id |
+| `speech.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
+| `speech.model` | string | TTS model id |
+| `speech.voice` | string | provider-specific voice id |
+| `transcription.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
+| `transcription.model` | string | STT model id |
+
+### 4b. Web/data verb defaults (under `defaults.<verb>.provider`)
+
+| Key | Allowed providers |
+| --- | --- |
+| `search.provider` | `brave`, `exa`, `firecrawl`, `parallel`, `tavily` |
+| `scrape.provider` | `exa`, `firecrawl`, `parallel`, `tavily` |
+| `answer.provider` | `brave`, `exa`, `tavily` |
+| `map.provider` | `firecrawl`, `tavily` |
+| `crawl.provider` | `firecrawl`, `tavily` |
+| `research.provider` | `exa`, `firecrawl`, `parallel`, `tavily` |
+| `findall.provider` | `exa`, `parallel` |
+| `enrich.provider` | `apollo`, `hunter`, `pdl`, `tomba`, `datagma` |
+| `lookup.provider` | `apollo`, `hunter`, `pdl`, `tomba` |
+| `verify.provider` | `hunter`, `tomba`, `bouncer`, `datagma`, `zerobounce`, `kickbox` |
+
+Data verbs only carry `provider`. There is no per-verb model concept on `enrich`/`lookup`/`verify`; capability per `--type` is fixed in the adapter.
+
+### 4c. Per-provider settings (under `providers.<slug>.<field>`)
+
+Slug union: AI providers + web providers + data providers (16 total).
+
+| Suffix | Type | Purpose |
+| --- | --- | --- |
+| `enabled` | boolean | `false` blocks calls routed to this provider, with a fast actionable error. |
+| `apiKeyEnvVar` | string | Custom env var name for the primary credential. |
+| `apiSecretEnvVar` | string | Custom env var name for a secondary credential (Tomba secret, Cloudflare account id). |
+| `cache.enabled` | boolean | Opt the provider into response cache. Web/data only. Default `false`. |
+| `cache.ttlDays` | integer ≥ 1 | TTL for cached responses. Default 30. |
+
+### Value coercion
+
+- Keys ending in `.enabled` accept only `true` / `false`. Anything else throws.
+- Keys ending in `.ttlDays` are parsed with `parseInt`, must be ≥ 1.
+- All other values stay strings.
+
+### Examples
+
+```bash
+marmot config set text.provider anthropic
+marmot config set text.model claude-opus-4-7
+marmot config set speech.voice alloy
+marmot config set search.provider tavily
+marmot config set enrich.provider pdl
+marmot config set providers.openrouter.enabled false
+marmot config set providers.tavily.cache.enabled true
+marmot config set providers.tavily.cache.ttlDays 14
+marmot config set providers.apollo.apiKeyEnvVar WORK_APOLLO_KEY
+marmot config set providers.tomba.apiSecretEnvVar WORK_TOMBA_SECRET
+```
+
+Successful writes echo `{ok: true, key, value, path}` as JSON. Schema validation runs before write; an invalid value never touches the file.
+
+## 5. `marmot config unset <key>`
+
+Symmetrical to `set`. Accepts the same three key shapes. Walks up after delete and prunes empty parent objects, so the file never carries dead branches.
+
+```bash
+marmot config unset providers.tavily.cache.ttlDays
+marmot config unset providers.tavily.cache         # remove the whole cache subobject
+marmot config unset text.model                     # leave provider, drop model
+```
+
+If the key isn't present, returns `{ok: true, removed: false}` (idempotent).
+
+## 6. Per-provider settings deep dive
+
+The `providers` block, keyed by provider slug:
+
+```json
+{
+  "providers": {
+    "tavily":  { "enabled": true, "cache": { "enabled": true, "ttlDays": 30 } },
+    "apollo":  { "apiKeyEnvVar": "MY_APOLLO_KEY" },
+    "tomba":   { "apiKeyEnvVar": "WORK_TOMBA_KEY", "apiSecretEnvVar": "WORK_TOMBA_SECRET" },
+    "openrouter": { "enabled": false }
+  }
+}
+```
+
+Default primary env vars (used when `apiKeyEnvVar` is absent): `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AI_GATEWAY_API_KEY` (Vercel), `CLOUDFLARE_API_TOKEN`, `BRAVE_API_KEY`, `EXA_API_KEY`, `FIRECRAWL_API_KEY`, `PARALLEL_API_KEY`, `TAVILY_API_KEY`, `APOLLO_API_KEY`, `HUNTER_API_KEY`, `PDL_API_KEY`, `TOMBA_API_KEY`, `BOUNCER_API_KEY`, `DATAGMA_API_KEY`, `ZEROBOUNCE_API_KEY`, `KICKBOX_API_KEY`. Ollama has no key. Tomba's default secondary is `TOMBA_SECRET_KEY`. Cloudflare's default secondary is `CLOUDFLARE_ACCOUNT_ID`.
+
+## 7. Response cache
+
+Disabled by default. Web/data sync verbs only: `search`, `scrape`, `answer`, `map`, `enrich`, `lookup`, `verify`. AI verbs and async verbs (`research`, `crawl`, `findall`, `get`) are never cached.
+
+### Enable
+
+```bash
+marmot config set providers.tavily.cache.enabled true
+marmot config set providers.tavily.cache.ttlDays 14   # default 30
+```
+
+### Storage
+
+```
+~/.marmot/ai/cache/responses/<provider>/<sha256>.json   # mode 0o600
+```
+
+Cache key is SHA-256 of canonicalized `{verb, input}` with `apiKey`, `apiSecret`, `fetchFn`, `abortSignal` stripped. Identical inputs hash to the same key regardless of property order. Each entry stores `{hash, verb, requestedAt, ttlSeconds, response, query?}`.
+
+A cache hit within TTL returns the cached payload with `"cached": true` on the envelope.
+
+### Per-call flags (sync verbs)
+
+| Flag | Behavior |
+| --- | --- |
+| `--no-cache` | Skip both cache read and write. |
+| `--refresh` | Skip read, force a fresh fetch, overwrite the entry. |
+
+### Inspect
+
+```bash
+marmot cache stats                  # totals + per-provider, with oldest/newest timestamps
+marmot cache stats --provider tavily
+```
+
+`marmot config show` includes the same totals (no timestamps) under the "Response cache" section. `--json` returns them under `cache.totals` and `cache.providers`.
+
+### Invalidate
+
+```bash
+marmot cache clear --all                              # everything
+marmot cache clear --provider exa                     # one provider
+marmot cache clear --provider exa --query "rag"       # substring on the human label
+marmot cache clear --provider exa --older-than 7      # entries older than 7 days
+marmot cache clear --all --older-than 30
+```
+
+Constraints: must pass either `--provider` or `--all`, never both. `--query` requires `--provider`. The `--query` filter matches the human-readable `query` label stored on each entry (search query, email, LinkedIn URL, etc.; case-insensitive substring).
+
+### Model-catalog cache vs response cache
+
+`marmot cache refresh [provider|all]` is a different cache. It rebuilds the per-provider model catalogs (text/image/speech/transcription) under `~/.marmot/ai/cache/providers/`. Unrelated to the response cache. Use it after rotating keys or when a new model isn't visible in `setup`.
+
+## 8. Presets
+
+Saved invocation bundles. Stored under top-level `presets` map in `config.json`. One preset is scoped to one mode.
+
+### Modes and fields
+
+Common to every mode: `--provider`, `--model`, `--retries`, `--timeout`.
+
+| Mode | Extra fields |
+| --- | --- |
+| `text` | `--system` |
+| `image` | `--size`, `--quality`, `--style`, `--n` (1..10) |
+| `speech` | `--voice`, `--format`, `--speed` |
+| `transcription` | `--language`, `--format` |
+
+### Naming
+
+Slug regex: `^[a-z0-9]+([-_][a-z0-9]+)*$`. Lowercase letters/digits with single `-` or `_` separators; no leading/trailing/consecutive separators. Examples: `deep-research`, `cheap_text`, `square-1024`, `whisper_en`.
+
+### Commands
+
+```bash
+marmot preset create deep-research \
+  --mode text --provider anthropic --model claude-opus-4-7 \
+  --system "Be terse and cite sources."
+
+marmot preset list                # JSON: [{name, mode, provider, model}]
+marmot preset show deep-research  # JSON: full preset body
+marmot preset update deep-research --model claude-sonnet-4-6
+marmot preset delete deep-research
+```
+
+`create` refuses to overwrite an existing name. `update` patches only the flags you pass; mode is immutable (delete + recreate to change). `delete` returns `{removed: false}` if the name didn't exist; not an error.
+
+### Use a preset
+
+```bash
+marmot @deep-research "summarize this paper"           # sigil shorthand
+marmot run --preset deep-research "summarize this"     # long form
+marmot image @square-1024 "a marmot in the alps"
+marmot speak @narrator "welcome"
+marmot transcribe @whisper_en ./talk.mp3
+```
+
+Mode mismatch is rejected: `marmot image @deep-research "..."` fails because `deep-research` is mode `text`. The `@name` sigil expands to `--preset <name>` before commander parses; only the first matching token is consumed, so `"@user said hi"` inside a quoted prompt is left alone.
+
+### Resolution order
+
+```
+explicit flag > preset > defaults.<mode> > first-run auto-config (AI verbs only) > error
+```
+
+**First-run auto-config (AI verbs only):** if no default is set for `text`/`image`/`speech`/`transcription`, marmot detects available API keys in the environment and picks the first ready provider in this order: `ollama` (local) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`. The choice is persisted to `~/.marmot/ai/config.json` so subsequent calls hit step 3 directly. Web/data verbs have no auto-config — they error if no default is set.
+
+`marmot @deep-research --model claude-haiku-4-5 "..."` keeps the preset's system + provider but overrides model.
+
+Presets store flags only, never credentials.
+
+## 9. Sessions
+
+Containers that log related calls and (in chat mode) carry message history.
+
+### Modes
+
+| Mode | What it adds |
+| --- | --- |
+| `stateless` | Per-call log lines in `log.jsonl`. No history threaded into prompts. |
+| `chat` | Plus `messages.jsonl`. Each `marmot run` reads history, calls, then appends user + assistant turns. Prompt caching wired automatically for Anthropic-direct and OpenAI. |
+
+`image`, `speak`, `transcribe`, and data verbs ignore chat history even inside a chat session, but still log to `log.jsonl`.
+
+### Lifecycle
+
+```bash
+marmot session create market-q3 --mode chat --preset deep-research \
+  [--label "..."] [--record-prompts]
+marmot session use market-q3      # set global pointer
+marmot session current            # print active session
+marmot session end                # clear pointer
+marmot session list
+marmot session show market-q3     # meta + token totals + window usage
+marmot session delete market-q3 [--keep-log]
+```
+
+If `--mode` is omitted on `create`, defaults to `stateless`. Chat-mode sessions only accept text-mode presets.
+
+### Binding precedence
+
+```
+--session <name> on the call > marmot session use <name> pointer > unbound (no log)
+```
+
+The pointer file is `~/.marmot/ai/current-session` (or `$MARMOT_HOME/current-session`) and is shared across terminals.
+
+### Inspection
+
+```bash
+marmot session log <name> [--since 2026-04-01] [--limit 50] [--json|--table]
+marmot session tail <name>        # follow-mode like tail -f
+marmot session stats <name>       # tokens, calls, cache_hit_rate, last_used_at
+```
+
+`session show` returns `{tokens_in_window, model, model_max_tokens, percent_used}`. Token estimate is `chars/4`.
+
+### Chat-mode helpers
+
+```bash
+marmot session context <name> [--json]          # print full message history
+marmot session reset <name>                     # clear messages, keep meta + log
+marmot session fork <src> <dest>                # branch from current state
+marmot session export <name> --format md|jsonl
+marmot session mark <name> "label"              # protect everything after this point
+marmot session compact <name> [--target-tokens 8000] [--keep-last 4]
+```
+
+`compact` calls the session's resolved provider/model with a summarization system prompt, rewrites `messages.jsonl` to `[summary, ...keep_last]`, and rotates the prior file to `messages.<ts>.jsonl`. Anything after the most recent `mark` stays verbatim. `--auto-compact` is recorded but not yet enforced; invoke manually.
+
+### Storage
+
+```
+$MARMOT_HOME/ai/sessions/<name>/
+  meta.json          # mode, preset, label, totals, timestamps
+  log.jsonl          # one call per line, append-only
+  messages.jsonl     # chat-mode only, append-only
+```
+
+All files mode `0o600`. API keys are never logged; only the source name (env var or `flag-override`). Prompt bodies are not logged unless `--record-prompts` is set on the session at create time. (There is no per-call override yet.)
+
+## 10. `marmot setup` walkthrough
+
+Interactive. Useful for first-run; agents usually prefer `config set`.
+
+Top-level menu:
+
+| Choice | Effect |
+| --- | --- |
+| Text / Image / Speech / Transcription | Pick provider + model (and voice for speech) for one AI mode. |
+| Reconfigure all four AI modes | Sequential walkthrough. |
+| Configure web verb defaults | `search`, `scrape`, `research`, `answer`, `crawl`, `map`, `findall`. |
+| Configure data verb defaults | `enrich`, `lookup`, `verify`. |
+| Configure provider settings | Per-provider walkthrough: enable/disable, cache, custom env vars. |
+| Done | Exit. |
+
+First run (no AI defaults present) offers to populate all four AI modes with OpenRouter defaults in one shot.
+
+The "Configure provider settings" submenu is detection-driven: only providers with a credential present (or already in config) are listed. Each row shows `✓` (enabled, has key), `⏸` (paused), or `·` (no key). For each picked provider it walks: enable toggle → cache enable + TTL (web/data only) → optional custom env var names.
+
+## 11. Resolution order recap
+
+For a verb call:
+
+```
+explicit CLI flag > preset (if --preset/@name) > config defaults > first-run auto-config (AI verbs only) > error
+```
+
+For credential lookup, per provider:
+
+```
+--api-key flag > providers.<slug>.apiKeyEnvVar (custom env var) > built-in default env var > error
+```
+
+Same shape for the secondary credential, where applicable: env var → `providers.<slug>.apiSecretEnvVar` → built-in default. (There is no `--api-secret` per-call flag; secondary credentials are always sourced from env, named via the optional `apiSecretEnvVar` config setting.)
+
+If `providers.<slug>.enabled` is `false`, the call fails fast with an actionable error before credential resolution.

@@ -1,0 +1,46 @@
+---
+title: Crawl
+description: marmot crawl — walk a domain, return pages.
+---
+
+```bash
+marmot crawl <url> [flags…]
+```
+
+## Providers
+
+`firecrawl`, `tavily`. Behavior differs:
+
+- **Firecrawl**: async — submits a job, returns a task id (or polls when `--wait`).
+- **Tavily**: sync — runs to completion, server-capped at 150 seconds.
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | `firecrawl` or `tavily`. Falls back to `defaults.crawl.provider`. |
+| `--api-key <key>` | Override the env var. |
+| `--max-pages <n>` | Cap pages crawled. |
+| `--max-depth <n>` | Discovery depth. |
+| `--instructions <text>` | Natural-language guidance (Tavily; doubles cost). |
+| `--include-paths <csv>` | Regex patterns of paths to include. |
+| `--exclude-paths <csv>` | Regex patterns of paths to exclude. |
+| `--allow-external` | Follow off-domain links. |
+| `--wait` | Block until done (default for Firecrawl async). |
+| `--async` | Submit and return the task id immediately (Firecrawl only). |
+| `--raw` | Emit the provider's native response under `raw`. |
+| `--json` | Emit the structured envelope (default). |
+| `--retries <n>` | Retry the initial submission up to N times. Polling is unaffected. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt submit timeout. Default 120. |
+
+## Async behavior
+
+When Firecrawl is the provider, the call is async. Default is `--wait` (poll until done). Pass `--async` to get the task id immediately and follow up with `marmot get <id>`.
+
+See [Async tasks](/docs/reference/commands/async-tasks).
+
+## Config keys
+
+```json
+{ "defaults": { "crawl": { "provider": "firecrawl" } } }
+```

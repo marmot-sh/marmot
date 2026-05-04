@@ -1,0 +1,116 @@
+---
+title: Lookup
+description: marmot lookup — structured filters in, list of entities out. People (Apollo, PDL), orgs (Apollo, PDL, Tomba), emails per domain (Hunter, Tomba).
+---
+
+```bash
+marmot lookup --type <person|org|email> [filter flags…] [--provider <slug>]
+```
+
+Lookup takes structured filters (title, location, employee count, tech stack) and returns a paginated list of matching entities. The opposite shape from `enrich` — many results, not one.
+
+## Capability matrix
+
+| Type | Apollo | Hunter | PDL | Tomba |
+| --- | :-: | :-: | :-: | :-: |
+| `person` | ✓ ¹ | — | ✓ | — |
+| `org` | ✓ ¹ | — | ✓ | ✓ ³ |
+| `email` | — | ✓ ² | — | ✓ ² |
+
+¹ Apollo `lookup` requires a master API key. Free-tier keys 403 on `/mixed_people/api_search` and `/mixed_companies/search`.
+² Hunter's and Tomba's `lookup --type email` return the emails the provider has crawled for a given domain (or company name), with confidence and verification status.
+³ Tomba's `lookup --type org` uses the `/reveal/search` endpoint with structured `include` / `exclude` filters across industry, size, technologies, etc. Returns companies, not people.
+
+## Filter flags
+
+| Flag | person | org | email | Notes |
+| --- | :-: | :-: | :-: | --- |
+| `--q <text>` | ✓ | ✓ | — | Free-form keyword query. |
+| `--title <text>` | ✓ | — | — | Job title (Apollo `person_titles`, PDL `job_title`). |
+| `--seniority <enum>` | ✓ | — | ✓ | `junior`, `senior`, `executive` (Hunter/Tomba); Apollo enum values. |
+| `--location <text>` | ✓ | ✓ | — | Geographic filter. |
+| `--domain <csv>` | ✓ | ✓ | ✓ | Comma-separated for person/org; single domain for email. |
+| `--employees <min,max>` | ✓ | ✓ | — | Employee count range. |
+| `--industry <text>` | — | ✓ | — | Industry filter (org). |
+| `--tech <csv>` | — | ✓ | — | Tech-stack tags (Apollo `currently_using_any_of_technology_uids`, Tomba `technologies`). |
+| `--department <text>` | — | — | ✓ | Department filter (Hunter, Tomba). |
+| `--email-type <kind>` | — | — | ✓ | `personal` or `generic`. |
+| `--company <name>` | — | — | ✓ | Alternative to `--domain` for Hunter/Tomba. |
+| `--limit <n>` | ✓ | ✓ | ✓ | Max results per page (capped at 100). |
+| `--cursor <token>` | ✓ | ✓ | ✓ | Pagination cursor. PDL `scroll_token`, Apollo / Tomba page number, Hunter `offset`. |
+
+## Common flags
+
+| Flag | Description |
+| --- | --- |
+| `--provider <slug>` | `apollo`, `hunter`, `pdl`, `tomba`. Falls back to `defaults.lookup.provider`. |
+| `--api-key <key>` | Override the env var for this call. |
+| `--raw` | Emit the provider's native response under `raw` instead of the normalized envelope. |
+| `--no-cache` | Bypass the response cache for this call. Skip read and skip write. |
+| `--refresh` | Skip cache read but write the fresh response, overwriting any cached entry. |
+| `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
+| `--timeout <seconds>` | Per-attempt request timeout. Default 120. |
+
+Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
+
+## Examples
+
+```bash
+marmot lookup --type person --title "VP Eng" --domain stripe.com,plaid.com --employees 100,500 --provider pdl
+marmot lookup --type org --industry fintech --tech salesforce,segment --employees 50,1000 --provider apollo
+marmot lookup --type email --domain acme.com --department engineering --provider hunter
+```
+
+## Envelope
+
+`person` and `org` cells:
+
+```json
+{
+  "ok": true,
+  "provider": "pdl",
+  "verb": "lookup",
+  "type": "person",
+  "data": {
+    "results": [{ "fullName": "…", "title": "…", "org": { "domain": "…" }, "…": "…" }],
+    "total": 42,
+    "nextCursor": "scroll_…"
+  },
+  "raw": null,
+  "usage": null,
+  "timestamp": "2026-05-02T21:18:00.000Z"
+}
+```
+
+`email` cell adds domain-level metadata:
+
+```json
+{
+  "data": {
+    "results": [{ "email": "alice@acme.com", "type": "personal", "confidence": 95, "…": "…" }],
+    "domain": "acme.com",
+    "pattern": "{first}.{last}",
+    "acceptAll": false,
+    "total": 12
+  }
+}
+```
+
+## Pagination
+
+Pass `--cursor <nextCursor>` from a prior response to fetch the next page. Cursors are opaque per provider; don't try to construct them by hand.
+
+## Config
+
+```json
+{ "defaults": { "lookup": { "provider": "pdl" } } }
+```
+
+Set via `marmot setup` (Configure data verb defaults) or `marmot config set lookup.provider <slug>`.
+
+## Plan-tier notes
+
+- **Apollo `lookup --type person`** uses `/mixed_people/api_search` (master-key, no credit). Free-tier keys 403. Apollo `lookup --type org` uses `/mixed_companies/search`, also master-key gated.
+- **PDL** charges 1 credit per record returned — set `--limit` deliberately. `--cursor` lets you page without re-running the predicate.
+- **Hunter `/discover`** (not yet wired) is Premium-only on some accounts.
+- **Tomba** uses dual-key auth (`TOMBA_API_KEY` + `TOMBA_SECRET_KEY`). `lookup --type org` consumes the `searches` quota.

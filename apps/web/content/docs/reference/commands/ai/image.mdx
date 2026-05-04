@@ -1,0 +1,62 @@
+---
+title: Image generation
+description: marmot image generates images via OpenAI, OpenRouter, Vercel AI Gateway, or Cloudflare Workers AI.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+```bash
+marmot image <prompt> [flags…]
+```
+
+Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. On first run, marmot detects available API keys in the env and auto-configures a default in this order: `openrouter` → `vercel` → `cloudflare` → `openai`. Override any time with `marmot setup`, `marmot config set`, or `--provider`.
+
+## Output
+
+Default behavior is **TTY-aware**:
+
+| Invocation | Output |
+| --- | --- |
+| `marmot image '...'` (terminal) | Writes auto-named file in CWD, prints the file path on stdout. |
+| `marmot image '...' > out.png` | Writes raw image bytes to stdout (auto-binary, n=1 only). |
+| `marmot image '...' \| something` | Same — bytes on stdout. |
+| `marmot image '...' -o cat.png` | Writes to `cat.png`, prints the path. |
+| `marmot image '...' --binary` | Forces raw bytes regardless. |
+| `marmot image '...' --b64` | JSON envelope with inline base64. |
+| `marmot image '...' --json` | Writes file, emits full JSON envelope. |
+
+Multi-image (`--n > 1`) always writes files and emits one path per line on stdout (or the JSON envelope under `--json`).
+
+## Examples
+
+```bash
+marmot image 'a marmot in space' > marmot.png && open marmot.png
+marmot image 'a marmot in space' -o ./out.png
+marmot image 'a marmot in space' --n 4 -o './out-{i}.png'
+
+# Pipe to a viewer in iTerm2
+marmot image 'a marmot in space' | imgcat
+```
+
+## Flags
+
+For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) see [Common flags](/docs/reference/commands/common-flags). Image-specific:
+
+| Flag | Description |
+| --- | --- |
+| `--model <id>` | Image model. Defaults to provider's default. |
+| `-o, --output <path>` | Output path. `{i}` template for batches (e.g. `./out-{i}.png`). |
+| `-p, --prompt-file <path>` | Prompt from a file. |
+| `--n <count>` | Number of images (1–10, default 1). |
+| `--size <WxH>` | Image size (provider-specific allowed values). |
+| `--quality <level>` | Provider-specific (e.g. `hd`, `low`/`medium`/`high`). |
+| `--style <style>` | Provider-specific (e.g. `vivid`/`natural`). |
+| `--seed <n>` | Reproducibility seed (Cloudflare, some Vercel models). |
+| `--negative <prompt>` | Negative prompt (Cloudflare). |
+| `--binary` | Force raw bytes to stdout. Requires `--n 1`. |
+| `--b64` | JSON envelope with inline base64; no file written. |
+| `--json` | Emit JSON envelope on stdout. Default prints just the path. |
+
+<Callout>
+`--binary`, `--b64`, `--json`, and `-o` are independent — pick the one that matches your workflow. `--binary` requires `--n 1`.
+</Callout>

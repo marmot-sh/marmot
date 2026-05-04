@@ -1,0 +1,16 @@
+{
+  "title": "Data",
+  "pages": [
+    "search",
+    "scrape",
+    "answer",
+    "map",
+    "crawl",
+    "research",
+    "findall",
+    "enrich",
+    "lookup",
+    "verify"
+  ],
+  "defaultOpen": true
+}

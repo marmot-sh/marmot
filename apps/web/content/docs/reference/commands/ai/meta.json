@@ -1,0 +1,10 @@
+{
+  "title": "AI",
+  "pages": [
+    "text",
+    "image",
+    "speech",
+    "transcription"
+  ],
+  "defaultOpen": true
+}

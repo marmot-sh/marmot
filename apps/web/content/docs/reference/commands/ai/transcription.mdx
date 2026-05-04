@@ -1,0 +1,65 @@
+---
+title: Transcription (STT)
+description: marmot transcribe takes audio in and emits plain text by default. Use --json for the envelope.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+```bash
+marmot transcribe <audio> [flags…]
+```
+
+Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. On first run, marmot detects available API keys in the env and auto-configures a default in this order: `openrouter` → `vercel` → `cloudflare` → `openai`. Override any time with `marmot setup`, `marmot config set`, or `--provider`.
+
+## Output
+
+Default is **plain text** on stdout — pipe-friendly.
+
+| Flag | Output |
+| --- | --- |
+| (none) | Plain transcribed text |
+| `--json` (alias for `--format json`) | Structured envelope |
+| `--format text` | Plain text (same as default) |
+| `--format srt` | SRT subtitles |
+| `--format vtt` | WebVTT subtitles |
+| `--format verbose-json` | Envelope + raw provider response |
+
+## Examples
+
+```bash
+marmot transcribe ./meeting.mp3
+marmot transcribe ./meeting.mp3 --json
+marmot transcribe ./meeting.mp3 --format srt -o ./meeting.srt
+
+# Pipe audio in
+cat ./meeting.mp3 | marmot transcribe
+
+# Round-trip with speak
+marmot speak 'hello world' --play | marmot transcribe
+
+# Bias with context
+marmot transcribe ./call.mp3 --prompt 'technical interview, names: Ada, Linus'
+
+# Cloudflare Whisper turbo
+marmot transcribe ./meeting.mp3 --provider cloudflare \
+  --model @cf/openai/whisper-large-v3-turbo --language en
+```
+
+## Flags
+
+For cross-cutting flags see [Common flags](/docs/reference/commands/common-flags). Transcribe-specific:
+
+| Flag | Description |
+| --- | --- |
+| `--model <id>` | Transcription model. Defaults to provider's default. |
+| `-i, --input <path>` | Audio file path (alternative to positional arg). |
+| `-o, --output <path>` | Write rendered output to a file. |
+| `--language <code>` | ISO-639-1 language hint (e.g. `en`, `es`). |
+| `--prompt <text>` | Bias prompt to guide the transcription. |
+| `--format <fmt>` | `text` (default), `json`, `srt`, `vtt`, `verbose-json`. |
+| `--text` | Plain text (now the default; flag kept for back-compat). |
+| `--json` | Alias for `--format json`. |
+
+<Callout>
+Audio source priority: positional path → `--input` → piped binary stdin. At least one is required.
+</Callout>

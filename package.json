@@ -1,0 +1,49 @@
+{
+  "name": "marmot",
+  "description": "Marmot — unified CLI for AI generation, web research, and data lookup.",
+  "private": true,
+  "license": "MIT",
+  "homepage": "https://marmot.sh",
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "test:all": "turbo run test:all",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "check": "turbo run check",
+    "smoke": "tsx scripts/smoke-test.ts",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@eslint/js": "^9.0.0",
+    "@marmot-sh/apollo": "workspace:*",
+    "@marmot-sh/bouncer": "workspace:*",
+    "@marmot-sh/brave": "workspace:*",
+    "@marmot-sh/core": "workspace:*",
+    "@marmot-sh/datagma": "workspace:*",
+    "@marmot-sh/exa": "workspace:*",
+    "@marmot-sh/firecrawl": "workspace:*",
+    "@marmot-sh/hunter": "workspace:*",
+    "@marmot-sh/kickbox": "workspace:*",
+    "@marmot-sh/parallel": "workspace:*",
+    "@marmot-sh/pdl": "workspace:*",
+    "@marmot-sh/tavily": "workspace:*",
+    "@marmot-sh/tomba": "workspace:*",
+    "@marmot-sh/zerobounce": "workspace:*",
+    "eslint": "^9.0.0",
+    "tsx": "^4.21.0",
+    "turbo": "^2.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
