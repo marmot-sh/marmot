@@ -210,6 +210,10 @@ export type ProviderImageGenerateInput = {
   style?: string;
   seed?: number;
   negative?: string;
+  /** Generic provider-options passthrough for niche params we haven't
+   *  typed (gpt-image-1's background/output_format/moderation, Cloudflare
+   *  guidance, etc.). The adapter wraps under its own slug. */
+  providerOptions?: Record<string, unknown>;
   apiKey?: string;
   cloudflareAccountId?: string;
   fetchFn?: typeof fetch;
@@ -275,6 +279,9 @@ export type ProviderSpeechInput = {
   format?: string;
   speed?: number;
   instructions?: string;
+  /** Generic provider-options passthrough for niche TTS params we
+   *  haven't typed. The adapter wraps under its own slug. */
+  providerOptions?: Record<string, unknown>;
   apiKey?: string;
   cloudflareAccountId?: string;
   fetchFn?: typeof fetch;
@@ -334,6 +341,10 @@ export type ProviderTranscribeInput = {
   language?: string;
   prompt?: string;
   format?: string;
+  /** Generic provider-options passthrough for niche STT params we
+   *  haven't typed (timestamp_granularities, response_format variants,
+   *  etc.). The adapter wraps under its own slug. */
+  providerOptions?: Record<string, unknown>;
   apiKey?: string;
   cloudflareAccountId?: string;
   fetchFn?: typeof fetch;

@@ -410,7 +410,10 @@ export const openRouterAdapter: ProviderAdapter = {
     // `modalities` parameter. We send n requests in parallel because the
     // chat-completions endpoint returns a single response per call.
     const calls = Array.from({ length: input.n }, async () => {
+      // User-supplied --provider-option entries land at top level of the
+      // request body. Provider rejects unknown keys with a clear 400.
       const body: Record<string, unknown> = {
+        ...(input.providerOptions ?? {}),
         model: input.model,
         modalities: ['image', 'text'],
         messages: [{ role: 'user', content: input.prompt }],
@@ -500,7 +503,9 @@ export const openRouterAdapter: ProviderAdapter = {
     // Default to mp3 so models like `gpt-4o-mini-tts` (whose silent default is
     // raw PCM) still produce a playable container that downstream code (temp
     // file extension, afplay) expects. Caller can override with --format.
+    // User --provider-option entries land at top level of the body.
     const body: Record<string, unknown> = {
+      ...(input.providerOptions ?? {}),
       model: input.model,
       input: input.text,
       voice: input.voice ?? 'alloy',
@@ -625,6 +630,7 @@ export const openRouterAdapter: ProviderAdapter = {
     const data = Buffer.from(input.audio).toString('base64');
 
     const body: Record<string, unknown> = {
+      ...(input.providerOptions ?? {}),
       model: input.model,
       input_audio: { data, format },
     };

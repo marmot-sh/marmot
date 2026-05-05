@@ -352,6 +352,11 @@ export const vercelAdapter: ProviderAdapter = {
         n: input.n,
         size: input.size as `${number}x${number}` | undefined,
         seed: input.seed,
+        providerOptions: input.providerOptions
+          ? ({ gateway: input.providerOptions } as unknown as Parameters<
+              typeof generateImage
+            >[0]['providerOptions'])
+          : undefined,
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -427,7 +432,9 @@ export const vercelAdapter: ProviderAdapter = {
         fetch: input.fetchFn,
       });
 
-      const providerOptions: Record<string, string | number> = {};
+      const providerOptions: Record<string, unknown> = {
+        ...(input.providerOptions ?? {}),
+      };
       if (input.format) providerOptions.response_format = input.format;
       if (typeof input.speed === 'number') providerOptions.speed = input.speed;
       if (input.instructions) providerOptions.instructions = input.instructions;
@@ -436,7 +443,9 @@ export const vercelAdapter: ProviderAdapter = {
         model: provider.speech(stripProviderPrefix(input.model)),
         text: input.text,
         voice: input.voice,
-        providerOptions: { openai: providerOptions },
+        providerOptions: { openai: providerOptions } as unknown as Parameters<
+          typeof generateSpeech
+        >[0]['providerOptions'],
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -492,7 +501,9 @@ export const vercelAdapter: ProviderAdapter = {
         fetch: input.fetchFn,
       });
 
-      const providerOptions: Record<string, string> = {};
+      const providerOptions: Record<string, unknown> = {
+        ...(input.providerOptions ?? {}),
+      };
       if (input.language) providerOptions.language = input.language;
       if (input.prompt) providerOptions.prompt = input.prompt;
       if (input.format) providerOptions.response_format = input.format;
@@ -500,7 +511,9 @@ export const vercelAdapter: ProviderAdapter = {
       const result = await transcribe({
         model: provider.transcription(stripProviderPrefix(input.model)),
         audio: input.audio,
-        providerOptions: { openai: providerOptions },
+        providerOptions: { openai: providerOptions } as unknown as Parameters<
+          typeof transcribe
+        >[0]['providerOptions'],
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });

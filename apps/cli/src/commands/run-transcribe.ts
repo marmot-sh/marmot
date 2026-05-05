@@ -15,6 +15,7 @@ import {
 } from '@marmot-sh/core';
 import { AICliError, toAICliError } from '@marmot-sh/core';
 import { sniffAudioMime } from '@marmot-sh/core';
+import { parseProviderOptions } from '../lib/provider-options.js';
 import {
   readStdin,
   type StdinReader,
@@ -74,6 +75,7 @@ export type TranscribeRunCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   session?: string;
+  providerOption?: string[];
 };
 
 type TranscribeRunCommandDependencies = {
@@ -247,6 +249,7 @@ export async function handleTranscribeRunCommand(
             language: input.language,
             prompt: input.prompt,
             format: input.format,
+            providerOptions: parseProviderOptions(options.providerOption),
             apiKey,
             cloudflareAccountId,
             fetchFn: dependencies.fetchFn,

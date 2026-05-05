@@ -352,7 +352,12 @@ export const openAIAdapter: ProviderAdapter = {
         fetch: input.fetchFn,
       });
 
-      const openaiOptions: Record<string, string> = {};
+      // Merge typed image flags with the generic --provider-option
+      // passthrough so users can reach gpt-image-1's background /
+      // output_format / moderation knobs without us typing each one.
+      const openaiOptions: Record<string, unknown> = {
+        ...(input.providerOptions ?? {}),
+      };
       if (input.quality) openaiOptions.quality = input.quality;
       if (input.style) openaiOptions.style = input.style;
 
@@ -362,7 +367,9 @@ export const openAIAdapter: ProviderAdapter = {
         n: input.n,
         size: input.size as `${number}x${number}` | undefined,
         seed: input.seed,
-        providerOptions: { openai: openaiOptions },
+        providerOptions: { openai: openaiOptions } as unknown as Parameters<
+          typeof generateImage
+        >[0]['providerOptions'],
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -421,7 +428,9 @@ export const openAIAdapter: ProviderAdapter = {
         fetch: input.fetchFn,
       });
 
-      const providerOptions: Record<string, string | number> = {};
+      const providerOptions: Record<string, unknown> = {
+        ...(input.providerOptions ?? {}),
+      };
       if (input.format) providerOptions.response_format = input.format;
       if (typeof input.speed === 'number') providerOptions.speed = input.speed;
       if (input.instructions) providerOptions.instructions = input.instructions;
@@ -430,7 +439,9 @@ export const openAIAdapter: ProviderAdapter = {
         model: provider.speech(input.model),
         text: input.text,
         voice: input.voice,
-        providerOptions: { openai: providerOptions },
+        providerOptions: { openai: providerOptions } as unknown as Parameters<
+          typeof generateSpeech
+        >[0]['providerOptions'],
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -484,7 +495,9 @@ export const openAIAdapter: ProviderAdapter = {
         fetch: input.fetchFn,
       });
 
-      const providerOptions: Record<string, string> = {};
+      const providerOptions: Record<string, unknown> = {
+        ...(input.providerOptions ?? {}),
+      };
       if (input.language) providerOptions.language = input.language;
       if (input.prompt) providerOptions.prompt = input.prompt;
       if (input.format) providerOptions.response_format = input.format;
@@ -492,7 +505,9 @@ export const openAIAdapter: ProviderAdapter = {
       const result = await transcribe({
         model: provider.transcription(input.model),
         audio: input.audio,
-        providerOptions: { openai: providerOptions },
+        providerOptions: { openai: providerOptions } as unknown as Parameters<
+          typeof transcribe
+        >[0]['providerOptions'],
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
