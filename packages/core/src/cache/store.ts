@@ -273,6 +273,35 @@ export async function forceRefreshProviderImageCache(
   return { cache: refreshedCache, cachePath };
 }
 
+export type EnsureImageCacheResult = {
+  cache: ProviderImageCacheFile;
+  cachePath: string;
+  refreshed: boolean;
+  usedStaleCache: boolean;
+  refreshReason?: CacheRefreshContext['reason'];
+};
+
+export async function ensureProviderImageCache(
+  input: EnsureProviderCacheInput,
+): Promise<EnsureImageCacheResult> {
+  return ensureModalityCache({
+    input,
+    cachePath: getProviderImageCachePath(input.provider, input.env ?? process.env),
+    read: () => readProviderImageCache(input.provider, input.env ?? process.env),
+    refresh: () => {
+      if (!input.adapter.refreshImageModels) {
+        throw new AICliError(
+          'cache',
+          `${input.adapter.name} does not support image-model refresh.`,
+        );
+      }
+      return input.adapter.refreshImageModels(input);
+    },
+    write: (cache) => writeProviderImageCache(cache, input.env ?? process.env),
+    modality: 'image',
+  });
+}
+
 export type ForceRefreshSpeechCacheResult = {
   cache: ProviderSpeechCacheFile;
   cachePath: string;
@@ -303,6 +332,35 @@ export async function forceRefreshProviderSpeechCache(
   return { cache: refreshedCache, cachePath };
 }
 
+export type EnsureSpeechCacheResult = {
+  cache: ProviderSpeechCacheFile;
+  cachePath: string;
+  refreshed: boolean;
+  usedStaleCache: boolean;
+  refreshReason?: CacheRefreshContext['reason'];
+};
+
+export async function ensureProviderSpeechCache(
+  input: EnsureProviderCacheInput,
+): Promise<EnsureSpeechCacheResult> {
+  return ensureModalityCache({
+    input,
+    cachePath: getProviderSpeechCachePath(input.provider, input.env ?? process.env),
+    read: () => readProviderSpeechCache(input.provider, input.env ?? process.env),
+    refresh: () => {
+      if (!input.adapter.refreshSpeechModels) {
+        throw new AICliError(
+          'cache',
+          `${input.adapter.name} does not support speech-model refresh.`,
+        );
+      }
+      return input.adapter.refreshSpeechModels(input);
+    },
+    write: (cache) => writeProviderSpeechCache(cache, input.env ?? process.env),
+    modality: 'speech',
+  });
+}
+
 export type ForceRefreshTranscriptionCacheResult = {
   cache: ProviderTranscriptionCacheFile;
   cachePath: string;
@@ -331,4 +389,126 @@ export async function forceRefreshProviderTranscriptionCache(
   const refreshedCache = await input.adapter.refreshTranscriptionModels(input);
   const cachePath = await writeProviderTranscriptionCache(refreshedCache, env);
   return { cache: refreshedCache, cachePath };
+}
+
+export type EnsureTranscriptionCacheResult = {
+  cache: ProviderTranscriptionCacheFile;
+  cachePath: string;
+  refreshed: boolean;
+  usedStaleCache: boolean;
+  refreshReason?: CacheRefreshContext['reason'];
+};
+
+export async function ensureProviderTranscriptionCache(
+  input: EnsureProviderCacheInput,
+): Promise<EnsureTranscriptionCacheResult> {
+  return ensureModalityCache({
+    input,
+    cachePath: getProviderTranscriptionCachePath(input.provider, input.env ?? process.env),
+    read: () => readProviderTranscriptionCache(input.provider, input.env ?? process.env),
+    refresh: () => {
+      if (!input.adapter.refreshTranscriptionModels) {
+        throw new AICliError(
+          'cache',
+          `${input.adapter.name} does not support transcription-model refresh.`,
+        );
+      }
+      return input.adapter.refreshTranscriptionModels(input);
+    },
+    write: (cache) => writeProviderTranscriptionCache(cache, input.env ?? process.env),
+    modality: 'transcription',
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  shared modality-cache machinery                                           */
+/* -------------------------------------------------------------------------- */
+
+type ModalityCacheFile = ProviderImageCacheFile | ProviderSpeechCacheFile | ProviderTranscriptionCacheFile;
+
+type EnsureModalityCacheArgs<T extends ModalityCacheFile> = {
+  input: EnsureProviderCacheInput;
+  cachePath: string;
+  read: () => Promise<T | null>;
+  refresh: () => Promise<T>;
+  write: (cache: T) => Promise<string>;
+  modality: 'image' | 'speech' | 'transcription';
+};
+
+/** Image/speech/transcription analog of `ensureProviderCache`. Same
+ *  semantics: 24h TTL, stale-cache fallback when a refresh fails.
+ *  Modality-specific I/O is plumbed through callbacks so each public
+ *  ensure-function stays a thin wrapper. */
+async function ensureModalityCache<T extends ModalityCacheFile>(
+  args: EnsureModalityCacheArgs<T>,
+): Promise<{
+  cache: T;
+  cachePath: string;
+  refreshed: boolean;
+  usedStaleCache: boolean;
+  refreshReason?: CacheRefreshContext['reason'];
+}> {
+  const { input, cachePath, read, refresh, write, modality } = args;
+  let existingCache: T | null = null;
+  let readError: AICliError | null = null;
+
+  try {
+    existingCache = await read();
+  } catch (error) {
+    readError = toAICliError(
+      error,
+      'cache',
+      `Failed to read the ${input.provider} ${modality} cache.`,
+    );
+  }
+
+  const now = input.now?.() ?? new Date();
+
+  if (existingCache && isModalityCacheFresh(existingCache, now)) {
+    return {
+      cache: existingCache,
+      cachePath,
+      refreshed: false,
+      usedStaleCache: false,
+    };
+  }
+
+  const reason: CacheRefreshContext['reason'] = existingCache ? 'stale' : 'missing';
+  const doRefresh = refresh;
+  const wrapped = input.wrapRefresh
+    ? () => input.wrapRefresh!({ provider: input.provider, reason }, doRefresh)
+    : doRefresh;
+
+  try {
+    const refreshedCache = await wrapped();
+    const writtenCachePath = await write(refreshedCache);
+    return {
+      cache: refreshedCache,
+      cachePath: writtenCachePath,
+      refreshed: true,
+      usedStaleCache: false,
+      refreshReason: reason,
+    };
+  } catch (error) {
+    if (existingCache) {
+      return {
+        cache: existingCache,
+        cachePath,
+        refreshed: false,
+        usedStaleCache: true,
+        refreshReason: reason,
+      };
+    }
+    if (readError) throw readError;
+    throw toAICliError(
+      error,
+      'cache',
+      `Failed to refresh the ${input.provider} ${modality}-model cache.`,
+    );
+  }
+}
+
+function isModalityCacheFresh(cache: ModalityCacheFile, now: Date): boolean {
+  const fetchedAt = new Date(cache.fetchedAt).getTime();
+  return now.getTime() - fetchedAt < CACHE_MAX_AGE_MS;
 }
