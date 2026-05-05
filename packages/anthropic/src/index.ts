@@ -14,7 +14,7 @@ import {
   ANTHROPIC_MODELS_URL,
   PROVIDER_DEFAULT_MODELS,
 } from '@marmot-sh/core';
-import { AICliError, toAICliError } from '@marmot-sh/core';
+import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeAnthropicUsage } from '@marmot-sh/core';
 
@@ -286,7 +286,7 @@ export const anthropicAdapter: ProviderAdapter = {
         : 'provider';
       throw new AICliError(
         category,
-        `Anthropic model refresh failed with status ${response.status}.`,
+        `Anthropic model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 

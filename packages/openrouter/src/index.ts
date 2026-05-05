@@ -18,7 +18,7 @@ import {
   PROVIDER_SPEECH_DEFAULT_MODELS,
   PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
 } from '@marmot-sh/core';
-import { AICliError, toAICliError } from '@marmot-sh/core';
+import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeOpenRouterUsage } from '@marmot-sh/core';
 import type {
@@ -299,7 +299,7 @@ export const openRouterAdapter: ProviderAdapter = {
         : 'provider';
       throw new AICliError(
         category,
-        `OpenRouter model refresh failed with status ${response.status}.`,
+        `OpenRouter model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
@@ -397,7 +397,7 @@ export const openRouterAdapter: ProviderAdapter = {
             : 'provider';
         throw new AICliError(
           category,
-          `OpenRouter image generation failed with status ${response.status}.`,
+          `OpenRouter image generation failed with status ${response.status}.${await readErrorBody(response)}`,
         );
       }
 
@@ -501,7 +501,7 @@ export const openRouterAdapter: ProviderAdapter = {
         : 'provider';
       throw new AICliError(
         category,
-        `OpenRouter speech generation failed with status ${response.status}.`,
+        `OpenRouter speech generation failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
@@ -541,7 +541,7 @@ export const openRouterAdapter: ProviderAdapter = {
         : 'provider';
       throw new AICliError(
         category,
-        `OpenRouter speech-model refresh failed with status ${response.status}.`,
+        `OpenRouter speech-model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
@@ -619,7 +619,7 @@ export const openRouterAdapter: ProviderAdapter = {
         : 'provider';
       throw new AICliError(
         category,
-        `OpenRouter transcription failed with status ${response.status}.`,
+        `OpenRouter transcription failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
@@ -679,7 +679,7 @@ export const openRouterAdapter: ProviderAdapter = {
         : 'provider';
       throw new AICliError(
         category,
-        `OpenRouter transcription-model refresh failed with status ${response.status}.`,
+        `OpenRouter transcription-model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
@@ -733,7 +733,7 @@ export const openRouterAdapter: ProviderAdapter = {
         response.status === 401 || response.status === 403 ? 'auth' : 'provider';
       throw new AICliError(
         category,
-        `OpenRouter image-model refresh failed with status ${response.status}.`,
+        `OpenRouter image-model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 

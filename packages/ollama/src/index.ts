@@ -10,7 +10,7 @@ import { z } from 'zod';
 
 import { getOllamaApiBaseUrl } from '@marmot-sh/core';
 import { PROVIDER_DEFAULT_MODELS } from '@marmot-sh/core';
-import { AICliError, toAICliError } from '@marmot-sh/core';
+import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeUsage } from '@marmot-sh/core';
 import type {
@@ -183,7 +183,7 @@ export const ollamaAdapter: ProviderAdapter = {
     if (!response.ok) {
       throw new AICliError(
         'provider',
-        `Ollama model refresh failed with status ${response.status}.`,
+        `Ollama model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 

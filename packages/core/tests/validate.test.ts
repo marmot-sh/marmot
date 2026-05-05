@@ -4,8 +4,12 @@ import {
   findStaleDefaults,
   formatStaleDefaultsBanner,
   type CatalogSnapshot,
-  type MarmotConfig,
 } from '../src/cache/validate.js';
+import type { MarmotConfig } from '../src/schemas/config.js';
+import type {
+  ProviderCacheFile,
+  ProviderImageCacheFile,
+} from '../src/types.js';
 
 const baseConfig: MarmotConfig = {
   version: 1,
@@ -17,20 +21,46 @@ const baseConfig: MarmotConfig = {
 
 const fetchedAt = '2026-05-05T00:00:00.000Z';
 
+function textCache(provider: 'openrouter', modelIds: string[]): ProviderCacheFile {
+  return {
+    version: 1,
+    provider,
+    defaultModel: modelIds[0] ?? '',
+    fetchedAt,
+    models: modelIds.map((id) => ({
+      id,
+      name: id,
+      contextLength: null,
+      pricing: null,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      updatedAt: null,
+      metadata: {},
+    })),
+  };
+}
+
+function imageCache(
+  provider: 'openrouter',
+  modelIds: string[],
+): ProviderImageCacheFile {
+  return {
+    version: 1,
+    provider,
+    defaultModel: modelIds[0] ?? '',
+    fetchedAt,
+    models: modelIds.map((id) => ({
+      id,
+      name: id,
+      metadata: {},
+    })),
+  };
+}
+
 describe('findStaleDefaults', () => {
   it('flags a configured model that is not in the cache', () => {
     const catalogs: CatalogSnapshot = {
-      image: {
-        openrouter: {
-          version: 1,
-          provider: 'openrouter',
-          defaultModel: 'google/gemini-2.5-flash-image',
-          fetchedAt,
-          models: [
-            { id: 'google/gemini-2.5-flash-image', name: 'GA' },
-          ],
-        },
-      },
+      image: { openrouter: imageCache('openrouter', ['google/gemini-2.5-flash-image']) },
     };
     const stale = findStaleDefaults(baseConfig, catalogs);
     expect(stale).toEqual([
@@ -44,29 +74,8 @@ describe('findStaleDefaults', () => {
 
   it('returns nothing when every configured model is present', () => {
     const catalogs: CatalogSnapshot = {
-      text: {
-        openrouter: {
-          version: 1,
-          provider: 'openrouter',
-          defaultModel: 'openai/gpt-oss-120b',
-          fetchedAt,
-          models: [{ id: 'openai/gpt-oss-120b', name: 'gpt-oss-120b' }],
-        },
-      },
-      image: {
-        openrouter: {
-          version: 1,
-          provider: 'openrouter',
-          defaultModel: 'google/gemini-2.5-flash-image-preview',
-          fetchedAt,
-          models: [
-            {
-              id: 'google/gemini-2.5-flash-image-preview',
-              name: 'preview',
-            },
-          ],
-        },
-      },
+      text: { openrouter: textCache('openrouter', ['openai/gpt-oss-120b']) },
+      image: { openrouter: imageCache('openrouter', ['google/gemini-2.5-flash-image-preview']) },
     };
     expect(findStaleDefaults(baseConfig, catalogs)).toEqual([]);
   });
@@ -85,15 +94,7 @@ describe('findStaleDefaults', () => {
       defaults: { text: { provider: 'openrouter' } },
     };
     const catalogs: CatalogSnapshot = {
-      text: {
-        openrouter: {
-          version: 1,
-          provider: 'openrouter',
-          defaultModel: 'openai/gpt-oss-120b',
-          fetchedAt,
-          models: [],
-        },
-      },
+      text: { openrouter: textCache('openrouter', []) },
     };
     expect(findStaleDefaults(config, catalogs)).toEqual([]);
   });
