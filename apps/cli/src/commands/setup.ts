@@ -55,6 +55,7 @@ import { getMarmotConfigPath } from '@marmot-sh/core';
 import { getProviderAdapter } from '../providers/index.js';
 import type { MarmotConfig } from '@marmot-sh/core';
 import { walkAllDataDefaults } from './setup-data-defaults.js';
+import { EXIT_SETUP, EXIT_SETUP_OPTION } from '../lib/setup-exit.js';
 import { walkProviderSettings } from './setup-provider-settings.js';
 import { walkResponseCache } from './setup-cache.js';
 import { walkCompletionsSetup } from './setup-completions.js';
@@ -182,6 +183,10 @@ export async function handleSetupCommand(
     if (choice === AI_DEFAULTS) {
       const updated = await walkAIDefaults(config, statuses, env, fetchFn);
       if (updated === null) return;
+      if (updated === EXIT_SETUP) {
+        process.stdout.write(`Saved to ${getMarmotConfigPath(env)}\n`);
+        return;
+      }
       if (updated !== 'unchanged') {
         config = updated;
         await writeMarmotConfig(config, env);
@@ -192,6 +197,10 @@ export async function handleSetupCommand(
     if (choice === CONTEXT_DEFAULTS) {
       const updated = await walkAllDataDefaults(config, env);
       if (updated === null) return;
+      if (updated === EXIT_SETUP) {
+        process.stdout.write(`Saved to ${getMarmotConfigPath(env)}\n`);
+        return;
+      }
       if (updated !== 'unchanged') {
         config = updated;
         await writeMarmotConfig(config, env);
@@ -202,6 +211,10 @@ export async function handleSetupCommand(
     if (choice === PROVIDER_SETTINGS) {
       const updated = await walkProviderSettings(config, env);
       if (updated === null) return;
+      if (updated === (EXIT_SETUP as unknown as MarmotConfig)) {
+        process.stdout.write(`Saved to ${getMarmotConfigPath(env)}\n`);
+        return;
+      }
       if (updated !== ('unchanged' as unknown as MarmotConfig)) {
         config = updated;
         await writeMarmotConfig(config, env);
@@ -212,6 +225,10 @@ export async function handleSetupCommand(
     if (choice === GLOBAL_CACHE) {
       const updated = await walkResponseCache(config, env);
       if (updated === null) return;
+      if (updated === (EXIT_SETUP as unknown as MarmotConfig)) {
+        process.stdout.write(`Saved to ${getMarmotConfigPath(env)}\n`);
+        return;
+      }
       if (updated !== config) {
         config = updated;
         await writeMarmotConfig(config, env);
@@ -568,7 +585,7 @@ async function walkAIDefaults(
   statuses: ProviderStatus[],
   env: NodeJS.ProcessEnv,
   fetchFn: typeof fetch,
-): Promise<MarmotConfig | null | 'unchanged'> {
+): Promise<MarmotConfig | null | 'unchanged' | typeof EXIT_SETUP> {
   // Build the option labels with the current default baked in, padded to the
   // max label width so every row shows its value inline (clack only renders
   // the focused option's hint, so values would otherwise be invisible until
@@ -590,6 +607,7 @@ async function walkAIDefaults(
     options: [
       ...renderedItems,
       { value: AI_BACK, label: 'Back to setup' },
+      EXIT_SETUP_OPTION,
     ],
   });
   if (isCancel(choice)) {
@@ -597,6 +615,7 @@ async function walkAIDefaults(
     return null;
   }
   if (choice === AI_BACK) return 'unchanged';
+  if (choice === EXIT_SETUP) return EXIT_SETUP;
   return await editMode(choice as Mode, config, statuses, env, fetchFn);
 }
 
