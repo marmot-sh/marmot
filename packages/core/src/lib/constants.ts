@@ -266,5 +266,5 @@ export const PROVIDER_TRANSCRIPTION_DEFAULT_MODELS: Partial<Record<ProviderSlug,
   openai: 'whisper-1',
   cloudflare: '@cf/openai/whisper-large-v3-turbo',
   vercel: 'openai/whisper-1',
-  openrouter: 'openai/whisper-1',
+  openrouter: 'openai/gpt-4o-transcribe',
 };

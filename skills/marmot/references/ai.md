@@ -8,7 +8,7 @@ Four verbs cover text, image, audio out, and audio in: `run`, `image`, `speak`, 
 
 | Provider | `run` | `image` | `speak` | `transcribe` | API key env | Extra env | Default text model | Default image | Default speech | Default STT |
 | --- | :-: | :-: | :-: | :-: | --- | --- | --- | --- | --- | --- |
-| openrouter | yes | yes | yes | yes | `OPENROUTER_API_KEY` | — | `openai/gpt-oss-120b` | `google/gemini-2.5-flash-image` | `openai/gpt-4o-mini-tts-2025-12-15` | `openai/whisper-1` |
+| openrouter | yes | yes | yes | yes | `OPENROUTER_API_KEY` | — | `openai/gpt-oss-120b` | `google/gemini-2.5-flash-image` | `openai/gpt-4o-mini-tts-2025-12-15` | `openai/gpt-4o-transcribe` |
 | anthropic | yes | — | — | — | `ANTHROPIC_API_KEY` | — | `claude-sonnet-4-6` | — | — | — |
 | openai | yes | yes | yes | yes | `OPENAI_API_KEY` | — | `gpt-4o-mini` | `gpt-image-1` | `tts-1` | `whisper-1` |
 | vercel | yes | yes | yes | yes | `AI_GATEWAY_API_KEY` | — | `anthropic/claude-sonnet-4.6` | `openai/dall-e-3` | `openai/tts-1` | `openai/whisper-1` |
