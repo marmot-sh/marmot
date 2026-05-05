@@ -9,16 +9,21 @@ import {
   DATA_PROVIDERS,
   PROVIDERS,
   WEB_PROVIDERS,
+  formatStaleDefaultsBanner,
   marmotConfigSchema,
   statsAll,
+  warnText,
   type CacheStats,
   type MarmotConfig,
 } from '@marmot-sh/core';
 import { writeLine, type OutputWriter } from '@marmot-sh/core';
 
+import { readStaleDefaults } from '../lib/stale-defaults.js';
+
 export type ConfigCommandDependencies = {
   env?: NodeJS.ProcessEnv;
   stdout?: OutputWriter;
+  stderr?: OutputWriter;
 };
 
 const AI_VERB_KEYS = [
@@ -333,12 +338,14 @@ export async function handleConfigShow(
 ): Promise<void> {
   const env = dependencies.env ?? process.env;
   const stdout = dependencies.stdout ?? process.stdout;
+  const stderr = dependencies.stderr ?? process.stderr;
   const config = (await readMarmotConfig(env)) ?? { version: 1 as const };
   const cacheStats = await statsAll(env);
 
   if (options.json) {
     const totalEntries = cacheStats.reduce((acc, s) => acc + s.entries, 0);
     const totalBytes = cacheStats.reduce((acc, s) => acc + s.bytes, 0);
+    const stale = await readStaleDefaults(config, env);
     writeLine(
       stdout,
       JSON.stringify(
@@ -348,12 +355,20 @@ export async function handleConfigShow(
             totals: { entries: totalEntries, bytes: totalBytes },
             providers: cacheStats,
           },
+          ...(stale.length > 0 ? { staleDefaults: stale } : {}),
         },
         null,
         2,
       ),
     );
   } else {
+    // Stale-default banner goes to stderr so it doesn't pollute pipes that
+    // are processing the human-formatted output, but is still seen by
+    // anyone running the command interactively.
+    const banner = formatStaleDefaultsBanner(await readStaleDefaults(config, env));
+    if (banner) {
+      stderr.write(`${warnText(banner)}\n\n`);
+    }
     writeLine(stdout, formatConfigHuman(config, getMarmotConfigPath(env), cacheStats));
   }
 }

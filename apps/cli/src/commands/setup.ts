@@ -14,8 +14,10 @@ import {
   ensureProviderImageCache,
   ensureProviderSpeechCache,
   ensureProviderTranscriptionCache,
+  formatStaleDefaultsBanner,
   warnText,
 } from '@marmot-sh/core';
+import { readStaleDefaults } from '../lib/stale-defaults.js';
 import { createEphemeralSpinner } from '../lib/ephemeral-spinner.js';
 import {
   PROVIDER_DEFAULT_MODELS,
@@ -150,7 +152,8 @@ export async function handleSetupCommand(
   // hub stays a single visible surface instead of an accumulating
   // transcript of past visits.
   for (;;) {
-    renderHub(env, await formatStatusSnapshot(config, env));
+    const staleBanner = formatStaleDefaultsBanner(await readStaleDefaults(config, env));
+    renderHub(env, await formatStatusSnapshot(config, env), staleBanner);
 
     const hints = await computeMenuHints(config, env);
     const choice = await select({
@@ -230,12 +233,23 @@ export async function handleSetupCommand(
 
 /** Clear the terminal (TTY only) and render a flat header + status snapshot.
  *  Intentionally not using clack's `note`/`intro` — those draw a connecting
- *  rail meant for a wizard. The hub is a hub, not a wizard. */
-function renderHub(env: NodeJS.ProcessEnv, statusSnapshot: string): void {
+ *  rail meant for a wizard. The hub is a hub, not a wizard.
+ *
+ *  Optional `staleBanner` surfaces configured defaults whose model is no
+ *  longer in the cached provider catalog, so the user sees the problem at
+ *  the place where they can fix it. */
+function renderHub(
+  env: NodeJS.ProcessEnv,
+  statusSnapshot: string,
+  staleBanner: string | null,
+): void {
   if (process.stdout.isTTY) {
     process.stdout.write('\x1b[2J\x1b[H');
   }
   process.stdout.write(`${brandText('marmot', { bold: true, env })} ${MARMOT_VERSION}\n\n`);
+  if (staleBanner) {
+    process.stdout.write(`${warnText(staleBanner)}\n\n`);
+  }
   process.stdout.write(`${statusSnapshot}\n\n`);
 }
 
