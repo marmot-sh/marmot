@@ -107,6 +107,13 @@ export type RunCommandOptions = {
   file?: string[];
   fileMime?: string;
   textStdin?: boolean;
+  temperature?: string | number;
+  maxTokens?: string | number;
+  topP?: string | number;
+  seed?: string | number;
+  stop?: string[];
+  reasoning?: 'low' | 'medium' | 'high';
+  providerOption?: string[];
   text?: boolean;
   json?: boolean;
   stream?: boolean;
@@ -194,6 +201,13 @@ export async function handleRunCommand(
               files: execution.files,
               history,
               cacheBreakpoints,
+              temperature: execution.input.temperature,
+              maxOutputTokens: execution.input.maxOutputTokens,
+              topP: execution.input.topP,
+              seed: execution.input.seed,
+              stopSequences: execution.input.stopSequences,
+              reasoning: execution.input.reasoning,
+              providerOptions: execution.input.providerOptions,
               fetchFn: dependencies.fetchFn,
               abortSignal,
             }),
@@ -282,6 +296,13 @@ export async function handleRunCommand(
             cloudflareAccountId: execution.cloudflareAccountId,
             images: execution.images,
             files: execution.files,
+            temperature: execution.input.temperature,
+            maxOutputTokens: execution.input.maxOutputTokens,
+            topP: execution.input.topP,
+            seed: execution.input.seed,
+            stopSequences: execution.input.stopSequences,
+            reasoning: execution.input.reasoning,
+            providerOptions: execution.input.providerOptions,
             fetchFn: dependencies.fetchFn,
             abortSignal,
           }),
@@ -385,6 +406,13 @@ export async function handleStreamRunCommand(
       cloudflareAccountId: execution.cloudflareAccountId,
       images: execution.images,
       files: execution.files,
+      temperature: execution.input.temperature,
+      maxOutputTokens: execution.input.maxOutputTokens,
+      topP: execution.input.topP,
+      seed: execution.input.seed,
+      stopSequences: execution.input.stopSequences,
+      reasoning: execution.input.reasoning,
+      providerOptions: execution.input.providerOptions,
       fetchFn: dependencies.fetchFn,
       abortSignal,
     });
@@ -509,6 +537,38 @@ function inferStdinFileModality(mimeType: string | undefined): string {
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType.startsWith('video/')) return 'video';
   return 'file';
+}
+
+/** Parse repeatable `--provider-option k=v` flags into a plain object.
+ *  Values are kept as strings -- the underlying provider SDKs coerce
+ *  numbers/booleans where they need to, and string is the safe lossless
+ *  default for arbitrary key=value pairs. Returns undefined when no
+ *  options were passed so the schema's optional() field can stay
+ *  unset. */
+function parseProviderOptions(
+  raw: string[] | undefined,
+): Record<string, unknown> | undefined {
+  if (!raw || raw.length === 0) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const entry of raw) {
+    const eq = entry.indexOf('=');
+    if (eq <= 0) {
+      throw new AICliError(
+        'validation',
+        `--provider-option must look like key=value (got "${entry}").`,
+      );
+    }
+    const key = entry.slice(0, eq).trim();
+    const value = entry.slice(eq + 1);
+    if (!key) {
+      throw new AICliError(
+        'validation',
+        `--provider-option key is empty in "${entry}".`,
+      );
+    }
+    out[key] = value;
+  }
+  return out;
 }
 
 async function loadImages(
@@ -702,6 +762,13 @@ async function prepareRunExecution(
     filePaths,
     fileStdin: stdinFilePayload !== null,
     fileMimeOverride: options.fileMime,
+    temperature: options.temperature,
+    maxOutputTokens: options.maxTokens,
+    topP: options.topP,
+    seed: options.seed,
+    stopSequences: options.stop,
+    reasoning: options.reasoning,
+    providerOptions: parseProviderOptions(options.providerOption),
     text: Boolean(options.text),
     json: Boolean(options.json),
     stream: Boolean(options.stream),

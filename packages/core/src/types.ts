@@ -99,6 +99,8 @@ export type ChatHistoryEntry = {
   content: string;
 };
 
+export type ReasoningEffort = 'low' | 'medium' | 'high';
+
 export type ProviderGenerateInput = {
   model: string;
   prompt: string;
@@ -115,6 +117,31 @@ export type ProviderGenerateInput = {
     system?: boolean;
     lastUserMessage?: boolean;
   };
+  /** Sampling temperature. AI SDK passes through to every provider that
+   *  supports it. */
+  temperature?: number;
+  /** Hard cap on completion tokens. */
+  maxOutputTokens?: number;
+  /** Top-p / nucleus sampling. */
+  topP?: number;
+  /** Reproducibility seed (provider-supported). */
+  seed?: number;
+  /** Stop sequences. */
+  stopSequences?: string[];
+  /** Map low/medium/high to each provider's reasoning/thinking knob:
+   *    OpenAI -> reasoning_effort
+   *    Anthropic -> thinking: { type: 'enabled', budgetTokens }
+   *    OpenRouter -> reasoning: { effort }
+   *    Others -> ignored.
+   *  Single biggest "why is the model dumber than expected" lever for
+   *  frontier models (gpt-5, claude-sonnet-4.x, openai/o-series). */
+  reasoning?: ReasoningEffort;
+  /** Generic provider-options passthrough. Keys are top-level for the
+   *  AI SDK's `providerOptions` shape (`{ openai: {...}, anthropic: {...} }`);
+   *  the adapter wraps the user-supplied object under its own slug.
+   *  Escape hatch for niche provider params we haven't typed (Anthropic
+   *  beta headers, OpenAI verbosity, OpenRouter transforms, etc.). */
+  providerOptions?: Record<string, unknown>;
   apiKey?: string;
   ollamaBaseUrl?: string;
   cloudflareAccountId?: string;

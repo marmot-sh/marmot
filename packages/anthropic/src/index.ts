@@ -15,6 +15,7 @@ import {
   PROVIDER_DEFAULT_MODELS,
 } from '@marmot-sh/core';
 import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
+import { reasoningForAnthropic } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeAnthropicUsage } from '@marmot-sh/core';
 
@@ -105,6 +106,25 @@ const anthropicModelsResponseSchema = z.object({
   last_id: z.string().nullable().optional(),
 });
 
+function buildCommonAnthropicArgs(input: ProviderGenerateInput) {
+  const reasoning = reasoningForAnthropic(input.reasoning);
+  const userOpts = input.providerOptions ?? {};
+  const merged = { ...userOpts, ...(reasoning ?? {}) };
+  return {
+    temperature: input.temperature,
+    maxOutputTokens: input.maxOutputTokens,
+    topP: input.topP,
+    seed: input.seed,
+    stopSequences: input.stopSequences,
+    providerOptions:
+      Object.keys(merged).length > 0
+        ? ({ anthropic: merged } as unknown as Parameters<
+            typeof generateText
+          >[0]['providerOptions'])
+        : undefined,
+  };
+}
+
 export const anthropicAdapter: ProviderAdapter = {
   slug: 'anthropic',
   name: 'Anthropic',
@@ -135,6 +155,7 @@ export const anthropicAdapter: ProviderAdapter = {
         ...(cached.messages
           ? { messages: cached.messages as NonNullable<Parameters<typeof generateText>[0]['messages']> }
           : { prompt: input.prompt }),
+        ...buildCommonAnthropicArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -184,6 +205,7 @@ export const anthropicAdapter: ProviderAdapter = {
         ...(cached.messages
           ? { messages: cached.messages as NonNullable<Parameters<typeof generateText>[0]['messages']> }
           : { prompt: input.prompt }),
+        ...buildCommonAnthropicArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
         output: Output.object({
@@ -227,6 +249,7 @@ export const anthropicAdapter: ProviderAdapter = {
       const result = streamText({
         model: provider.languageModel(input.model),
         system: cached.system as Parameters<typeof streamText>[0]['system'],
+        ...buildCommonAnthropicArgs(input),
         ...(cached.messages
           ? { messages: cached.messages as NonNullable<Parameters<typeof streamText>[0]['messages']> }
           : { prompt: input.prompt }),

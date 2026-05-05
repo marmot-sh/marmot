@@ -24,6 +24,7 @@ import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeOpenRouterUsage } from '@marmot-sh/core';
 import { normalizeResolution } from '@marmot-sh/core';
+import { reasoningForOpenRouter } from '@marmot-sh/core';
 import type {
   ProviderCacheFile,
   ProviderGenerateInput,
@@ -107,6 +108,30 @@ const openRouterModelsResponseSchema = z.object({
   data: z.array(openRouterModelSchema),
 });
 
+/** Build the args shared across generateText / generateObject / streamText
+ *  for OpenRouter: sampling params plus a `providerOptions.openrouter`
+ *  bundle that merges reasoning effort with the user-supplied
+ *  passthrough. Returned as a partial object that callers spread into
+ *  the AI SDK call. */
+function buildCommonOpenRouterArgs(input: ProviderGenerateInput) {
+  const reasoning = reasoningForOpenRouter(input.reasoning);
+  const userOpts = input.providerOptions ?? {};
+  const merged = { ...userOpts, ...(reasoning ?? {}) };
+  return {
+    temperature: input.temperature,
+    maxOutputTokens: input.maxOutputTokens,
+    topP: input.topP,
+    seed: input.seed,
+    stopSequences: input.stopSequences,
+    providerOptions:
+      Object.keys(merged).length > 0
+        ? ({ openrouter: merged } as unknown as Parameters<
+            typeof generateText
+          >[0]['providerOptions'])
+        : undefined,
+  };
+}
+
 export const openRouterAdapter: ProviderAdapter = {
   slug: 'openrouter',
   name: 'OpenRouter',
@@ -143,6 +168,7 @@ export const openRouterAdapter: ProviderAdapter = {
         }),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOpenRouterArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -194,6 +220,7 @@ export const openRouterAdapter: ProviderAdapter = {
         model,
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOpenRouterArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
         output: Output.object({
@@ -242,6 +269,7 @@ export const openRouterAdapter: ProviderAdapter = {
         }),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOpenRouterArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });

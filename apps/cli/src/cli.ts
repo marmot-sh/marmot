@@ -105,6 +105,14 @@ function collectFile(value: string, previous: string[] = []): string[] {
   return previous.concat([value]);
 }
 
+function collectStop(value: string, previous: string[] = []): string[] {
+  return previous.concat([value]);
+}
+
+function collectProviderOption(value: string, previous: string[] = []): string[] {
+  return previous.concat([value]);
+}
+
 async function withPreset<T extends { preset?: string }>(
   options: T,
   expectedMode: PresetMode,
@@ -147,6 +155,13 @@ function addRunOptions(command: Command): Command {
     )
     .option('--file-mime <mime>', 'Override mime type when --file - is piped.')
     .option('--text-stdin', 'Force stdin to be read as text even if it looks like binary content.')
+    .option('--temperature <n>', 'Sampling temperature (provider-specific range, typically 0–2).')
+    .option('--max-tokens <n>', 'Hard cap on completion tokens.')
+    .option('--top-p <n>', 'Top-p / nucleus sampling (0–1).')
+    .option('--seed <n>', 'Reproducibility seed.')
+    .option('--stop <text>', 'Stop sequence. Repeatable.', collectStop, [] as string[])
+    .option('--reasoning <effort>', 'Thinking/reasoning effort: low | medium | high. Maps to Anthropic thinking budget, OpenAI reasoning_effort, OpenRouter reasoning.effort.')
+    .option('--provider-option <key=value>', 'Generic passthrough (repeatable). Lands in providerOptions[<provider>] for niche params.', collectProviderOption, [] as string[])
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 120).')
     .option('--stream', 'Stream text output and imply text mode.')
