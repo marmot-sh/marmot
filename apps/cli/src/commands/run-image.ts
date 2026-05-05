@@ -8,6 +8,7 @@ import {
   resolveProviderAuth,
 } from '@marmot-sh/core';
 import { AICliError } from '@marmot-sh/core';
+import { parseProviderOptions } from '../lib/provider-options.js';
 import {
   readPromptFile,
   readStdin,
@@ -68,6 +69,7 @@ export type ImageRunCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   session?: string;
+  providerOption?: string[];
   // Commander binds --no-preview to `preview: false` (default true).
   preview?: boolean;
 };
@@ -212,6 +214,7 @@ export async function handleImageRunCommand(
             style: input.style,
             seed: input.seed,
             negative: input.negative,
+            providerOptions: parseProviderOptions(options.providerOption),
             apiKey,
             cloudflareAccountId,
             fetchFn: dependencies.fetchFn,

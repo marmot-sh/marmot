@@ -503,6 +503,7 @@ export function createProgram(): Command {
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 120).')
     .option('--preset <name>', 'Apply a saved preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session for logging.')
+    .option('--provider-option <key=value>', 'Generic passthrough (repeatable). Lands in providerOptions[<provider>] for niche image params (gpt-image-1 background, output_format, moderation, etc.).', collectProviderOption, [] as string[])
     .action(async (promptParts: string[], options: ImageRunCommandOptions & { preset?: string; session?: string }) => {
       const merged = await withPreset(options, 'image');
       await handleImageRunCommand(promptParts, merged);
@@ -578,6 +579,7 @@ export function createProgram(): Command {
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 120).')
     .option('--preset <name>', 'Apply a saved preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session for logging.')
+    .option('--provider-option <key=value>', 'Generic passthrough (repeatable). Lands in providerOptions[<provider>] for niche TTS params.', collectProviderOption, [] as string[])
     .action(async (textParts: string[], options: SpeechRunCommandOptions & { preset?: string; session?: string }) => {
       const merged = await withPreset(options, 'speech');
       await handleSpeechRunCommand(textParts, merged);
@@ -600,6 +602,7 @@ export function createProgram(): Command {
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 120).')
     .option('--preset <name>', 'Apply a saved preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session for logging.')
+    .option('--provider-option <key=value>', 'Generic passthrough (repeatable). Lands in providerOptions[<provider>] for niche STT params (timestamp_granularities, etc.).', collectProviderOption, [] as string[])
     .action(async (audioPath: string | undefined, options: TranscribeRunCommandOptions & { preset?: string; session?: string }) => {
       const merged = await withPreset(options, 'transcription');
       await handleTranscribeRunCommand(audioPath, merged);

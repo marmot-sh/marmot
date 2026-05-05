@@ -13,6 +13,7 @@ import {
   resolveProviderAuth,
 } from '@marmot-sh/core';
 import { AICliError, toAICliError } from '@marmot-sh/core';
+import { parseProviderOptions } from '../lib/provider-options.js';
 import {
   readPromptFile,
   readStdin,
@@ -68,6 +69,7 @@ export type SpeechRunCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   session?: string;
+  providerOption?: string[];
 };
 
 type SpeechRunCommandDependencies = {
@@ -203,6 +205,7 @@ export async function handleSpeechRunCommand(
             format: input.format,
             speed: input.speed,
             instructions: input.instructions,
+            providerOptions: parseProviderOptions(options.providerOption),
             apiKey,
             cloudflareAccountId,
             fetchFn: dependencies.fetchFn,

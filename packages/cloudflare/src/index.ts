@@ -531,7 +531,10 @@ export const cloudflareAdapter: ProviderAdapter = {
     const fetchFn = input.fetchFn ?? fetch;
     const url = imageRunUrl(input.cloudflareAccountId, input.model);
 
-    const body: Record<string, unknown> = { prompt: input.text };
+    const body: Record<string, unknown> = {
+      ...(input.providerOptions ?? {}),
+      prompt: input.text,
+    };
     if (input.voice) body.voice = input.voice;
 
     const response = await fetchFn(url, {
@@ -607,7 +610,10 @@ export const cloudflareAdapter: ProviderAdapter = {
 
     // Cloudflare expects audio bytes as a number[] in JSON body for whisper.
     const audioArray = Array.from(input.audio);
-    const body: Record<string, unknown> = { audio: audioArray };
+    const body: Record<string, unknown> = {
+      ...(input.providerOptions ?? {}),
+      audio: audioArray,
+    };
     if (input.language) body.language = input.language;
     if (input.prompt) body.initial_prompt = input.prompt;
 
@@ -675,7 +681,13 @@ export const cloudflareAdapter: ProviderAdapter = {
 };
 
 function buildImageRunBody(input: ProviderImageGenerateInput): Record<string, unknown> {
-  const body: Record<string, unknown> = { prompt: input.prompt };
+  // User --provider-option entries land at top-level alongside our typed
+  // fields. Cloudflare's image-run JSON shape accepts arbitrary extras
+  // (the model decides what to honor).
+  const body: Record<string, unknown> = {
+    ...(input.providerOptions ?? {}),
+    prompt: input.prompt,
+  };
   if (input.size) {
     const [w, h] = input.size.split('x').map((part) => Number(part));
     if (Number.isFinite(w) && Number.isFinite(h)) {
