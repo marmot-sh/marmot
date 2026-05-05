@@ -14,6 +14,7 @@ import {
   ensureProviderImageCache,
   ensureProviderSpeechCache,
   ensureProviderTranscriptionCache,
+  ensureProviderVideoCache,
   formatStaleDefaultsBanner,
   warnText,
 } from '@marmot-sh/core';
@@ -24,6 +25,7 @@ import {
   PROVIDER_IMAGE_DEFAULT_MODELS,
   PROVIDER_SPEECH_DEFAULT_MODELS,
   PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
+  PROVIDER_VIDEO_DEFAULT_MODELS,
   type ProviderSlug,
 } from '@marmot-sh/core';
 import {
@@ -44,6 +46,7 @@ import {
   filterReady,
   filterSpeechReady,
   filterTranscriptionReady,
+  filterVideoReady,
   type ProviderStatus,
 } from '../providers/detect.js';
 import {
@@ -69,7 +72,7 @@ export type SetupCommandDependencies = {
   fetchFn?: typeof fetch;
 };
 
-type Mode = 'text' | 'image' | 'speech' | 'transcription';
+type Mode = 'text' | 'image' | 'speech' | 'transcription' | 'video';
 type ModeLabel = { mode: Mode; label: string; fallbackHint: string };
 
 const MODES: ModeLabel[] = [
@@ -77,6 +80,7 @@ const MODES: ModeLabel[] = [
   { mode: 'image', label: 'Image', fallbackHint: 'OpenAI' },
   { mode: 'speech', label: 'Speech', fallbackHint: 'OpenAI' },
   { mode: 'transcription', label: 'Transcription', fallbackHint: 'OpenAI' },
+  { mode: 'video', label: 'Video', fallbackHint: 'OpenRouter' },
 ];
 
 const AI_DEFAULTS = '__ai_defaults__';
@@ -92,6 +96,7 @@ const AI_TEXT = 'text';
 const AI_IMAGE = 'image';
 const AI_SPEECH = 'speech';
 const AI_TRANSCRIPTION = 'transcription';
+const AI_VIDEO = 'video';
 const AI_BACK = '__back__';
 
 export async function handleSetupCommand(
@@ -377,6 +382,7 @@ function filterByMode(mode: Mode, statuses: ProviderStatus[]): ProviderStatus[] 
     case 'image': return filterImageReady(statuses);
     case 'speech': return filterSpeechReady(statuses);
     case 'transcription': return filterTranscriptionReady(statuses);
+    case 'video': return filterVideoReady(statuses);
   }
 }
 
@@ -471,15 +477,16 @@ async function computeMenuHints(
 }
 
 function aiHint(config: MarmotConfig): string {
+  const total = MODES.length;
   const set = MODES.filter((m) => Boolean(config.defaults?.[m.mode]?.provider));
-  if (set.length === 0) return '0 of 4 set';
+  if (set.length === 0) return `0 of ${total} set`;
   const providers = new Set(
     set
       .map((m) => config.defaults?.[m.mode]?.provider)
       .filter((p): p is NonNullable<typeof p> => Boolean(p)),
   );
   const providerLabel = providers.size === 1 ? `· ${[...providers][0]}` : '· mixed';
-  return set.length === 4 ? `all 4 set ${providerLabel}` : `${set.length} of 4 set ${providerLabel}`;
+  return set.length === total ? `all ${total} set ${providerLabel}` : `${set.length} of ${total} set ${providerLabel}`;
 }
 
 function dataHint(config: MarmotConfig): string {
@@ -595,6 +602,7 @@ async function walkAIDefaults(
     { value: AI_IMAGE, label: 'Image generation', current: aiCurrent('image', config) },
     { value: AI_SPEECH, label: 'Speech', current: aiCurrent('speech', config) },
     { value: AI_TRANSCRIPTION, label: 'Transcription', current: aiCurrent('transcription', config) },
+    { value: AI_VIDEO, label: 'Video generation', current: aiCurrent('video', config) },
   ];
   const maxLabel = Math.max(...items.map((i) => i.label.length));
   const renderedItems = items.map((i) => ({
@@ -642,7 +650,7 @@ async function readConfigSafely(
 }
 
 type PickProviderArgs = {
-  purpose: 'text' | 'image' | 'speech' | 'transcription';
+  purpose: 'text' | 'image' | 'speech' | 'transcription' | 'video';
   statuses: ProviderStatus[];
   fallbackHint: string;
 };
@@ -683,7 +691,7 @@ async function pickProvider(
 }
 
 type PickModelArgs = {
-  purpose: 'text' | 'image' | 'speech' | 'transcription';
+  purpose: 'text' | 'image' | 'speech' | 'transcription' | 'video';
   provider: ProviderSlug;
   env: NodeJS.ProcessEnv;
   fetchFn: typeof fetch;
@@ -727,6 +735,9 @@ async function pickModel(args: PickModelArgs): Promise<string | null | undefined
     ) {
       const result = await ensureProviderTranscriptionCache(ensureInput);
       modelIds = result.cache.models.map((m) => m.id);
+    } else if (args.purpose === 'video' && adapter.refreshVideoModels) {
+      const result = await ensureProviderVideoCache(ensureInput);
+      modelIds = result.cache.models.map((m) => m.id);
     }
   } catch (error) {
     fetchSpin.stop(`Could not fetch model list (${(error as Error).message})`);
@@ -750,6 +761,8 @@ async function pickModel(args: PickModelArgs): Promise<string | null | undefined
         return PROVIDER_IMAGE_DEFAULT_MODELS[args.provider];
       case 'speech':
         return PROVIDER_SPEECH_DEFAULT_MODELS[args.provider];
+      case 'video':
+        return PROVIDER_VIDEO_DEFAULT_MODELS[args.provider];
       case 'transcription':
         return PROVIDER_TRANSCRIPTION_DEFAULT_MODELS[args.provider];
     }

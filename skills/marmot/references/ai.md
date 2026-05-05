@@ -1,21 +1,32 @@
 # marmot AI verbs
 
-Four verbs cover text, image, audio out, and audio in: `run`, `image`, `speak`, `transcribe`. Plain text on stdout by default. Status on stderr. AI verbs do **not** use the response cache (caching applies to web/data verbs only).
+Five verbs cover text, image, speech, transcription, and video: `run`, `image`, `speak`, `transcribe`, `video`. Plain text or file paths on stdout by default. Status on stderr. AI verbs do **not** use the response cache (caching applies to web/data verbs only).
 
-**First-run auto-config:** if no default is set for an AI verb, marmot detects available API keys in the env and auto-configures one in this order: `ollama` (local, no key) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic` (image/speech/transcription skip ollama and anthropic). The choice is persisted to `~/.marmot/config.json` so subsequent calls are fast. Override with `marmot setup`, `marmot config set`, or `--provider`.
+**First-run auto-config:** if no default is set for an AI verb, marmot detects available API keys in the env and auto-configures one in this order: `ollama` (local, no key) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic` (image/speech/transcription skip ollama and anthropic; video only routes through openrouter and vercel). The choice is persisted to `~/.marmot/config.json` so subsequent calls are fast. Override with `marmot setup`, `marmot config set`, or `--provider`.
 
 ## Provider matrix
 
-| Provider | `run` | `image` | `speak` | `transcribe` | API key env | Extra env | Default text model | Default image | Default speech | Default STT |
-| --- | :-: | :-: | :-: | :-: | --- | --- | --- | --- | --- | --- |
-| openrouter | yes | yes | yes | yes | `OPENROUTER_API_KEY` | — | `openai/gpt-oss-120b` | `google/gemini-2.5-flash-image` | `openai/gpt-4o-mini-tts-2025-12-15` | `openai/gpt-4o-transcribe` |
-| anthropic | yes | — | — | — | `ANTHROPIC_API_KEY` | — | `claude-sonnet-4-6` | — | — | — |
-| openai | yes | yes | yes | yes | `OPENAI_API_KEY` | — | `gpt-4o-mini` | `gpt-image-1` | `tts-1` | `whisper-1` |
-| vercel | yes | yes | yes | yes | `AI_GATEWAY_API_KEY` | — | `anthropic/claude-sonnet-4.6` | `openai/dall-e-3` | `openai/tts-1` | `openai/whisper-1` |
-| cloudflare | yes | yes | yes | yes | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_ACCOUNT_ID` | `@cf/meta/llama-3.1-8b-instruct` | `@cf/black-forest-labs/flux-1-schnell` | `@cf/myshell-ai/melotts` | `@cf/openai/whisper-large-v3-turbo` |
-| ollama | yes | — | — | — | (none) | `OLLAMA_HOST` | `qwen3:4b` | — | — | — |
+| Provider | `run` | `image` | `speak` | `transcribe` | `video` | API key env | Extra env |
+| --- | :-: | :-: | :-: | :-: | :-: | --- | --- |
+| openrouter | yes | yes | yes | yes | yes | `OPENROUTER_API_KEY` | — |
+| anthropic | yes | — | — | — | — | `ANTHROPIC_API_KEY` | — |
+| openai | yes | yes | yes | yes | — | `OPENAI_API_KEY` | — |
+| vercel | yes | yes | yes | yes | yes | `AI_GATEWAY_API_KEY` | — |
+| cloudflare | yes | yes | yes | yes | — | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_ACCOUNT_ID` |
+| ollama | yes | — | — | — | — | (none) | `OLLAMA_HOST` |
 
-First-run auto-config picks the first ready provider from the env: `ollama` (local, no key) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic` for `text`; image/speech/transcription skip `ollama` and `anthropic`. OpenRouter is the first cloud option (and the most common default). Override with `marmot setup`, `marmot config set`, or `--provider`.
+### Default models
+
+| Provider | text | image | speech | STT | video |
+| --- | --- | --- | --- | --- | --- |
+| openrouter | `openai/gpt-oss-120b` | `google/gemini-2.5-flash-image` | `openai/gpt-4o-mini-tts-2025-12-15` | `openai/gpt-4o-transcribe` | `google/veo-3.1-lite` |
+| anthropic | `claude-sonnet-4-6` | — | — | — | — |
+| openai | `gpt-4o-mini` | `gpt-image-1` | `tts-1` | `whisper-1` | — |
+| vercel | `anthropic/claude-sonnet-4.6` | `openai/dall-e-3` | `openai/tts-1` | `openai/whisper-1` | `google/veo-3.1-lite` |
+| cloudflare | `@cf/meta/llama-3.1-8b-instruct` | `@cf/black-forest-labs/flux-1-schnell` | `@cf/myshell-ai/melotts` | `@cf/openai/whisper-large-v3-turbo` | — |
+| ollama | `qwen3:4b` | — | — | — | — |
+
+First-run auto-config picks the first ready provider from the env: `ollama` (local, no key) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic` for `text`; image/speech/transcription skip `ollama` and `anthropic`; video only walks `openrouter` → `vercel`. OpenRouter is the first cloud option (and the most common default). Override with `marmot setup`, `marmot config set`, or `--provider`.
 
 ## `run` (text)
 
@@ -213,6 +224,33 @@ cat ./meeting.mp3 | marmot transcribe
 marmot transcribe ./call.mp3 --prompt 'technical interview, names: Ada, Linus'
 marmot transcribe ./meeting.mp3 --provider cloudflare \
   --model @cf/openai/whisper-large-v3-turbo --language en
+```
+
+## `video`
+
+Generate a short video clip from a text prompt. Async (1–5 min); marmot polls internally.
+
+```bash
+marmot video <prompt> [--model id] [--aspect 16:9|9:16|1:1] [--resolution 720p|1080p|4k]
+                      [--duration <seconds>] [--audio | --no-audio] [--image <path>]
+                      [--n <count>] [--seed <int>] [-o <path>]
+                      [--provider openrouter|vercel] [--api-key <key>]
+                      [--retries <n>] [--timeout <seconds>] [--binary | --b64 | --json]
+```
+
+Default: 4-second 720p no-audio clip via `google/veo-3.1-lite` (~$0.03/sec, ~$0.12/clip). `--audio` opts into synced audio (more expensive). `--image` is repeatable up to 2 paths: position 1 = first-frame conditioning, position 2 = last-frame for models that support it (Veo, Kling, Seedance, Wan).
+
+Only `openrouter` and `vercel` route video. `--provider openai|anthropic|cloudflare|ollama` errors with a clear message; for Sora use `--provider openrouter --model openai/sora-2-pro`.
+
+Output: same TTY-aware shape as `image`/`speak` — auto-named MP4 in CWD on a TTY, raw bytes on a piped stdout, `-o` for explicit path.
+
+```bash
+marmot video 'a small wooden boat sailing at sunset'
+marmot video 'a hummingbird in slow motion' --aspect 9:16 --duration 6 --audio
+marmot video 'morph between these images' --image ./start.jpg --image ./end.jpg
+marmot video 'cinematic timelapse' --model openai/sora-2-pro
+marmot video 'cheap test clip' --model minimax/hailuo-2.3
+marmot 'write a vivid one-line video prompt' | marmot video
 ```
 
 ## Streaming, retry, timeout

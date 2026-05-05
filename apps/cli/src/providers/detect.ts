@@ -122,3 +122,7 @@ export function filterTranscriptionReady(
 ): ProviderStatus[] {
   return statuses.filter((s) => s.ready && s.capabilities.transcription);
 }
+
+export function filterVideoReady(statuses: ProviderStatus[]): ProviderStatus[] {
+  return statuses.filter((s) => s.ready && s.capabilities.video === true);
+}
