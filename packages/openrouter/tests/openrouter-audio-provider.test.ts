@@ -11,6 +11,7 @@ describe('openRouterAdapter capabilities', () => {
       image: true,
       speech: true,
       transcription: true,
+      video: true,
     });
     expect(openRouterAdapter.defaultSpeechModel).toBe('openai/gpt-4o-mini-tts-2025-12-15');
     expect(openRouterAdapter.defaultTranscriptionModel).toBe('openai/gpt-4o-transcribe');
