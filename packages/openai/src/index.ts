@@ -20,6 +20,7 @@ import {
 import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeUsage } from '@marmot-sh/core';
+import { reasoningForOpenAI } from '@marmot-sh/core';
 import type {
   ProviderCacheFile,
   ProviderGenerateInput,
@@ -82,6 +83,25 @@ const openAIModelsResponseSchema = z.object({
   data: z.array(openAIModelSchema),
 });
 
+function buildCommonOpenAIArgs(input: ProviderGenerateInput) {
+  const reasoning = reasoningForOpenAI(input.reasoning);
+  const userOpts = input.providerOptions ?? {};
+  const merged = { ...userOpts, ...(reasoning ?? {}) };
+  return {
+    temperature: input.temperature,
+    maxOutputTokens: input.maxOutputTokens,
+    topP: input.topP,
+    seed: input.seed,
+    stopSequences: input.stopSequences,
+    providerOptions:
+      Object.keys(merged).length > 0
+        ? ({ openai: merged } as unknown as Parameters<
+            typeof generateText
+          >[0]['providerOptions'])
+        : undefined,
+  };
+}
+
 export const openAIAdapter: ProviderAdapter = {
   slug: 'openai',
   name: 'OpenAI',
@@ -112,6 +132,7 @@ export const openAIAdapter: ProviderAdapter = {
         model: provider.chat(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOpenAIArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -158,6 +179,7 @@ export const openAIAdapter: ProviderAdapter = {
         model,
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOpenAIArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
         output: Output.object({
@@ -200,6 +222,7 @@ export const openAIAdapter: ProviderAdapter = {
       const result = streamText({
         model: provider.chat(input.model),
         system: input.system,
+        ...buildCommonOpenAIArgs(input),
         ...(messages ? { messages } : { prompt: input.prompt }),
         abortSignal: input.abortSignal,
         maxRetries: 0,

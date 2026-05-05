@@ -179,6 +179,26 @@ const CLOUDFLARE_TRANSCRIPTION_MODELS = [
   },
 ] as const;
 
+/** Cloudflare doesn't have a reasoning/thinking knob, so reasoning is
+ *  ignored. Generic providerOptions passthrough lands under
+ *  `cloudflare`; sampling params go through as top-level AI SDK args. */
+function buildCommonCloudflareArgs(input: ProviderGenerateInput) {
+  const userOpts = input.providerOptions ?? {};
+  return {
+    temperature: input.temperature,
+    maxOutputTokens: input.maxOutputTokens,
+    topP: input.topP,
+    seed: input.seed,
+    stopSequences: input.stopSequences,
+    providerOptions:
+      Object.keys(userOpts).length > 0
+        ? ({ cloudflare: userOpts } as unknown as Parameters<
+            typeof generateText
+          >[0]['providerOptions'])
+        : undefined,
+  };
+}
+
 export const cloudflareAdapter: ProviderAdapter = {
   slug: 'cloudflare',
   name: 'Cloudflare Workers AI',
@@ -206,6 +226,7 @@ export const cloudflareAdapter: ProviderAdapter = {
         model: provider(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonCloudflareArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -248,6 +269,7 @@ export const cloudflareAdapter: ProviderAdapter = {
         model,
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonCloudflareArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
         output: Output.object({
@@ -286,6 +308,7 @@ export const cloudflareAdapter: ProviderAdapter = {
         model: provider(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonCloudflareArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });

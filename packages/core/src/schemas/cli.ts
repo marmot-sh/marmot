@@ -33,6 +33,13 @@ const runInputSchema = z.object({
   filePaths: z.array(z.string().trim().min(1)).default([]),
   fileStdin: z.boolean().default(false),
   fileMimeOverride: z.string().trim().min(1).optional(),
+  temperature: z.coerce.number().min(0).max(2).optional(),
+  maxOutputTokens: z.coerce.number().int().min(1).optional(),
+  topP: z.coerce.number().min(0).max(1).optional(),
+  seed: z.coerce.number().int().optional(),
+  stopSequences: z.array(z.string().min(1)).optional(),
+  reasoning: z.enum(['low', 'medium', 'high']).optional(),
+  providerOptions: z.record(z.string(), z.unknown()).optional(),
   text: z.boolean().default(false),
   json: z.boolean().default(false),
   stream: z.boolean().default(false),
@@ -139,6 +146,13 @@ export type RawRunInput = {
   filePaths?: string[];
   fileStdin?: boolean;
   fileMimeOverride?: string;
+  temperature?: string | number;
+  maxOutputTokens?: string | number;
+  topP?: string | number;
+  seed?: string | number;
+  stopSequences?: string[];
+  reasoning?: 'low' | 'medium' | 'high';
+  providerOptions?: Record<string, unknown>;
   text?: boolean;
   json?: boolean;
   stream?: boolean;
@@ -162,6 +176,13 @@ export type ResolvedRunInput = {
   filePaths: string[];
   fileStdin: boolean;
   fileMimeOverride?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  topP?: number;
+  seed?: number;
+  stopSequences?: string[];
+  reasoning?: 'low' | 'medium' | 'high';
+  providerOptions?: Record<string, unknown>;
   text: boolean;
   json: boolean;
   stream: boolean;
@@ -226,6 +247,13 @@ export function resolveRunInput(rawInput: RawRunInput): ResolvedRunInput {
     filePaths: parsed.data.filePaths,
     fileStdin: parsed.data.fileStdin,
     fileMimeOverride: parsed.data.fileMimeOverride,
+    temperature: parsed.data.temperature,
+    maxOutputTokens: parsed.data.maxOutputTokens,
+    topP: parsed.data.topP,
+    seed: parsed.data.seed,
+    stopSequences: parsed.data.stopSequences,
+    reasoning: parsed.data.reasoning,
+    providerOptions: parsed.data.providerOptions,
     // Plain text is the default; --json opts into the structured envelope.
     // Streaming always forces text (envelope makes no sense for incremental output).
     // Object mode (--schema) overrides text rendering — handled at the call site.

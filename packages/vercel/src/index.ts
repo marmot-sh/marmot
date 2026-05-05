@@ -20,6 +20,11 @@ import {
 import { AICliError, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeResolution } from '@marmot-sh/core';
+import {
+  reasoningForAnthropic,
+  reasoningForOpenAI,
+  reasoningForOpenRouter,
+} from '@marmot-sh/core';
 import type {
   ProviderCacheFile,
   ProviderGenerateInput,
@@ -108,6 +113,47 @@ function normalizeUsage(
 // OpenAI's `/v1/audio/*` endpoints under `https://ai-gateway.vercel.sh/v1/`.
 // We route through `createOpenAI({ baseURL })` with the gateway URL +
 // AI_GATEWAY_API_KEY for speech and transcription.
+
+/** Pick the reasoning-options key based on the underlying provider in
+ *  the gateway model slug. e.g. `anthropic/claude-sonnet-4.6` -> wrap
+ *  reasoning under `{ anthropic: ... }`, `openai/gpt-5` -> `{ openai: ... }`.
+ *  Returns null when the slug doesn't match a provider with a known
+ *  reasoning knob; reasoning is silently ignored in that case. */
+function buildReasoningProviderOptions(
+  modelId: string,
+  reasoning: ProviderGenerateInput['reasoning'],
+): Record<string, unknown> | null {
+  if (!reasoning) return null;
+  const prefix = modelId.split('/')[0]?.toLowerCase();
+  if (prefix === 'anthropic') return { anthropic: reasoningForAnthropic(reasoning) };
+  if (prefix === 'openai') return { openai: reasoningForOpenAI(reasoning) };
+  // Some gateway models route through OpenRouter-style underlying providers;
+  // pass through under the OpenRouter key. Gateway ignores unknown keys.
+  if (prefix === 'openrouter') return { openrouter: reasoningForOpenRouter(reasoning) };
+  return null;
+}
+
+function buildCommonVercelArgs(input: ProviderGenerateInput) {
+  const userOpts = input.providerOptions ?? {};
+  const reasoningOpts = buildReasoningProviderOptions(input.model, input.reasoning) ?? {};
+  const merged: Record<string, unknown> = { ...reasoningOpts };
+  // User passthrough lands under a `gateway` key by convention.
+  if (Object.keys(userOpts).length > 0) merged.gateway = userOpts;
+  return {
+    temperature: input.temperature,
+    maxOutputTokens: input.maxOutputTokens,
+    topP: input.topP,
+    seed: input.seed,
+    stopSequences: input.stopSequences,
+    providerOptions:
+      Object.keys(merged).length > 0
+        ? (merged as unknown as Parameters<
+            typeof generateText
+          >[0]['providerOptions'])
+        : undefined,
+  };
+}
+
 export const vercelAdapter: ProviderAdapter = {
   slug: 'vercel',
   name: 'Vercel AI Gateway',
@@ -135,6 +181,7 @@ export const vercelAdapter: ProviderAdapter = {
         model: provider(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonVercelArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -171,6 +218,7 @@ export const vercelAdapter: ProviderAdapter = {
         model: provider(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonVercelArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
         output: Output.object({
@@ -208,6 +256,7 @@ export const vercelAdapter: ProviderAdapter = {
         model: provider(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonVercelArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });

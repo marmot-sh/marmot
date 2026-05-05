@@ -35,6 +35,26 @@ const ollamaTagsResponseSchema = z.object({
   })),
 });
 
+/** Ollama doesn't expose reasoning controls; reasoning is silently
+ *  ignored. Sampling params and generic providerOptions passthrough
+ *  (under the `ollama` key) work normally. */
+function buildCommonOllamaArgs(input: ProviderGenerateInput) {
+  const userOpts = input.providerOptions ?? {};
+  return {
+    temperature: input.temperature,
+    maxOutputTokens: input.maxOutputTokens,
+    topP: input.topP,
+    seed: input.seed,
+    stopSequences: input.stopSequences,
+    providerOptions:
+      Object.keys(userOpts).length > 0
+        ? ({ ollama: userOpts } as unknown as Parameters<
+            typeof generateText
+          >[0]['providerOptions'])
+        : undefined,
+  };
+}
+
 export const ollamaAdapter: ProviderAdapter = {
   slug: 'ollama',
   name: 'Ollama',
@@ -57,6 +77,7 @@ export const ollamaAdapter: ProviderAdapter = {
         model: provider.chat(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOllamaArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
@@ -98,6 +119,7 @@ export const ollamaAdapter: ProviderAdapter = {
         model,
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOllamaArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
         output: Output.object({
@@ -136,6 +158,7 @@ export const ollamaAdapter: ProviderAdapter = {
         model: provider.chat(input.model),
         system: input.system,
         ...(messages ? { messages } : { prompt: input.prompt }),
+        ...buildCommonOllamaArgs(input),
         abortSignal: input.abortSignal,
         maxRetries: 0,
       });
