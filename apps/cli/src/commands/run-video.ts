@@ -43,6 +43,7 @@ import {
   getProviderAdapter,
   type ProviderAdapter,
 } from '../providers/index.js';
+import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
 const VIDEO_CAPABLE_HINT =
   'Try --provider openrouter or --provider vercel (only those route video generation today).';
@@ -127,13 +128,25 @@ export async function handleVideoRunCommand(
     : undefined;
   const stdinContent = await readStdin(dependencies.stdin);
 
-  // Video provider auto-config isn't wired yet (only openrouter and vercel
-  // route video; the user picks one). Plain config read; no auto-discover.
-  const config = await readMarmotConfig(env);
-  const defaults = resolveVideoDefaults(config, {
-    provider: options.provider,
-    model: options.model,
-  });
+  // Same auto-config pattern as the other AI verbs: with a --provider
+  // override we just read; otherwise we ensure the config has a video
+  // default by walking the pecking order and writing the first one that
+  // has credentials in env. Persists so subsequent runs are zero-config.
+  const config = options.provider
+    ? await readMarmotConfig(env)
+    : await ensureAutoConfig('video', { env, stderr: dependencies.stderr });
+  let defaults: ReturnType<typeof resolveVideoDefaults>;
+  try {
+    defaults = resolveVideoDefaults(config, {
+      provider: options.provider,
+      model: options.model,
+    });
+  } catch (error) {
+    if (error instanceof AICliError && error.category === 'validation' && !options.provider) {
+      throw new AICliError('validation', formatNoProvidersHint('video'));
+    }
+    throw error;
+  }
 
   const input = resolveVideoRunInput({
     provider: defaults.provider,

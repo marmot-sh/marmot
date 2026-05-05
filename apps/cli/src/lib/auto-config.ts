@@ -15,6 +15,7 @@ import {
   PROVIDER_IMAGE_DEFAULT_MODELS,
   PROVIDER_SPEECH_DEFAULT_MODELS,
   PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
+  PROVIDER_VIDEO_DEFAULT_MODELS,
   readMarmotConfig,
   writeMarmotConfig,
   type MarmotConfig,
@@ -24,19 +25,24 @@ import {
 
 import { detectProviders, type ProviderStatus } from '../providers/detect.js';
 
-export type AiVerb = 'text' | 'image' | 'speech' | 'transcription';
+export type AiVerb = 'text' | 'image' | 'speech' | 'transcription' | 'video';
 
 /**
  * Pecking order per verb. Local-first (Ollama, no key, no network),
  * then routers (one key, many models), then direct providers. The user
  * can override by passing --provider, by running `marmot setup`, or by
  * editing the config directly.
+ *
+ * Video has a narrower order (no ollama/anthropic/openai/cloudflare --
+ * none of those route video gen today). Vercel routes video through AI
+ * Gateway; openrouter routes through its videos endpoint.
  */
 const PECKING_ORDER: Record<AiVerb, readonly ProviderSlug[]> = {
   text: ['ollama', 'openrouter', 'vercel', 'cloudflare', 'openai', 'anthropic'],
   image: ['openrouter', 'vercel', 'cloudflare', 'openai'],
   speech: ['openrouter', 'vercel', 'cloudflare', 'openai'],
   transcription: ['openrouter', 'vercel', 'cloudflare', 'openai'],
+  video: ['openrouter', 'vercel'],
 };
 
 const DEFAULT_MODEL_MAP: Record<AiVerb, Partial<Record<ProviderSlug, string>>> = {
@@ -44,6 +50,7 @@ const DEFAULT_MODEL_MAP: Record<AiVerb, Partial<Record<ProviderSlug, string>>> =
   image: PROVIDER_IMAGE_DEFAULT_MODELS,
   speech: PROVIDER_SPEECH_DEFAULT_MODELS,
   transcription: PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
+  video: PROVIDER_VIDEO_DEFAULT_MODELS,
 };
 
 export type AutoConfigDeps = {
