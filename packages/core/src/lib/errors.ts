@@ -81,11 +81,83 @@ export function toAICliError(
     );
   }
 
+  // When we have a fallback message AND an underlying error, append the
+  // underlying detail. The previous behavior discarded it whenever a
+  // fallback was provided, which produced uninformative errors like
+  // `[provider] OpenRouter generation failed for model "X".` -- the
+  // *reason* lived in the AI SDK error's `responseBody` or `message`
+  // and was being thrown away.
+  const detail = extractErrorDetail(error);
+  if (fallbackMessage) {
+    return new AICliError(
+      fallbackCategory,
+      detail ? `${fallbackMessage} ${detail}` : fallbackMessage,
+      { cause: error },
+    );
+  }
   return new AICliError(
     fallbackCategory,
-    fallbackMessage ?? getErrorMessage(error, 'Unknown failure.'),
+    getErrorMessage(error, 'Unknown failure.'),
     { cause: error },
   );
+}
+
+/**
+ * Pull the most useful diagnostic out of an unknown error. Inspects the
+ * shapes common to AI SDK / fetch / generic Errors:
+ *   - `responseBody` field (AI SDK APICallError) → JSON-parse for an
+ *     `error.message` or top-level message field, else first 200 chars.
+ *   - `statusCode` field → "(status NNN)" prefix.
+ *   - `Error.message` → as-is.
+ * Returns an empty string when nothing useful is available.
+ */
+function extractErrorDetail(error: unknown): string {
+  if (!error || typeof error !== 'object') return '';
+  const e = error as Record<string, unknown>;
+
+  const status = typeof e.statusCode === 'number' ? `status ${e.statusCode}` : null;
+
+  let body: string | null = null;
+  if (typeof e.responseBody === 'string' && e.responseBody.trim()) {
+    body = summarizeResponseBody(e.responseBody);
+  }
+
+  const msg = error instanceof Error && error.message ? error.message : null;
+
+  // Avoid duplication: AI SDK error messages often repeat the body or
+  // status, so prefer body > message when we have both.
+  const detail = body ?? msg;
+  if (status && detail) return `(${status}: ${detail})`;
+  if (status) return `(${status})`;
+  if (detail) return `(${detail})`;
+  return '';
+}
+
+const MAX_DETAIL_PREVIEW = 200;
+
+function summarizeResponseBody(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === 'object') {
+      const v = parsed as Record<string, unknown>;
+      if (v.error && typeof v.error === 'object') {
+        const inner = v.error as Record<string, unknown>;
+        if (typeof inner.message === 'string') return truncate(inner.message);
+      }
+      if (typeof v.error === 'string') return truncate(v.error);
+      if (typeof v.message === 'string') return truncate(v.message);
+      if (typeof v.detail === 'string') return truncate(v.detail);
+    }
+  } catch {
+    // Fall through: treat as raw text below.
+  }
+  return truncate(trimmed);
+}
+
+function truncate(s: string): string {
+  return s.length <= MAX_DETAIL_PREVIEW ? s : `${s.slice(0, MAX_DETAIL_PREVIEW)}…`;
 }
 
 function causeLooksLikeAuthError(cause: unknown, depth = 0): boolean {
