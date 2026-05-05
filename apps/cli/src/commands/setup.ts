@@ -598,11 +598,11 @@ async function walkAIDefaults(
   // the focused option's hint, so values would otherwise be invisible until
   // each was selected).
   const items: Array<{ value: string; label: string; current: string }> = [
-    { value: AI_TEXT, label: 'Text generation', current: aiCurrent('text', config) },
-    { value: AI_IMAGE, label: 'Image generation', current: aiCurrent('image', config) },
+    { value: AI_TEXT, label: 'Text', current: aiCurrent('text', config) },
+    { value: AI_IMAGE, label: 'Image', current: aiCurrent('image', config) },
+    { value: AI_VIDEO, label: 'Video', current: aiCurrent('video', config) },
     { value: AI_SPEECH, label: 'Speech', current: aiCurrent('speech', config) },
     { value: AI_TRANSCRIPTION, label: 'Transcription', current: aiCurrent('transcription', config) },
-    { value: AI_VIDEO, label: 'Video generation', current: aiCurrent('video', config) },
   ];
   const maxLabel = Math.max(...items.map((i) => i.label.length));
   const renderedItems = items.map((i) => ({

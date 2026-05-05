@@ -14,6 +14,7 @@ export * from './lib/env.js';
 export * from './lib/errors.js';
 export * from './lib/files.js';
 export * from './lib/http-error.js';
+export * from './lib/video-resolution.js';
 export * from './lib/messages.js';
 export * from './lib/mime.js';
 export * from './lib/paths.js';

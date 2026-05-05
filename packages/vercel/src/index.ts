@@ -19,6 +19,7 @@ import {
 } from '@marmot-sh/core';
 import { AICliError, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
+import { normalizeResolution } from '@marmot-sh/core';
 import type {
   ProviderCacheFile,
   ProviderGenerateInput,
@@ -536,7 +537,7 @@ export const vercelAdapter: ProviderAdapter = {
         prompt: promptArg,
         n: input.n,
         aspectRatio: input.aspectRatio as `${number}:${number}` | undefined,
-        resolution: input.resolution as `${number}x${number}` | undefined,
+        resolution: normalizeResolution(input.resolution, input.aspectRatio),
         duration: input.duration,
         fps: input.fps,
         seed: input.seed,

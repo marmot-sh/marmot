@@ -49,11 +49,18 @@ export function toAICliError(
   }
 
   if (error instanceof TypeError) {
-    return new AICliError(
-      'network',
-      fallbackMessage ?? error.message,
-      { cause: error },
-    );
+    // Same shape as the bottom fall-through: when we have both a
+    // fallback message AND an underlying detail, append the detail in
+    // parens. Avoids "[network] OpenRouter X failed" with no hint.
+    const detail = extractErrorDetail(error);
+    if (fallbackMessage) {
+      return new AICliError(
+        'network',
+        detail ? `${fallbackMessage} ${detail}` : fallbackMessage,
+        { cause: error },
+      );
+    }
+    return new AICliError('network', error.message, { cause: error });
   }
 
   const errorCode = getErrorCode(error);
