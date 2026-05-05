@@ -27,7 +27,7 @@ Marmot keeps your default provider and model for each verb in a single config fi
 
 Every key under `defaults` is optional. Resolution differs by verb type:
 
-- **AI verbs** (`text`, `image`, `speech`, `transcription`): with no default and no `--provider` flag, marmot runs first-run auto-config — it detects available API keys in your env, picks the first ready provider in pecking order (`ollama` → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`; image/speech/transcription skip `ollama` and `anthropic`), persists the choice to this file, and continues the call. A one-line stderr note announces it.
+- **AI verbs** (`text`, `image`, `speech`, `transcription`, `video`): with no default and no `--provider` flag, marmot runs first-run auto-config — it detects available API keys in your env, picks the first ready provider in pecking order (`ollama` → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`; image/speech/transcription skip `ollama` and `anthropic`; video only routes through `openrouter` and `vercel`), persists the choice to this file, and continues the call. A one-line stderr note announces it.
 - **Web/data verbs** (`search`, `scrape`, `enrich`, `lookup`, `verify`, etc.): no auto-config. With no default and no `--provider`, the call errors and points you at `marmot setup`.
 
 ```json
@@ -37,6 +37,7 @@ Every key under `defaults` is optional. Resolution differs by verb type:
     "image":         { "provider": "openrouter", "model": "google/gemini-2.5-flash-image" },
     "speech":        { "provider": "openrouter", "model": "openai/gpt-4o-mini-tts-2025-12-15", "voice": "alloy" },
     "transcription": { "provider": "openrouter", "model": "openai/gpt-4o-transcribe" },
+    "video":         { "provider": "openrouter", "model": "google/veo-3.1-lite" },
 
     "search":   { "provider": "tavily" },
     "scrape":   { "provider": "firecrawl" },
@@ -62,6 +63,8 @@ Every key under `defaults` is optional. Resolution differs by verb type:
 | `defaults.speech.voice` | string | Voice id (provider-specific) |
 | `defaults.transcription.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
 | `defaults.transcription.model` | string | STT model id |
+| `defaults.video.provider` | string | `openrouter`, `vercel` |
+| `defaults.video.model` | string | Video model id (e.g. `google/veo-3.1-lite`) |
 
 ### Web data verbs
 

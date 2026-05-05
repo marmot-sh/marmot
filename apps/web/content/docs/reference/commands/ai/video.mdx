@@ -1,0 +1,106 @@
+---
+title: Video generation
+description: marmot video generates short video clips via OpenRouter or Vercel AI Gateway, routing to Veo, Sora, Kling, Hailuo, Seedance, Wan, and others.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+```bash
+marmot video <prompt> [flags…]
+```
+
+Providers: `openrouter`, `vercel`. On first run, marmot detects an available API key (`OPENROUTER_API_KEY` or `AI_GATEWAY_API_KEY`) and auto-configures a default in that order. `openai`, `anthropic`, `cloudflare`, and `ollama` don't currently route video generation.
+
+The default model is `google/veo-3.1-lite`, the cheapest tier (~$0.03/sec at 720p without audio). Override with `--model` or via `marmot setup`.
+
+<Callout>
+Video generation is async and slow — clips routinely take 1–5 minutes to render. Marmot handles polling internally; you'll see a spinner until the bytes arrive. The default per-attempt timeout is bumped to 600 seconds for this verb.
+</Callout>
+
+## Cost
+
+Per-second pricing varies widely by model. As of the launch lineup:
+
+| Model | $/sec | 8s clip |
+| --- | --- | --- |
+| `google/veo-3.1-lite` (default, 720p no-audio) | $0.03 | $0.24 |
+| `google/veo-3.1-lite` (1080p with audio) | $0.08 | $0.64 |
+| `google/veo-3.1-fast` | $0.10 | $0.80 |
+| `minimax/hailuo-2.3` | $0.082 | $0.65 |
+| `google/veo-3.1` (1080p) | $0.75 | $6.00 |
+| `openai/sora-2-pro` | varies | — |
+
+Audio adds ~50–100% to per-second pricing on models that support toggling. The default is `--no-audio` to keep typical usage in the pennies-per-second tier. Use `--audio` to opt in.
+
+## Output
+
+Default behavior is **TTY-aware**, mirroring `marmot image`:
+
+| Invocation | Output |
+| --- | --- |
+| `marmot video '...'` (terminal) | Writes auto-named file in CWD (e.g. `openrouter-video-20260505123456.mp4`), prints the path on stdout. |
+| `marmot video '...' > out.mp4` | Writes raw video bytes to stdout (auto-binary, `n=1` only). |
+| `marmot video '...' \| something` | Same — bytes on stdout. |
+| `marmot video '...' -o boat.mp4` | Writes to `boat.mp4`, prints the path. |
+| `marmot video '...' --binary` | Forces raw bytes regardless. |
+| `marmot video '...' --b64` | JSON envelope with inline base64. |
+| `marmot video '...' --json` | Writes file, emits full JSON envelope. |
+
+Multi-clip (`--n > 1`) always writes files and emits one path per line (or the JSON envelope under `--json`).
+
+## Examples
+
+```bash
+# Cheapest: 4-second 720p no-audio clip via Veo 3.1 Lite (default)
+marmot video 'a wooden boat sailing at sunset'
+
+# Specific dimensions and length
+marmot video 'a hummingbird in slow motion' --aspect 9:16 --duration 6
+
+# With audio
+marmot video 'a busy market in Tokyo' --audio --resolution 1080p
+
+# Image-to-video (single reference image)
+marmot video 'gentle camera pan' --image ./still.jpg
+
+# First-frame + last-frame conditioning (Veo, Kling, Seedance, Wan)
+marmot video 'morph between these' --image ./start.jpg --image ./end.jpg
+
+# Pick a different model
+marmot video 'cinematic timelapse' --model openai/sora-2-pro
+marmot video 'cheap test clip' --model minimax/hailuo-2.3
+
+# Pipe a generated prompt
+marmot 'write a vivid one-line video prompt about a marmot' | marmot video
+```
+
+## Flags
+
+For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) see [Common flags](/docs/reference/commands/common-flags). Video-specific:
+
+| Flag | Description |
+| --- | --- |
+| `--model <id>` | Video model slug. Defaults to provider's default (`google/veo-3.1-lite` for openrouter and vercel). |
+| `-o, --output <path>` | Output path. `{i}` template for batches (e.g. `./clip-{i}.mp4`). |
+| `-p, --prompt-file <path>` | Prompt from a file (merges with positional and stdin). |
+| `--aspect <W:H>` | Aspect ratio. `16:9` (default), `9:16`, `1:1`. Wider/taller ratios are model-specific. |
+| `--resolution <res>` | Resolution label (`720p`, `1080p`, `4k`) or `WxH`. Default depends on model and tier. |
+| `--duration <sec>` | Clip length in seconds. Most models accept 4–15s; check the model docs. |
+| `--fps <n>` | Frames per second. Honored by Wan and Seedance; ignored elsewhere. |
+| `--audio` / `--no-audio` | Toggle synced audio. Default `--no-audio`. Some models (full Veo, Sora, Wan, Seedance-1.5) always emit audio regardless of the flag. |
+| `--image <path>` | Reference image. Repeatable up to 2: position 1 = first-frame conditioning (or single-image-to-video), position 2 = last-frame for models that support it. |
+| `--n <count>` | Number of clips. Most models cap at 1 per call; the AI SDK batches when needed. |
+| `--seed <int>` | Reproducibility seed. |
+| `--binary` | Force raw video bytes to stdout. Requires `--n 1`. |
+| `--b64` | JSON envelope with inline base64; no file written. |
+| `--json` | Emit JSON envelope on stdout (default prints just the path). |
+
+## Provider notes
+
+**OpenRouter** routes the broadest video catalog: Veo (3.1 + fast + lite), Sora 2 Pro, Kling v3.0 (pro/std/o1), MiniMax Hailuo 2.3, ByteDance Seedance (2.0/fast/1.5-pro), Alibaba Wan (2.6/2.7). Discoverable via `marmot cache refresh openrouter` then `marmot models --modality video`.
+
+**Vercel AI Gateway** routes the same providers via Vercel's proxy. Pricing tracks Vercel's gateway markup (similar to direct in most cases). Discoverable via the gateway's `/v1/models` endpoint.
+
+**OpenAI direct** for Sora is *not* wired through marmot today — `--provider openai` errors. Use `--provider openrouter --model openai/sora-2-pro` to access Sora via OpenRouter.
+
+OpenAI's Videos API (and the `sora-2-pro` route) is scheduled for deprecation on Sep 24, 2026.

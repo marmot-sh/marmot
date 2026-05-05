@@ -4,7 +4,8 @@
     "text",
     "image",
     "speech",
-    "transcription"
+    "transcription",
+    "video"
   ],
   "defaultOpen": true
 }

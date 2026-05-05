@@ -2,6 +2,7 @@ import {
   createGateway,
   experimental_generateImage as generateImage,
   experimental_generateSpeech as generateSpeech,
+  experimental_generateVideo as generateVideo,
   experimental_transcribe as transcribe,
   generateText,
   Output,
@@ -14,6 +15,7 @@ import {
   PROVIDER_IMAGE_DEFAULT_MODELS,
   PROVIDER_SPEECH_DEFAULT_MODELS,
   PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
+  PROVIDER_VIDEO_DEFAULT_MODELS,
 } from '@marmot-sh/core';
 import { AICliError, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
@@ -33,6 +35,9 @@ import type {
   ProviderTranscribeInput,
   ProviderTranscribeResult,
   ProviderTranscriptionCacheFile,
+  ProviderVideoCacheFile,
+  ProviderVideoGenerateInput,
+  ProviderVideoGenerateResult,
   RefreshModelsInput,
 } from '@marmot-sh/core';
 import type { ProviderAdapter } from '@marmot-sh/core';
@@ -109,8 +114,9 @@ export const vercelAdapter: ProviderAdapter = {
   defaultImageModel: 'openai/dall-e-3',
   defaultSpeechModel: 'openai/tts-1',
   defaultTranscriptionModel: 'openai/whisper-1',
+  defaultVideoModel: PROVIDER_VIDEO_DEFAULT_MODELS.vercel ?? 'google/veo-3.1-lite',
   requiresApiKey: true,
-  capabilities: { text: true, image: true, speech: true, transcription: true },
+  capabilities: { text: true, image: true, speech: true, transcription: true, video: true },
 
   async generate(
     input: ProviderGenerateInput,
@@ -489,6 +495,117 @@ export const vercelAdapter: ProviderAdapter = {
       })),
     };
   },
+
+  async generateVideo(
+    input: ProviderVideoGenerateInput,
+  ): Promise<ProviderVideoGenerateResult> {
+    requireApiKey(input.apiKey);
+
+    try {
+      const provider = buildGateway({
+        apiKey: input.apiKey,
+        fetchFn: input.fetchFn,
+      });
+
+      const promptArg =
+        input.images && input.images.length > 0
+          ? {
+              text: input.prompt,
+              image: input.images[0]!.data,
+            }
+          : input.prompt;
+
+      // First+last frame conditioning is provider-specific; pass through
+      // providerOptions.gateway so the AI Gateway forwards it. Same shape
+      // as OpenRouter's last_frame_image extraBody.
+      const extraProviderOptions: Record<string, unknown> = {
+        ...(input.providerOptions ?? {}),
+      };
+      if (input.images && input.images.length === 2) {
+        extraProviderOptions.last_frame_image = input.images[1]!.data;
+      }
+      // Audio toggle goes through provider options too -- gateway routes
+      // to Veo / Kling / etc. which each accept a different key, but
+      // gateway normalizes the common ones.
+      if (typeof input.audio === 'boolean') {
+        extraProviderOptions.generate_audio = input.audio;
+      }
+
+      const result = await generateVideo({
+        model: provider.videoModel(input.model),
+        prompt: promptArg,
+        n: input.n,
+        aspectRatio: input.aspectRatio as `${number}:${number}` | undefined,
+        resolution: input.resolution as `${number}x${number}` | undefined,
+        duration: input.duration,
+        fps: input.fps,
+        seed: input.seed,
+        abortSignal: input.abortSignal,
+        providerOptions:
+          Object.keys(extraProviderOptions).length > 0
+            ? ({ gateway: extraProviderOptions } as unknown as Parameters<
+                typeof generateVideo
+              >[0]['providerOptions'])
+            : undefined,
+      });
+
+      const videos = (result.videos ?? [result.video]).map((v) => ({
+        data: v.uint8Array,
+        mimeType: v.mediaType ?? 'video/mp4',
+      }));
+
+      return {
+        provider: 'vercel',
+        model: input.model,
+        videos,
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+        finishReason: null,
+      };
+    } catch (error) {
+      throw toAICliError(
+        error,
+        'provider',
+        `Vercel AI Gateway video generation failed for model "${input.model}".`,
+      );
+    }
+  },
+
+  async refreshVideoModels(
+    input: RefreshModelsInput,
+  ): Promise<ProviderVideoCacheFile> {
+    requireApiKey(input.apiKey);
+
+    try {
+      const provider = buildGateway({
+        apiKey: input.apiKey,
+        fetchFn: input.fetchFn,
+      });
+
+      const response = await provider.getAvailableModels();
+      const videoModels = response.models.filter(isVideoModel);
+
+      return {
+        version: 1,
+        provider: 'vercel',
+        defaultModel: PROVIDER_VIDEO_DEFAULT_MODELS.vercel ?? 'google/veo-3.1-lite',
+        fetchedAt: (input.now?.() ?? new Date()).toISOString(),
+        models: videoModels.map((model) => ({
+          id: model.id,
+          name: model.name ?? model.id,
+          metadata: {
+            description: model.description ?? null,
+            pricing: model.pricing ?? null,
+          },
+        })),
+      };
+    } catch (error) {
+      throw toAICliError(
+        error,
+        'cache',
+        'Failed to refresh the Vercel AI Gateway video model list.',
+      );
+    }
+  },
 };
 
 type GatewayModelLike = {
@@ -502,4 +619,8 @@ function isLanguageModel(model: GatewayModelLike): boolean {
 
 function isImageModel(model: GatewayModelLike): boolean {
   return model.modelType === 'image';
+}
+
+function isVideoModel(model: GatewayModelLike): boolean {
+  return model.modelType === 'video';
 }
