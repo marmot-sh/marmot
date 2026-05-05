@@ -23,6 +23,7 @@ import {
 import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeOpenRouterUsage } from '@marmot-sh/core';
+import { normalizeResolution } from '@marmot-sh/core';
 import type {
   ProviderCacheFile,
   ProviderGenerateInput,
@@ -818,21 +819,51 @@ export const openRouterAdapter: ProviderAdapter = {
       extraProviderOptions.last_frame_image = input.images[1]!.data;
     }
 
+    // OpenRouter's video content endpoint
+    // (`/api/v1/videos/{id}/content?index=N`) requires the same Bearer
+    // token used to submit the job. The AI SDK provider's default
+    // download function doesn't carry that auth, so we inject it via a
+    // custom `download` callback. The AI SDK calls this once per
+    // generated video (not as a batch); shape is { url, abortSignal }
+    // -> { data, mediaType }.
+    const apiKey = input.apiKey;
+    const downloadFn = async (
+      options: { url: URL; abortSignal?: AbortSignal },
+    ): Promise<{ data: Uint8Array; mediaType: string }> => {
+      const fetchFn = input.fetchFn ?? fetch;
+      const res = await fetchFn(options.url.toString(), {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: options.abortSignal ?? input.abortSignal,
+      });
+      if (!res.ok) {
+        throw new AICliError(
+          res.status === 401 || res.status === 403 ? 'auth' : 'provider',
+          `Failed to download generated video (${res.status})${await readErrorBody(res)}`,
+        );
+      }
+      const buf = new Uint8Array(await res.arrayBuffer());
+      const mediaType = res.headers.get('content-type') ?? 'video/mp4';
+      return { data: buf, mediaType };
+    };
+
     let result;
     try {
       result = await generateVideo({
         model: videoModel,
         prompt: promptArg,
         n: input.n,
-        // The AI SDK types these as template-literal strings; our zod
-        // schema already enforced the W:H / WxH / label patterns so the
-        // cast is safe here.
+        // The AI SDK types these as template-literal strings; the zod
+        // schema enforced the W:H / WxH / label patterns; normalize
+        // resolution labels to WxH so providers don't reject them.
         aspectRatio: input.aspectRatio as `${number}:${number}` | undefined,
-        resolution: input.resolution as `${number}x${number}` | undefined,
+        resolution: normalizeResolution(input.resolution, input.aspectRatio),
         duration: input.duration,
         fps: input.fps,
         seed: input.seed,
         abortSignal: input.abortSignal,
+        download: downloadFn as unknown as Parameters<
+          typeof generateVideo
+        >[0]['download'],
         providerOptions:
           Object.keys(extraProviderOptions).length > 0
             ? ({ openrouter: extraProviderOptions } as unknown as Parameters<
