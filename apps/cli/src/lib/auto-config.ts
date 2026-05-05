@@ -101,9 +101,16 @@ export async function ensureAutoConfig(
     };
     await writeMarmotConfig(updated, env);
 
+    // Detection source is the credential we found in the env -- naming it
+    // makes the line self-explanatory: the user can see *why* this provider
+    // was picked rather than guessing or running `env | grep`.
+    const detectionSource = slug === 'ollama'
+      ? 'ollama daemon reachable'
+      : `${PROVIDER_API_KEY_ENV_VARS[slug]} set`;
+
     const stderr = deps.stderr ?? process.stderr;
     stderr.write(
-      `[auto-config] ${verb} → ${slug} (model: ${model}). Run \`marmot setup\` to change.\n`,
+      `[auto-config] ${verb} → ${slug} (${detectionSource}, model: ${model}). Run \`marmot setup\` to change.\n`,
     );
 
     return updated;

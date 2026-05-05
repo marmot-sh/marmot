@@ -17,7 +17,7 @@ import {
   PROVIDER_SPEECH_DEFAULT_MODELS,
   PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
 } from '@marmot-sh/core';
-import { AICliError, toAICliError } from '@marmot-sh/core';
+import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import type {
   ProviderCacheFile,
@@ -347,7 +347,7 @@ export const cloudflareAdapter: ProviderAdapter = {
         response.status === 401 || response.status === 403 ? 'auth' : 'provider';
       throw new AICliError(
         category,
-        `Cloudflare Workers AI model refresh failed with status ${response.status}.`,
+        `Cloudflare Workers AI model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
@@ -426,7 +426,7 @@ export const cloudflareAdapter: ProviderAdapter = {
           response.status === 401 || response.status === 403 ? 'auth' : 'provider';
         throw new AICliError(
           category,
-          `Cloudflare Workers AI image generation failed with status ${response.status}.`,
+          `Cloudflare Workers AI image generation failed with status ${response.status}.${await readErrorBody(response)}`,
         );
       }
 
@@ -526,7 +526,7 @@ export const cloudflareAdapter: ProviderAdapter = {
         response.status === 401 || response.status === 403 ? 'auth' : 'provider';
       throw new AICliError(
         category,
-        `Cloudflare Workers AI speech generation failed with status ${response.status}.`,
+        `Cloudflare Workers AI speech generation failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
@@ -603,7 +603,7 @@ export const cloudflareAdapter: ProviderAdapter = {
         response.status === 401 || response.status === 403 ? 'auth' : 'provider';
       throw new AICliError(
         category,
-        `Cloudflare Workers AI transcription failed with status ${response.status}.`,
+        `Cloudflare Workers AI transcription failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 

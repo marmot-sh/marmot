@@ -17,7 +17,7 @@ import {
   PROVIDER_DEFAULT_MODELS,
   PROVIDER_IMAGE_DEFAULT_MODELS,
 } from '@marmot-sh/core';
-import { AICliError, toAICliError } from '@marmot-sh/core';
+import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
 import { normalizeUsage } from '@marmot-sh/core';
 import type {
@@ -256,7 +256,7 @@ export const openAIAdapter: ProviderAdapter = {
         : 'provider';
       throw new AICliError(
         category,
-        `OpenAI model refresh failed with status ${response.status}.`,
+        `OpenAI model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
       );
     }
 
