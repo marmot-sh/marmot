@@ -22,6 +22,7 @@ import {
 } from '@marmot-sh/core';
 
 import { formatTable } from '../lib/table.js';
+import { EXIT_SETUP, EXIT_SETUP_OPTION } from '../lib/setup-exit.js';
 
 const SKIP_VALUE = '__skip__';
 
@@ -288,6 +289,7 @@ export async function walkProviderSettings(
         { value: CATEGORY_AI, label: 'AI providers', hint: summarizeCategory(aiRows) },
         { value: CATEGORY_CONTEXT, label: 'Context providers', hint: summarizeCategory(contextRows) },
         { value: SKIP_VALUE, label: 'Back to setup' },
+        EXIT_SETUP_OPTION,
       ],
     });
     if (isCancel(category)) {
@@ -295,6 +297,7 @@ export async function walkProviderSettings(
       return null;
     }
     if (category === SKIP_VALUE) return 'unchanged' as unknown as MarmotConfig;
+    if (category === EXIT_SETUP) return EXIT_SETUP as unknown as MarmotConfig;
 
     const subset = category === CATEGORY_AI ? aiRows : contextRows;
     const subsetLabel = category === CATEGORY_AI ? 'AI' : 'context';
@@ -304,6 +307,7 @@ export async function walkProviderSettings(
       options: [
         ...subset.map((r) => buildProviderOption(r, config)),
         { value: PICKER_BACK, label: 'Back' },
+        EXIT_SETUP_OPTION,
       ],
     });
     if (isCancel(choice)) {
@@ -311,6 +315,7 @@ export async function walkProviderSettings(
       return null;
     }
     if (choice === PICKER_BACK) continue;
+    if (choice === EXIT_SETUP) return EXIT_SETUP as unknown as MarmotConfig;
     slug = choice as AnyProviderSlug;
     break;
   }

@@ -24,11 +24,12 @@ import {
   type WebVerb,
 } from '@marmot-sh/core';
 
-import { warnText } from '@marmot-sh/core';
+import { warnText, writeMarmotConfig } from '@marmot-sh/core';
 
 import { providersForCell } from '../providers/data-capabilities.js';
 import { providersForVerb as webProvidersForVerb } from '../providers/web-capabilities.js';
 import { formatTable } from '../lib/table.js';
+import { EXIT_SETUP, EXIT_SETUP_OPTION } from '../lib/setup-exit.js';
 
 const SKIP = '__skip__';
 const BACK = '__back__';
@@ -118,7 +119,7 @@ function unsetVerb(
 export async function walkAllDataDefaults(
   config: MarmotConfig,
   env: NodeJS.ProcessEnv,
-): Promise<MarmotConfig | null | 'unchanged'> {
+): Promise<MarmotConfig | null | 'unchanged' | typeof EXIT_SETUP> {
   let working = config;
   const webReady = configuredWebKeys(env);
   const dataReady = configuredDataKeys(env);
@@ -163,6 +164,7 @@ export async function walkAllDataDefaults(
       label: `${i.label.padEnd(maxLabel + 4)}${i.current}`,
     }));
     options.push({ value: BACK, label: 'Back to setup' });
+    options.push(EXIT_SETUP_OPTION);
 
     const choice = await select({
       message: 'Context defaults — pick a verb to change',
@@ -172,6 +174,15 @@ export async function walkAllDataDefaults(
       cancel('Setup canceled.');
       return null;
     }
+    if (choice === EXIT_SETUP) {
+      // Persist any in-progress changes here so the hub doesn't need a
+      // separate "exit-with-pending-changes" code path -- it just sees
+      // the EXIT_SETUP sentinel and prints the "Saved to ..." message.
+      if (working !== config) {
+        await writeMarmotConfig(working, env);
+      }
+      return EXIT_SETUP;
+    }
     if (choice === BACK) {
       return working === config ? 'unchanged' : working;
     }
@@ -180,6 +191,10 @@ export async function walkAllDataDefaults(
       const verb = choice.slice(4) as WebVerb;
       const updated = await editWebVerb(verb, working, env, webReady);
       if (updated === null) return null;
+      if (updated === EXIT_SETUP) {
+        if (working !== config) await writeMarmotConfig(working, env);
+        return EXIT_SETUP;
+      }
       if (updated !== 'unchanged') working = updated;
       continue;
     }
@@ -187,6 +202,10 @@ export async function walkAllDataDefaults(
       const verb = choice.slice(5) as DataVerb;
       const updated = await editDataVerb(verb, working, env, dataReady);
       if (updated === null) return null;
+      if (updated === EXIT_SETUP) {
+        if (working !== config) await writeMarmotConfig(working, env);
+        return EXIT_SETUP;
+      }
       if (updated !== 'unchanged') working = updated;
       continue;
     }
@@ -198,7 +217,7 @@ async function editWebVerb(
   config: MarmotConfig,
   env: NodeJS.ProcessEnv,
   webReady: Set<WebProviderSlug>,
-): Promise<MarmotConfig | null | 'unchanged'> {
+): Promise<MarmotConfig | null | 'unchanged' | typeof EXIT_SETUP> {
   const supported = webProvidersForVerb(verb);
   const eligible = supported.filter((s) => webReady.has(s));
 
@@ -212,15 +231,19 @@ async function editWebVerb(
   }
 
   const current = summaryFor(verb, config);
+  const initialValue = (eligible as readonly string[]).includes(current) ? current : undefined;
   const choice = await select({
-    message: `${WEB_VERB_LABEL[verb]} — pick provider (current: ${current})`,
+    message: `${WEB_VERB_LABEL[verb]} — pick provider`,
+    initialValue,
     options: [
       ...eligible.map((slug) => ({
         value: slug as string,
         label: `${WEB_PROVIDER_DISPLAY_NAMES[slug]} (${slug})`,
+        hint: slug === current ? warnText('current') : undefined,
       })),
       { value: '__unset__', label: 'Clear default — leave unset' },
       { value: SKIP, label: 'Cancel — no change' },
+      EXIT_SETUP_OPTION,
     ],
   });
   if (isCancel(choice)) {
@@ -228,6 +251,7 @@ async function editWebVerb(
     return null;
   }
   if (choice === SKIP) return 'unchanged';
+  if (choice === EXIT_SETUP) return EXIT_SETUP;
   if (choice === '__unset__') return unsetVerb(verb, config);
   return applyVerb(verb, choice as string, config);
 }
@@ -237,7 +261,7 @@ async function editDataVerb(
   config: MarmotConfig,
   env: NodeJS.ProcessEnv,
   dataReady: Set<DataProviderSlug>,
-): Promise<MarmotConfig | null | 'unchanged'> {
+): Promise<MarmotConfig | null | 'unchanged' | typeof EXIT_SETUP> {
   const supported = eligibleDataProvidersForVerb(verb);
   const eligible = supported.filter((s) => dataReady.has(s));
 
@@ -251,15 +275,19 @@ async function editDataVerb(
   }
 
   const current = summaryFor(verb, config);
+  const initialValue = (eligible as readonly string[]).includes(current) ? current : undefined;
   const choice = await select({
-    message: `${DATA_VERB_LABEL[verb]} — pick provider (current: ${current})`,
+    message: `${DATA_VERB_LABEL[verb]} — pick provider`,
+    initialValue,
     options: [
       ...eligible.map((slug) => ({
         value: slug as string,
         label: `${DATA_PROVIDER_DISPLAY_NAMES[slug]} (${slug})`,
+        hint: slug === current ? warnText('current') : undefined,
       })),
       { value: '__unset__', label: 'Clear default — leave unset' },
       { value: SKIP, label: 'Cancel — no change' },
+      EXIT_SETUP_OPTION,
     ],
   });
   if (isCancel(choice)) {
@@ -267,6 +295,7 @@ async function editDataVerb(
     return null;
   }
   if (choice === SKIP) return 'unchanged';
+  if (choice === EXIT_SETUP) return EXIT_SETUP;
   if (choice === '__unset__') return unsetVerb(verb, config);
   return applyVerb(verb, choice as string, config);
 }

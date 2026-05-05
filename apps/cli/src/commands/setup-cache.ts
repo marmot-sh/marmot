@@ -14,11 +14,14 @@ import {
   WEB_PROVIDERS,
   clearAllCache,
   statsForProvider,
+  writeMarmotConfig,
   type AnyProviderSlug,
   type CacheStats,
   type MarmotConfig,
   type ProviderSettings,
 } from '@marmot-sh/core';
+
+import { EXIT_SETUP, EXIT_SETUP_OPTION } from '../lib/setup-exit.js';
 
 const SHORTCUT_CLEAR_ALL = '__clear_all__';
 const SHORTCUT_RESET_ALL = '__reset_all__';
@@ -82,6 +85,7 @@ export async function walkResponseCache(
         { value: SHORTCUT_RESET_ALL, label: 'Reset all cache settings (enable, 30-day TTL)' },
         { value: SHORTCUT_DISABLE_ALL, label: 'Disable caching for all providers' },
         { value: ACTION_BACK, label: 'Back to setup' },
+        EXIT_SETUP_OPTION,
       ],
     });
     if (isCancel(choice)) {
@@ -90,6 +94,10 @@ export async function walkResponseCache(
     }
 
     if (choice === ACTION_BACK) return working;
+    if (choice === EXIT_SETUP) {
+      if (working !== config) await writeMarmotConfig(working, env);
+      return EXIT_SETUP as unknown as MarmotConfig;
+    }
 
     if (choice === SHORTCUT_CLEAR_ALL) {
       if (totalEntries === 0) {
