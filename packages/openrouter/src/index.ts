@@ -43,7 +43,7 @@ import type { ProviderAdapter } from '@marmot-sh/core';
 
 const OPENROUTER_DEFAULT_IMAGE_MODEL = 'google/gemini-2.5-flash-image';
 const OPENROUTER_DEFAULT_SPEECH_MODEL = 'openai/gpt-4o-mini-tts-2025-12-15';
-const OPENROUTER_DEFAULT_TRANSCRIPTION_MODEL = 'openai/whisper-1';
+const OPENROUTER_DEFAULT_TRANSCRIPTION_MODEL = 'openai/gpt-4o-transcribe';
 const OPENROUTER_AUDIO_SPEECH_URL = `${OPENROUTER_BASE_URL}/audio/speech`;
 const OPENROUTER_AUDIO_TRANSCRIPTIONS_URL = `${OPENROUTER_BASE_URL}/audio/transcriptions`;
 

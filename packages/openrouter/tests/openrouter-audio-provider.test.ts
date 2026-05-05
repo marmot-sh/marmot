@@ -13,7 +13,7 @@ describe('openRouterAdapter capabilities', () => {
       transcription: true,
     });
     expect(openRouterAdapter.defaultSpeechModel).toBe('openai/gpt-4o-mini-tts-2025-12-15');
-    expect(openRouterAdapter.defaultTranscriptionModel).toBe('openai/whisper-1');
+    expect(openRouterAdapter.defaultTranscriptionModel).toBe('openai/gpt-4o-transcribe');
     expect(typeof openRouterAdapter.generateSpeech).toBe('function');
     expect(typeof openRouterAdapter.refreshSpeechModels).toBe('function');
     expect(typeof openRouterAdapter.transcribe).toBe('function');
@@ -334,7 +334,7 @@ describe('openRouterAdapter.refreshTranscriptionModels', () => {
     expect(capturedUrl).toBe(
       'https://openrouter.ai/api/v1/models?output_modalities=transcription',
     );
-    expect(result.defaultModel).toBe('openai/whisper-1');
+    expect(result.defaultModel).toBe('openai/gpt-4o-transcribe');
     expect(result.models[0]).toMatchObject({
       id: 'openai/whisper-1',
       name: 'OpenAI Whisper-1',
