@@ -231,8 +231,9 @@ async function promptCustomEnvVars(
   return result;
 }
 
-const SEP_AI = '__sep_ai__';
-const SEP_CONTEXT = '__sep_context__';
+const CATEGORY_AI = '__cat_ai__';
+const CATEGORY_CONTEXT = '__cat_context__';
+const PICKER_BACK = '__picker_back__';
 
 function buildProviderOption(
   row: ProviderRow,
@@ -257,6 +258,14 @@ function buildProviderOption(
   };
 }
 
+function summarizeCategory(rows: readonly ProviderRow[]): string {
+  const total = rows.length;
+  const withKey = rows.filter((r) => r.hasCredential).length;
+  if (total === 0) return 'none';
+  if (withKey === total) return `${total} provider${total === 1 ? '' : 's'}`;
+  return `${withKey} of ${total} with key`;
+}
+
 export async function walkProviderSettings(
   config: MarmotConfig,
   env: NodeJS.ProcessEnv,
@@ -265,27 +274,43 @@ export async function walkProviderSettings(
   const aiRows = rows.filter((r) => r.category === 'ai');
   const contextRows = rows.filter((r) => r.category !== 'ai');
 
-  // Loop on the picker until the user lands on a real provider (not a
-  // separator). Separators are selectable in clack but a no-op here, so
-  // this loop is purely to swallow accidental hits.
+  // Two-step drill: pick a category, then pick a provider in that category.
+  // This sidesteps the clack constraint that every `select` option renders
+  // a radio glyph -- a single combined list with header rows looked
+  // selectable, which was misleading. From the inner picker, "Back" returns
+  // to the category picker so the user can switch groups without leaving
+  // setup.
   let slug: AnyProviderSlug;
   for (;;) {
-    const choice = await select({
-      message: 'Which provider to configure?',
+    const category = await select({
+      message: 'Which kind of provider?',
       options: [
-        { value: SEP_AI, label: '── AI providers ──' },
-        ...aiRows.map((r) => buildProviderOption(r, config)),
-        { value: SEP_CONTEXT, label: '── Context providers ──' },
-        ...contextRows.map((r) => buildProviderOption(r, config)),
+        { value: CATEGORY_AI, label: 'AI providers', hint: summarizeCategory(aiRows) },
+        { value: CATEGORY_CONTEXT, label: 'Context providers', hint: summarizeCategory(contextRows) },
         { value: SKIP_VALUE, label: 'Back to setup' },
+      ],
+    });
+    if (isCancel(category)) {
+      cancel('Setup canceled.');
+      return null;
+    }
+    if (category === SKIP_VALUE) return 'unchanged' as unknown as MarmotConfig;
+
+    const subset = category === CATEGORY_AI ? aiRows : contextRows;
+    const subsetLabel = category === CATEGORY_AI ? 'AI' : 'context';
+
+    const choice = await select({
+      message: `Which ${subsetLabel} provider?`,
+      options: [
+        ...subset.map((r) => buildProviderOption(r, config)),
+        { value: PICKER_BACK, label: 'Back' },
       ],
     });
     if (isCancel(choice)) {
       cancel('Setup canceled.');
       return null;
     }
-    if (choice === SKIP_VALUE) return 'unchanged' as unknown as MarmotConfig;
-    if (choice === SEP_AI || choice === SEP_CONTEXT) continue;
+    if (choice === PICKER_BACK) continue;
     slug = choice as AnyProviderSlug;
     break;
   }
