@@ -42,6 +42,10 @@ import {
   type TranscribeRunCommandOptions,
 } from './commands/run-transcribe.js';
 import {
+  handleVideoRunCommand,
+  type VideoRunCommandOptions,
+} from './commands/run-video.js';
+import {
   handlePresetCreate,
   handlePresetDelete,
   handlePresetList,
@@ -586,6 +590,32 @@ export function createProgram(): Command {
       await handleTranscribeRunCommand(audioPath, merged);
     });
 
+  const videoCommand = new Command('video')
+    .description('Generate a video clip from a text prompt (text-to-video / image-to-video).')
+    .argument('[prompt...]', 'Video prompt. Falls back to stdin when omitted; merges with stdin when both are provided.')
+    .option('--provider <provider>', 'Provider slug: openrouter, vercel.')
+    .option('--model <model>', 'Video model slug (e.g. google/veo-3.1-lite).')
+    .option('--api-key <apiKey>', 'Provider API key override.')
+    .option('-o, --output <path>', 'Output file path. With --n > 1 use the {i} placeholder. Default: auto-named in cwd.')
+    .option('-p, --prompt-file <promptFile>', 'Read prompt text from a file.')
+    .option('--aspect <ratio>', 'Aspect ratio in W:H form, e.g. 16:9 (default), 9:16, 1:1.')
+    .option('--resolution <res>', 'Resolution label (720p, 1080p, 4k) or WxH. Default depends on model.')
+    .option('--duration <seconds>', 'Clip length in seconds.')
+    .option('--fps <n>', 'Frames per second (only some providers honor this).')
+    .option('--audio', 'Generate synced audio. Default off (cheaper); some models always emit audio regardless.')
+    .option('--no-audio', 'Force audio off (default).')
+    .option('--image <path>', 'Reference image. Repeatable: 1st = first-frame conditioning, 2nd = last-frame.', collectImage, [] as string[])
+    .option('--n <count>', 'Number of clips to generate (most models cap at 1).')
+    .option('--seed <int>', 'Reproducibility seed.')
+    .option('--binary', 'Write raw video bytes to stdout (no file). Default when piped to a non-TTY with --n 1.')
+    .option('--b64', 'Emit JSON envelope with base64 video inline.')
+    .option('--json', 'Print JSON envelope (paths only).')
+    .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
+    .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 600).')
+    .action(async (promptParts: string[], options: VideoRunCommandOptions) => {
+      await handleVideoRunCommand(promptParts, options);
+    });
+
   const completionsCommand = new Command('completions')
     .description('Print a shell completion script (bash, zsh, fish).')
     .argument('[shell]', 'Shell name: bash, zsh, or fish.')
@@ -598,6 +628,7 @@ export function createProgram(): Command {
   program.addCommand(imageCommand.helpGroup('AI generation'));
   program.addCommand(speakCommand.helpGroup('AI generation'));
   program.addCommand(transcribeCommand.helpGroup('AI generation'));
+  program.addCommand(videoCommand.helpGroup('AI generation'));
 
   // Search and enrichment
   program.addCommand(buildSearchCommand().helpGroup('Search and enrichment'));

@@ -1,4 +1,5 @@
 import {
+  experimental_generateVideo as generateVideo,
   extractJsonMiddleware,
   generateText,
   Output,
@@ -17,6 +18,7 @@ import {
   PROVIDER_IMAGE_DEFAULT_MODELS,
   PROVIDER_SPEECH_DEFAULT_MODELS,
   PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
+  PROVIDER_VIDEO_DEFAULT_MODELS,
 } from '@marmot-sh/core';
 import { AICliError, readErrorBody, toAICliError } from '@marmot-sh/core';
 import { buildUserMessages } from '@marmot-sh/core';
@@ -37,6 +39,9 @@ import type {
   ProviderTranscribeInput,
   ProviderTranscribeResult,
   ProviderTranscriptionCacheFile,
+  ProviderVideoCacheFile,
+  ProviderVideoGenerateInput,
+  ProviderVideoGenerateResult,
   RefreshModelsInput,
 } from '@marmot-sh/core';
 import type { ProviderAdapter } from '@marmot-sh/core';
@@ -44,6 +49,7 @@ import type { ProviderAdapter } from '@marmot-sh/core';
 const OPENROUTER_DEFAULT_IMAGE_MODEL = 'google/gemini-2.5-flash-image';
 const OPENROUTER_DEFAULT_SPEECH_MODEL = 'openai/gpt-4o-mini-tts-2025-12-15';
 const OPENROUTER_DEFAULT_TRANSCRIPTION_MODEL = 'openai/gpt-4o-transcribe';
+const OPENROUTER_DEFAULT_VIDEO_MODEL = PROVIDER_VIDEO_DEFAULT_MODELS.openrouter ?? 'google/veo-3.1-lite';
 const OPENROUTER_AUDIO_SPEECH_URL = `${OPENROUTER_BASE_URL}/audio/speech`;
 const OPENROUTER_AUDIO_TRANSCRIPTIONS_URL = `${OPENROUTER_BASE_URL}/audio/transcriptions`;
 
@@ -107,8 +113,9 @@ export const openRouterAdapter: ProviderAdapter = {
   defaultImageModel: OPENROUTER_DEFAULT_IMAGE_MODEL,
   defaultSpeechModel: OPENROUTER_DEFAULT_SPEECH_MODEL,
   defaultTranscriptionModel: OPENROUTER_DEFAULT_TRANSCRIPTION_MODEL,
+  defaultVideoModel: OPENROUTER_DEFAULT_VIDEO_MODEL,
   requiresApiKey: true,
-  capabilities: { text: true, image: true, speech: true, transcription: true },
+  capabilities: { text: true, image: true, speech: true, transcription: true, video: true },
 
   async generate(input: ProviderGenerateInput): Promise<ProviderGenerateResult> {
     if (!input.apiKey) {
@@ -758,6 +765,152 @@ export const openRouterAdapter: ProviderAdapter = {
         PROVIDER_IMAGE_DEFAULT_MODELS.openrouter ?? OPENROUTER_DEFAULT_IMAGE_MODEL,
       fetchedAt: (input.now?.() ?? new Date()).toISOString(),
       models: imageModels.map((m) => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        metadata: {
+          description: m.description ?? null,
+          pricing: m.pricing ?? null,
+          inputModalities: m.architecture?.input_modalities ?? [],
+          outputModalities: m.architecture?.output_modalities ?? [],
+        },
+      })),
+    };
+  },
+
+  async generateVideo(
+    input: ProviderVideoGenerateInput,
+  ): Promise<ProviderVideoGenerateResult> {
+    if (!input.apiKey) {
+      throw new AICliError(
+        'auth',
+        'OpenRouter requires --api-key or OPENROUTER_API_KEY.',
+      );
+    }
+
+    // Wire through the AI SDK's experimental_generateVideo. The OpenRouter
+    // provider's videoModel(...) factory hides the submit-and-poll lifecycle
+    // behind the AI SDK call, so we get a single awaitable that returns
+    // bytes -- no manual polling here.
+    const provider = createOpenRouter({ apiKey: input.apiKey });
+    const videoModel = provider.videoModel(input.model, {
+      generateAudio: input.audio,
+      // 10-minute hard ceiling matches the AI SDK provider's default and
+      // is enough for the longest clips any current model produces.
+      maxPollTimeMs: 600_000,
+    });
+
+    // Shape the AI SDK prompt: plain string for text-to-video, or a
+    // {text, image} object when a single reference image is passed.
+    // First+last frame conditioning (two images) goes through extraBody
+    // since the AI SDK doesn't expose a top-level slot for it.
+    const promptArg =
+      input.images && input.images.length > 0
+        ? {
+            text: input.prompt,
+            image: input.images[0]!.data,
+          }
+        : input.prompt;
+
+    const extraProviderOptions: Record<string, unknown> = {
+      ...(input.providerOptions ?? {}),
+    };
+    if (input.images && input.images.length === 2) {
+      extraProviderOptions.last_frame_image = input.images[1]!.data;
+    }
+
+    let result;
+    try {
+      result = await generateVideo({
+        model: videoModel,
+        prompt: promptArg,
+        n: input.n,
+        // The AI SDK types these as template-literal strings; our zod
+        // schema already enforced the W:H / WxH / label patterns so the
+        // cast is safe here.
+        aspectRatio: input.aspectRatio as `${number}:${number}` | undefined,
+        resolution: input.resolution as `${number}x${number}` | undefined,
+        duration: input.duration,
+        fps: input.fps,
+        seed: input.seed,
+        abortSignal: input.abortSignal,
+        providerOptions:
+          Object.keys(extraProviderOptions).length > 0
+            ? ({ openrouter: extraProviderOptions } as unknown as Parameters<
+                typeof generateVideo
+              >[0]['providerOptions'])
+            : undefined,
+      });
+    } catch (error) {
+      throw toAICliError(
+        error,
+        'provider',
+        `OpenRouter video generation failed for model "${input.model}".`,
+      );
+    }
+
+    const videos = (result.videos ?? [result.video]).map((v) => ({
+      data: v.uint8Array,
+      mimeType: v.mediaType ?? 'video/mp4',
+    }));
+
+    return {
+      provider: 'openrouter',
+      model: input.model,
+      videos,
+      usage: {
+        inputTokens: null,
+        outputTokens: null,
+        totalTokens: null,
+      },
+      finishReason: null,
+    };
+  },
+
+  async refreshVideoModels(
+    input: RefreshModelsInput,
+  ): Promise<ProviderVideoCacheFile> {
+    if (!input.apiKey) {
+      throw new AICliError(
+        'auth',
+        'OpenRouter video-model refresh requires OPENROUTER_API_KEY.',
+      );
+    }
+
+    const fetchFn = input.fetchFn ?? fetch;
+    const url = `${OPENROUTER_MODELS_URL}?output_modalities=video`;
+    const response = await fetchFn(url, {
+      headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${input.apiKey}`,
+      },
+    });
+    if (!response.ok) {
+      const category = response.status === 401 || response.status === 403
+        ? 'auth'
+        : 'provider';
+      throw new AICliError(
+        category,
+        `OpenRouter video-model refresh failed with status ${response.status}.${await readErrorBody(response)}`,
+      );
+    }
+
+    const payload = (await response.json()) as unknown;
+    const parsed = openRouterModelsResponseSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new AICliError(
+        'cache',
+        'OpenRouter model metadata did not match the expected schema.',
+        { cause: parsed.error },
+      );
+    }
+
+    return {
+      version: 1,
+      provider: 'openrouter',
+      defaultModel:
+        PROVIDER_VIDEO_DEFAULT_MODELS.openrouter ?? OPENROUTER_DEFAULT_VIDEO_MODEL,
+      fetchedAt: (input.now?.() ?? new Date()).toISOString(),
+      models: parsed.data.data.map((m) => ({
         id: m.id,
         name: m.name ?? m.id,
         metadata: {

@@ -46,6 +46,7 @@ export {
 export * from './output/speech-file.js';
 export * from './output/text.js';
 export * from './output/transcribe.js';
+export * from './output/video-file.js';
 export * from './output/write.js';
 
 // cache
