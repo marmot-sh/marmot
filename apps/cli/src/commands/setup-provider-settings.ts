@@ -147,6 +147,47 @@ async function promptEnable(
   return choice;
 }
 
+type CacheChoice = { enabled: false } | { enabled: true; ttlDays: number };
+
+/** Per-provider response-cache step. AI providers don't cache, so this
+ *  short-circuits for them. Web/context providers get a confirm + TTL
+ *  prompt; the user can disable, re-enable, or tweak TTL in one pass. */
+async function promptCache(
+  row: ProviderRow,
+  current: ProviderSettings | undefined,
+): Promise<CacheChoice | null | 'unchanged'> {
+  if (row.category === 'ai') return 'unchanged';
+
+  const currentlyEnabled = current?.cache?.enabled === true;
+  const currentTtl = current?.cache?.ttlDays ?? DEFAULT_CACHE_TTL_DAYS;
+
+  const enable = await confirm({
+    message: `${row.name} — enable response cache?`,
+    initialValue: currentlyEnabled,
+  });
+  if (isCancel(enable)) return null;
+  if (!enable) return { enabled: false };
+
+  const ttlInput = await text({
+    message: `${row.name} — cache TTL (days)`,
+    placeholder: String(DEFAULT_CACHE_TTL_DAYS),
+    initialValue: String(currentTtl),
+    validate: (value) => {
+      const trimmed = (value ?? '').trim();
+      if (trimmed === '') return 'Enter a positive integer (e.g. 30).';
+      const n = Number(trimmed);
+      if (!Number.isFinite(n) || !Number.isInteger(n)) {
+        return 'TTL must be a whole number of days.';
+      }
+      if (n < 1) return 'TTL must be at least 1 day.';
+      if (n > 365) return 'TTL must be 365 days or fewer.';
+      return undefined;
+    },
+  });
+  if (isCancel(ttlInput)) return null;
+  return { enabled: true, ttlDays: Number.parseInt(String(ttlInput).trim(), 10) };
+}
+
 async function promptCustomEnvVars(
   row: ProviderRow,
   current: ProviderSettings | undefined,
@@ -231,7 +272,7 @@ export async function walkProviderSettings(
           hint: statusLabel(r, settings),
         };
       }),
-      { value: SKIP_VALUE, label: 'Done — return to setup hub' },
+      { value: SKIP_VALUE, label: 'Back to setup' },
     ],
   });
   if (isCancel(choice)) {
@@ -244,26 +285,33 @@ export async function walkProviderSettings(
   const row = rows.find((r) => r.slug === slug)!;
   const current = settingsFor(config, slug);
 
-  // Surface current cache stats for web/data providers BEFORE the toggle
-  // prompts — gives the user the data they need to decide whether to keep
-  // (Cache configuration moved to its own top-level walk: `Response cache`
-  // in `marmot setup`. This walk now handles only enable/disable + custom
-  // env var overrides, which keeps each menu item single-purpose.)
+  // Per-provider walk: enable → custom env vars → response cache (web/
+  // context only). Bulk cache operations (clear all, reset all, disable
+  // all) live in the top-level "Global cache" menu.
 
-  // Step 1: enable toggle
   const enabled = await promptEnable(row, current);
   if (enabled === null) return null;
 
-  // Step 2: advanced (custom env vars)
   const advanced = await promptCustomEnvVars(row, current);
   if (advanced === null) return null;
 
-  // Compose new settings; preserve any existing cache config (managed by the
-  // Response cache walk, never touched here). Drop fields that are at
-  // default to keep config tidy.
+  const cache = await promptCache(row, current);
+  if (cache === null) return null;
+
+  // Drop fields that resolve to defaults so the on-disk config stays tidy.
   const next: ProviderSettings = {};
   if (enabled === false) next.enabled = false;
-  if (current?.cache) next.cache = current.cache; // preserve
+
+  if (cache !== 'unchanged') {
+    if (cache.enabled) {
+      next.cache = { enabled: true, ttlDays: cache.ttlDays };
+    } else {
+      next.cache = { enabled: false };
+    }
+  } else if (current?.cache) {
+    next.cache = current.cache;
+  }
+
   if (advanced !== 'unchanged') {
     if (advanced.apiKeyEnvVar) next.apiKeyEnvVar = advanced.apiKeyEnvVar;
     if (advanced.apiSecretEnvVar) next.apiSecretEnvVar = advanced.apiSecretEnvVar;

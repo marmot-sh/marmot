@@ -1,16 +1,15 @@
 import {
   cancel,
   confirm,
-  intro,
   isCancel,
   note,
-  outro,
   select,
   spinner,
   text,
 } from '@clack/prompts';
 
 import { brandText, ensureProviderCache, warnText } from '@marmot-sh/core';
+import { createEphemeralSpinner } from '../lib/ephemeral-spinner.js';
 import {
   PROVIDER_DEFAULT_MODELS,
   PROVIDER_IMAGE_DEFAULT_MODELS,
@@ -25,8 +24,6 @@ import {
   WEB_VERBS,
   resolveProviderAuth,
   type AnyProviderSlug,
-  type DataVerb,
-  type WebVerb,
 } from '@marmot-sh/core';
 import { readSkillState, statsAll } from '@marmot-sh/core';
 import { readCompletionsState } from '@marmot-sh/core';
@@ -49,10 +46,7 @@ import { getMarmotConfigPath } from '@marmot-sh/core';
 import { getProviderAdapter } from '../providers/index.js';
 import type { MarmotConfig } from '@marmot-sh/core';
 import { walkAllDataDefaults } from './setup-data-defaults.js';
-import {
-  formatProviderStatusReport,
-  walkProviderSettings,
-} from './setup-provider-settings.js';
+import { walkProviderSettings } from './setup-provider-settings.js';
 import { walkResponseCache } from './setup-cache.js';
 import { walkCompletionsSetup } from './setup-completions.js';
 import { walkSkillSetup } from './setup-skill.js';
@@ -76,9 +70,9 @@ const MODES: ModeLabel[] = [
 ];
 
 const AI_DEFAULTS = '__ai_defaults__';
-const DATA_DEFAULTS = '__data_defaults__';
+const CONTEXT_DEFAULTS = '__context_defaults__';
 const PROVIDER_SETTINGS = '__providers__';
-const RESPONSE_CACHE = '__cache__';
+const GLOBAL_CACHE = '__cache__';
 const SKILL_SETUP = '__skill__';
 const COMPLETIONS_SETUP = '__completions__';
 const DONE = '__done__';
@@ -96,12 +90,14 @@ export async function handleSetupCommand(
   const env = dependencies.env ?? process.env;
   const fetchFn = dependencies.fetchFn ?? fetch;
 
-  intro(`${brandText('marmot', { bold: true, env })} ${MARMOT_VERSION}`);
-
-  const detectSpin = spinner();
-  detectSpin.start('Detecting available providers');
+  // Detection runs before anything is rendered. Use an ephemeral spinner
+  // (clears its line on stop) rather than clack's, which leaves a
+  // "◇  Detection complete" row that sticks around through every hub
+  // re-render. The hub is a flat screen, not a wizard transcript.
+  const detectSpin = createEphemeralSpinner();
+  detectSpin.start('Detecting providers');
   const statuses = await detectProviders(env, fetchFn);
-  detectSpin.stop('Detection complete');
+  detectSpin.stop();
 
   let config: MarmotConfig = (await readConfigSafely(env)) ?? { version: 1 };
 
@@ -115,7 +111,7 @@ export async function handleSetupCommand(
     const hasOpenRouterKey = Boolean(env.OPENROUTER_API_KEY?.trim());
     const message = hasOpenRouterKey
       ? 'No AI defaults are configured. Populate with OpenRouter defaults for text, image, speech, and transcription?'
-      : 'No AI defaults are configured. Populate with OpenRouter defaults? (OPENROUTER_API_KEY is NOT set in your environment — calls will fail until you set it.)';
+      : 'No AI defaults are configured. Populate with OpenRouter defaults? (OPENROUTER_API_KEY is NOT set in your environment, calls will fail until you set it.)';
     const populate = await confirm({
       message,
       initialValue: hasOpenRouterKey,
@@ -136,30 +132,27 @@ export async function handleSetupCommand(
         },
       };
       await writeMarmotConfig(config, env);
-      const followup = hasOpenRouterKey
-        ? 'Wrote OpenRouter defaults. You are ready to run `marmot \'hello\'`.'
-        : 'Wrote OpenRouter defaults. Set OPENROUTER_API_KEY (https://openrouter.ai/keys) before running any AI verb.';
-      note(followup, 'first-run setup');
     }
   }
 
-  // Hub loop: show current state → pick what to change → apply → loop.
+  // Hub loop: clear screen, render flat status + menu, dispatch to a
+  // sub-walk, loop. Each iteration starts from a clean screen so the
+  // hub stays a single visible surface instead of an accumulating
+  // transcript of past visits.
   for (;;) {
-    note(formatDefaultsBlock(config), 'current defaults');
-    note(await formatStatusSnapshot(config, env), 'status');
+    renderHub(env, await formatStatusSnapshot(config, env));
 
     const hints = await computeMenuHints(config, env);
-
     const choice = await select({
-      message: 'What would you like to change?',
+      message: 'What would you like to do?',
       options: [
         { value: AI_DEFAULTS, label: 'AI defaults', hint: hints.ai },
-        { value: DATA_DEFAULTS, label: 'Data defaults', hint: hints.data },
+        { value: CONTEXT_DEFAULTS, label: 'Context defaults', hint: hints.data },
         { value: PROVIDER_SETTINGS, label: 'Providers', hint: hints.providers },
-        { value: RESPONSE_CACHE, label: 'Response cache', hint: hints.cache },
+        { value: GLOBAL_CACHE, label: 'Global cache', hint: hints.cache },
         { value: SKILL_SETUP, label: 'Agent skill', hint: hints.skill },
         { value: COMPLETIONS_SETUP, label: 'Shell completions', hint: hints.completions },
-        { value: DONE, label: 'Done — exit setup' },
+        { value: DONE, label: 'Exit setup' },
       ],
     });
 
@@ -169,7 +162,7 @@ export async function handleSetupCommand(
     }
 
     if (choice === DONE) {
-      outro(`Saved to ${getMarmotConfigPath(env)}`);
+      process.stdout.write(`Saved to ${getMarmotConfigPath(env)}\n`);
       return;
     }
 
@@ -183,7 +176,7 @@ export async function handleSetupCommand(
       continue;
     }
 
-    if (choice === DATA_DEFAULTS) {
+    if (choice === CONTEXT_DEFAULTS) {
       const updated = await walkAllDataDefaults(config, env);
       if (updated === null) return;
       if (updated !== 'unchanged') {
@@ -194,7 +187,6 @@ export async function handleSetupCommand(
     }
 
     if (choice === PROVIDER_SETTINGS) {
-      note(formatProviderStatusReport(config, env), 'providers');
       const updated = await walkProviderSettings(config, env);
       if (updated === null) return;
       if (updated !== ('unchanged' as unknown as MarmotConfig)) {
@@ -204,7 +196,7 @@ export async function handleSetupCommand(
       continue;
     }
 
-    if (choice === RESPONSE_CACHE) {
+    if (choice === GLOBAL_CACHE) {
       const updated = await walkResponseCache(config, env);
       if (updated === null) return;
       if (updated !== config) {
@@ -224,6 +216,17 @@ export async function handleSetupCommand(
       continue;
     }
   }
+}
+
+/** Clear the terminal (TTY only) and render a flat header + status snapshot.
+ *  Intentionally not using clack's `note`/`intro` — those draw a connecting
+ *  rail meant for a wizard. The hub is a hub, not a wizard. */
+function renderHub(env: NodeJS.ProcessEnv, statusSnapshot: string): void {
+  if (process.stdout.isTTY) {
+    process.stdout.write('\x1b[2J\x1b[H');
+  }
+  process.stdout.write(`${brandText('marmot', { bold: true, env })} ${MARMOT_VERSION}\n\n`);
+  process.stdout.write(`${statusSnapshot}\n\n`);
 }
 
 async function editMode(
@@ -337,42 +340,8 @@ function filterByMode(mode: Mode, statuses: ProviderStatus[]): ProviderStatus[] 
 }
 
 /* -------------------------------------------------------------------------- */
-/*  defaults block + menu hints                                               */
+/*  status snapshot + menu hints                                              */
 /* -------------------------------------------------------------------------- */
-
-function aiSummary(mode: Mode, config: MarmotConfig): string {
-  const entry = config.defaults?.[mode];
-  if (!entry?.provider) return '—';
-  // Colon separator: OpenRouter/Vercel model ids contain slashes
-  // (e.g. "openai/gpt-oss-120b"), so "openrouter:openai/gpt-oss-120b"
-  // is unambiguous where "openrouter / openai/gpt-oss-120b" reads
-  // ambiguously as a path.
-  if (entry.model) return `${entry.provider}:${entry.model}`;
-  return entry.provider;
-}
-
-function dataSummary(verb: WebVerb | DataVerb, config: MarmotConfig): string {
-  const entry = (config.defaults as Record<string, { provider?: string }> | undefined)?.[verb];
-  if (!entry?.provider) return '—';
-  return entry.provider;
-}
-
-/** Full defaults table: 4 AI verbs followed by 10 data verbs. Each row is
- *  `<label>   <provider/model | "— not set">`. Used by the dashboard at the
- *  top of every menu cycle. */
-function formatDefaultsBlock(config: MarmotConfig): string {
-  const rows: string[][] = [];
-  for (const { mode, label } of MODES) {
-    rows.push([label, aiSummary(mode, config)]);
-  }
-  for (const verb of WEB_VERBS) {
-    rows.push([verb, dataSummary(verb, config)]);
-  }
-  for (const verb of DATA_VERBS) {
-    rows.push([verb, dataSummary(verb, config)]);
-  }
-  return formatTable(rows, { gap: 4 });
-}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -596,7 +565,7 @@ async function walkAIDefaults(
     message: 'AI defaults — pick what to change',
     options: [
       ...renderedItems,
-      { value: AI_BACK, label: 'Back to setup hub' },
+      { value: AI_BACK, label: 'Back to setup' },
     ],
   });
   if (isCancel(choice)) {
