@@ -2,7 +2,7 @@
 // env var names. Invoked from `marmot setup`. Detection-first — only walks
 // providers with a credential available (or already configured in config).
 
-import { cancel, confirm, isCancel, note, select, text } from '@clack/prompts';
+import { cancel, confirm, isCancel, select, text } from '@clack/prompts';
 
 import {
   DATA_PROVIDERS,
@@ -15,6 +15,7 @@ import {
   defaultPrimaryEnvVar,
   defaultSecondaryEnvVar,
   resolveProviderAuth,
+  warnText,
   type AnyProviderSlug,
   type MarmotConfig,
   type ProviderSettings,
@@ -230,66 +231,79 @@ async function promptCustomEnvVars(
   return result;
 }
 
+const SEP_AI = '__sep_ai__';
+const SEP_CONTEXT = '__sep_context__';
+
+function buildProviderOption(
+  row: ProviderRow,
+  config: MarmotConfig,
+): { value: string; label: string; hint?: string } {
+  const settings = settingsFor(config, row.slug);
+  const baseLabel = `${statusGlyph(row, settings)} ${row.name}`;
+  if (!row.hasCredential) {
+    // No-key marker is rendered into the label (not the hint) so it's
+    // visible across the whole list, not just on the focused row -- the
+    // user needs to see at a glance which providers still need an env
+    // var set.
+    return {
+      value: row.slug,
+      label: `${baseLabel}  ${warnText('(no key)')}`,
+    };
+  }
+  return {
+    value: row.slug,
+    label: baseLabel,
+    hint: statusLabel(row, settings),
+  };
+}
+
 export async function walkProviderSettings(
   config: MarmotConfig,
   env: NodeJS.ProcessEnv,
 ): Promise<MarmotConfig | null> {
   const rows = detectRows(config, env);
-  const candidates = rows.filter((r) => r.hasCredential);
-  const missing = rows.filter((r) => !r.hasCredential && r.primaryEnvVar);
+  const aiRows = rows.filter((r) => r.category === 'ai');
+  const contextRows = rows.filter((r) => r.category !== 'ai');
 
-  // Teach-back: surface providers with no key in env so the user knows
-  // exactly which env var to set instead of silently filtering them out.
-  if (missing.length > 0) {
-    const lines = missing.map((r) => {
-      const padded = r.name.padEnd(22);
-      const extra = r.secondaryEnvVar ? ` (+ ${r.secondaryEnvVar})` : '';
-      return `${padded} set ${r.primaryEnvVar}${extra}`;
+  // Loop on the picker until the user lands on a real provider (not a
+  // separator). Separators are selectable in clack but a no-op here, so
+  // this loop is purely to swallow accidental hits.
+  let slug: AnyProviderSlug;
+  for (;;) {
+    const choice = await select({
+      message: 'Which provider to configure?',
+      options: [
+        { value: SEP_AI, label: '── AI providers ──' },
+        ...aiRows.map((r) => buildProviderOption(r, config)),
+        { value: SEP_CONTEXT, label: '── Context providers ──' },
+        ...contextRows.map((r) => buildProviderOption(r, config)),
+        { value: SKIP_VALUE, label: 'Back to setup' },
+      ],
     });
-    note(
-      `Skipped (no credentials in env):\n${lines.map((l) => `  ${l}`).join('\n')}`,
-      'provider settings',
-    );
+    if (isCancel(choice)) {
+      cancel('Setup canceled.');
+      return null;
+    }
+    if (choice === SKIP_VALUE) return 'unchanged' as unknown as MarmotConfig;
+    if (choice === SEP_AI || choice === SEP_CONTEXT) continue;
+    slug = choice as AnyProviderSlug;
+    break;
   }
 
-  if (candidates.length === 0) {
-    note(
-      'No provider credentials detected. Set one of the env vars above and re-run.',
-      'provider settings',
-    );
-    return 'unchanged' as unknown as MarmotConfig;
-  }
-
-  // Pick which provider to edit. Skip-everything is also an option.
-  const choice = await select({
-    message: 'Which provider to configure?',
-    options: [
-      ...candidates.map((r) => {
-        const settings = settingsFor(config, r.slug);
-        return {
-          value: r.slug,
-          label: `${statusGlyph(r, settings)} ${r.name}`,
-          hint: statusLabel(r, settings),
-        };
-      }),
-      { value: SKIP_VALUE, label: 'Back to setup' },
-    ],
-  });
-  if (isCancel(choice)) {
-    cancel('Setup canceled.');
-    return null;
-  }
-  if (choice === SKIP_VALUE) return 'unchanged' as unknown as MarmotConfig;
-
-  const slug = choice as AnyProviderSlug;
   const row = rows.find((r) => r.slug === slug)!;
   const current = settingsFor(config, slug);
 
   // Per-provider walk: enable → custom env vars → response cache (web/
   // context only). Bulk cache operations (clear all, reset all, disable
   // all) live in the top-level "Global cache" menu.
-
-  const enabled = await promptEnable(row, current);
+  //
+  // For credential-less providers, skip the enable toggle -- it's not
+  // meaningful before there's a key. We still walk env-var customization
+  // (the whole reason these rows are reachable) and cache configuration
+  // (so settings are ready when a key arrives).
+  const enabled = row.hasCredential
+    ? await promptEnable(row, current)
+    : current?.enabled !== false;
   if (enabled === null) return null;
 
   const advanced = await promptCustomEnvVars(row, current);
