@@ -13,9 +13,10 @@ import type {
   ProviderImageCacheFile,
   ProviderSpeechCacheFile,
   ProviderTranscriptionCacheFile,
+  ProviderVideoCacheFile,
 } from '../types.js';
 
-export type AiVerb = 'text' | 'image' | 'speech' | 'transcription';
+export type AiVerb = 'text' | 'image' | 'speech' | 'transcription' | 'video';
 
 export type StaleDefault = {
   verb: AiVerb;
@@ -30,9 +31,10 @@ export type CatalogSnapshot = {
   image?: Partial<Record<ProviderSlug, ProviderImageCacheFile>>;
   speech?: Partial<Record<ProviderSlug, ProviderSpeechCacheFile>>;
   transcription?: Partial<Record<ProviderSlug, ProviderTranscriptionCacheFile>>;
+  video?: Partial<Record<ProviderSlug, ProviderVideoCacheFile>>;
 };
 
-const VERBS: readonly AiVerb[] = ['text', 'image', 'speech', 'transcription'];
+const VERBS: readonly AiVerb[] = ['text', 'image', 'speech', 'transcription', 'video'];
 
 export function findStaleDefaults(
   config: MarmotConfig,

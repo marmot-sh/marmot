@@ -164,6 +164,7 @@ export type ProviderCapabilities = {
   image: boolean;
   speech: boolean;
   transcription: boolean;
+  video?: boolean;
 };
 
 export type ProviderGeneratedImage = {
@@ -353,6 +354,92 @@ export type NormalizedTranscribeRunResult = {
   segments?: TranscribeSegment[];
   raw?: string;
   usage: NormalizedUsageSummary;
+  cachedModelValidated: boolean;
+  timestamp: string;
+};
+
+/* -------------------------------------------------------------------------- */
+/*  video (text-to-video / image-to-video generation)                         */
+/* -------------------------------------------------------------------------- */
+
+export type ProviderGeneratedVideo = {
+  /** Raw video bytes (typically MP4). */
+  data: Uint8Array;
+  /** Mime type, e.g. "video/mp4". */
+  mimeType: string;
+};
+
+/** Input image used for image-to-video conditioning. Some models accept a
+ *  single reference image; some accept first+last frame pairs. */
+export type ProviderVideoImageInput = {
+  data: Uint8Array;
+  mimeType: string;
+};
+
+export type ProviderVideoGenerateInput = {
+  model: string;
+  prompt: string;
+  /** Width:height ratio, e.g. "16:9". */
+  aspectRatio?: string;
+  /** Resolution label like "720p" / "1080p" / "4k". The adapter maps this
+   *  to whatever the provider expects (a label, a `WxH` string, etc.). */
+  resolution?: string;
+  /** Clip length in seconds. */
+  duration?: number;
+  fps?: number;
+  /** Number of clips to generate. Most models cap at 1 per call. */
+  n?: number;
+  seed?: number;
+  /** Whether the model should generate synced audio. Ignored on always-on
+   *  / never-on models; the adapter logs a warning for those. */
+  audio?: boolean;
+  /** Image references. Position 0 = single ref or first-frame; position 1
+   *  = last-frame for models that support last-frame conditioning. */
+  images?: ProviderVideoImageInput[];
+  /** Provider-specific passthrough (Veo's negativePrompt, Kling's
+   *  motion_strength, etc.). */
+  providerOptions?: Record<string, unknown>;
+  apiKey?: string;
+  cloudflareAccountId?: string;
+  fetchFn?: typeof fetch;
+  abortSignal?: AbortSignal;
+};
+
+export type ProviderVideoGenerateResult = {
+  provider: ProviderSlug;
+  model: string;
+  videos: ProviderGeneratedVideo[];
+  usage: NormalizedUsageSummary;
+  finishReason: string | null;
+};
+
+export type ProviderVideoModelCacheEntry = {
+  id: string;
+  name: string;
+  metadata: Record<string, unknown>;
+};
+
+export type ProviderVideoCacheFile = {
+  version: 1;
+  provider: ProviderSlug;
+  defaultModel: string;
+  fetchedAt: string;
+  models: ProviderVideoModelCacheEntry[];
+};
+
+export type NormalizedVideoRunResult = {
+  ok: true;
+  provider: ProviderSlug;
+  model: string;
+  videos: Array<{
+    path?: string;
+    b64?: string;
+    format: string;
+    duration?: number;
+    bytes: number;
+  }>;
+  usage: NormalizedUsageSummary;
+  finishReason: string | null;
   cachedModelValidated: boolean;
   timestamp: string;
 };

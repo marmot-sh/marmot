@@ -112,6 +112,7 @@ export const PROVIDER_CACHE_DIRNAME = 'cache/models/text';
 export const PROVIDER_IMAGE_CACHE_DIRNAME = 'cache/models/images';
 export const PROVIDER_SPEECH_CACHE_DIRNAME = 'cache/models/speech';
 export const PROVIDER_TRANSCRIPTION_CACHE_DIRNAME = 'cache/models/transcription';
+export const PROVIDER_VIDEO_CACHE_DIRNAME = 'cache/models/video';
 export const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
 
 // -- Web / data search providers ----------------------------------------------
@@ -267,4 +268,14 @@ export const PROVIDER_TRANSCRIPTION_DEFAULT_MODELS: Partial<Record<ProviderSlug,
   cloudflare: '@cf/openai/whisper-large-v3-turbo',
   vercel: 'openai/whisper-1',
   openrouter: 'openai/gpt-4o-transcribe',
+};
+
+/**
+ * Default video model per provider. Video generation is async and pricey
+ * (~pennies-to-dollars per second). Defaults pick the cheapest reasonable
+ * tier so casual usage stays affordable; users can override via --model.
+ */
+export const PROVIDER_VIDEO_DEFAULT_MODELS: Partial<Record<ProviderSlug, string>> = {
+  openrouter: 'google/veo-3.1-lite',
+  vercel: 'google/veo-3.1-lite',
 };

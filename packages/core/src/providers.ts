@@ -25,6 +25,9 @@ import type {
   ProviderTranscribeInput,
   ProviderTranscribeResult,
   ProviderTranscriptionCacheFile,
+  ProviderVideoCacheFile,
+  ProviderVideoGenerateInput,
+  ProviderVideoGenerateResult,
   RefreshModelsInput,
 } from './types.js';
 
@@ -40,6 +43,7 @@ export type ProviderAdapter = {
   defaultImageModel?: string;
   defaultSpeechModel?: string;
   defaultTranscriptionModel?: string;
+  defaultVideoModel?: string;
   requiresApiKey: boolean;
   capabilities: ProviderCapabilities;
   generate(input: ProviderGenerateInput): Promise<ProviderGenerateResult>;
@@ -52,6 +56,8 @@ export type ProviderAdapter = {
   refreshSpeechModels?(input: RefreshModelsInput): Promise<ProviderSpeechCacheFile>;
   transcribe?(input: ProviderTranscribeInput): Promise<ProviderTranscribeResult>;
   refreshTranscriptionModels?(input: RefreshModelsInput): Promise<ProviderTranscriptionCacheFile>;
+  generateVideo?(input: ProviderVideoGenerateInput): Promise<ProviderVideoGenerateResult>;
+  refreshVideoModels?(input: RefreshModelsInput): Promise<ProviderVideoCacheFile>;
 };
 
 /**

@@ -10,6 +10,7 @@ import {
   PROVIDER_IMAGE_DEFAULT_MODELS,
   PROVIDER_SPEECH_DEFAULT_MODELS,
   PROVIDER_TRANSCRIPTION_DEFAULT_MODELS,
+  PROVIDER_VIDEO_DEFAULT_MODELS,
   WEB_PROVIDER_API_KEY_ENV_VARS,
   type DataProviderSlug,
   type DataVerb,
@@ -167,6 +168,19 @@ export function resolveTranscriptionDefaults(
     override?.model
     ?? configured?.model
     ?? PROVIDER_TRANSCRIPTION_DEFAULT_MODELS[provider];
+  return { provider, model };
+}
+
+export function resolveVideoDefaults(
+  config: MarmotConfig | null,
+  override?: { provider?: string; model?: string },
+): ResolvedModeDefaults {
+  const configured = config?.defaults?.video;
+  const provider = requireConfiguredProvider('video', override?.provider, configured?.provider);
+  const model =
+    override?.model
+    ?? configured?.model
+    ?? PROVIDER_VIDEO_DEFAULT_MODELS[provider];
   return { provider, model };
 }
 

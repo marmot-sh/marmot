@@ -58,6 +58,7 @@ export * from './schemas/cache.js';
 export * from './schemas/cli.js';
 export * from './schemas/config.js';
 export * from './schemas/image.js';
+export * from './schemas/video.js';
 export * from './schemas/output.js';
 export * from './schemas/speech.js';
 export * from './schemas/session.js';

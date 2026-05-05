@@ -179,6 +179,7 @@ export const marmotConfigSchema = z
         image: modeDefaultsSchema.optional(),
         speech: speechDefaultsSchema.optional(),
         transcription: modeDefaultsSchema.optional(),
+        video: modeDefaultsSchema.optional(),
         search: webVerbDefaultsSchema.optional(),
         scrape: webVerbDefaultsSchema.optional(),
         research: webVerbDefaultsSchema.optional(),
