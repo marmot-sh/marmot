@@ -142,6 +142,7 @@ function addRunOptions(command: Command): Command {
       [] as string[],
     )
     .option('--file-mime <mime>', 'Override mime type when --file - is piped.')
+    .option('--text-stdin', 'Force stdin to be read as text even if it looks like binary content.')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 120).')
     .option('--stream', 'Stream text output and imply text mode.')
