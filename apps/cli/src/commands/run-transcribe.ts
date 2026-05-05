@@ -14,6 +14,7 @@ import {
   resolveProviderAuth,
 } from '@marmot-sh/core';
 import { AICliError, toAICliError } from '@marmot-sh/core';
+import { sniffAudioMime } from '@marmot-sh/core';
 import {
   readStdin,
   type StdinReader,
@@ -138,10 +139,18 @@ export async function handleTranscribeRunCommand(
       );
     }
   } else {
-    // Try stdin
+    // Try stdin. When bytes arrive without an extension to infer from,
+    // sniff magic numbers (mp3 / wav / flac / ogg / m4a) so the
+    // adapter can label the audio correctly. Without this, OpenRouter
+    // rejects the request with a 400 -- the upstream `marmot speak`
+    // emits valid mp3 bytes but transcribe was sending them with no
+    // mime hint.
     audioBytes = dependencies.readAudioBytesFromStdin
       ? await dependencies.readAudioBytesFromStdin()
       : await readBinaryStdin();
+    if (audioBytes && audioBytes.byteLength > 0) {
+      audioMimeType = sniffAudioMime(audioBytes);
+    }
   }
 
   if (!audioBytes || audioBytes.byteLength === 0) {
