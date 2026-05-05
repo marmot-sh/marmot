@@ -50,6 +50,7 @@ export * from './output/write.js';
 // cache
 export * from './cache/store.js';
 export * from './cache/responses.js';
+export * from './cache/validate.js';
 
 // schemas (zod schemas + types used across the workspace)
 export * from './schemas/cache.js';
