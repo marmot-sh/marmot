@@ -23,6 +23,12 @@ import {
   getWebProviderAdapter,
 } from '../providers/web-index.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import {
+  mergeQueries,
+  readQueryStdin,
+  writeEnvelope,
+  type DataVerbDependencies,
+} from '../lib/data-verb-io.js';
 
 export type ResearchCommandOptions = {
   provider?: string;
@@ -38,9 +44,10 @@ export type ResearchCommandOptions = {
   raw?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
-export type ResearchCommandDependencies = {
+export type ResearchCommandDependencies = DataVerbDependencies & {
   env?: NodeJS.ProcessEnv;
   stdout?: { write(s: string): boolean | void };
   stderr?: StatusStream;
@@ -115,8 +122,8 @@ export async function handleResearchCommand(
     );
   }
 
-  const query = queryParts.join(' ').trim();
-  if (!query) throw new AICliError('validation', 'Query is required.');
+  const piped = await readQueryStdin(deps);
+  const query = mergeQueries(queryParts.join(' '), piped, 'Research');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('research', config, {
@@ -182,7 +189,7 @@ export async function handleResearchCommand(
       createdAt: new Date().toISOString(),
       next: `marmot get ${submission.taskId} --provider ${provider}`,
     };
-    stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+    await writeEnvelope(stdout, options.output, envelope);
     return;
   }
 
@@ -234,7 +241,7 @@ export async function handleResearchCommand(
     error: finalStatus.error ?? null,
     timestamp: new Date().toISOString(),
   };
-  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  await writeEnvelope(stdout, options.output, envelope);
 }
 
 export function buildResearchCommand(
@@ -242,7 +249,7 @@ export function buildResearchCommand(
 ): Command {
   return new Command('research')
     .description('Run a deep-research task. Async — blocks by default until done.')
-    .argument('<query...>', 'Research question.')
+    .argument('[query...]', 'Research question. Falls back to stdin when omitted; merges with stdin when both are provided.')
     .option('--provider <slug>', 'Web provider: exa, firecrawl, parallel, tavily.')
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--schema <json>', 'Inline JSON Schema for structured output.')
@@ -256,6 +263,7 @@ export function buildResearchCommand(
     .option('--raw', "Emit the provider's native response under `raw` (only on completion).")
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (queryParts: string[], options: ResearchCommandOptions) => {
       await handleResearchCommand(queryParts, options, deps);
     });

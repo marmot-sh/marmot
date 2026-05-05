@@ -19,6 +19,12 @@ import {
 } from '../providers/web-index.js';
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import {
+  mergeQueries,
+  readQueryStdin,
+  writeEnvelope,
+  type DataVerbDependencies,
+} from '../lib/data-verb-io.js';
 
 export type AnswerCommandOptions = {
   provider?: string;
@@ -30,9 +36,10 @@ export type AnswerCommandOptions = {
   refresh?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
-export type AnswerCommandDependencies = {
+export type AnswerCommandDependencies = DataVerbDependencies & {
   env?: NodeJS.ProcessEnv;
   stdout?: { write(s: string): boolean | void };
   stderr?: StatusStream;
@@ -49,10 +56,8 @@ export async function handleAnswerCommand(
   const stderr = deps.stderr ?? process.stderr;
   const fetchFn = deps.fetchFn ?? fetch;
 
-  const query = queryParts.join(' ').trim();
-  if (!query) {
-    throw new AICliError('validation', 'Query is required.');
-  }
+  const piped = await readQueryStdin(deps);
+  const query = mergeQueries(queryParts.join(' '), piped, 'Answer');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('answer', config, {
@@ -117,7 +122,7 @@ export async function handleAnswerCommand(
     raw: options.raw ? (result.raw ?? null) : null,
     timestamp: new Date().toISOString(),
   };
-  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  await writeEnvelope(stdout, options.output, envelope);
 }
 
 export function buildAnswerCommand(
@@ -125,7 +130,7 @@ export function buildAnswerCommand(
 ): Command {
   return new Command('answer')
     .description('Get an LLM-generated answer with citations.')
-    .argument('<query...>', 'Question to answer.')
+    .argument('[query...]', 'Question to answer. Falls back to stdin when omitted; merges with stdin when both are provided.')
     .option('--provider <slug>', 'Web provider: brave, exa, tavily.')
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--max-citations <n>', 'Cap citations included (default 8).')
@@ -135,6 +140,7 @@ export function buildAnswerCommand(
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (queryParts: string[], options: AnswerCommandOptions) => {
       await handleAnswerCommand(queryParts, options, deps);
     });

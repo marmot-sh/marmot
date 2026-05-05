@@ -23,6 +23,12 @@ import {
   getWebProviderAdapter,
 } from '../providers/web-index.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import {
+  mergeQueries,
+  readQueryStdin,
+  writeEnvelope,
+  type DataVerbDependencies,
+} from '../lib/data-verb-io.js';
 
 export type FindallCommandOptions = {
   provider?: string;
@@ -37,9 +43,10 @@ export type FindallCommandOptions = {
   raw?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
-export type FindallCommandDependencies = {
+export type FindallCommandDependencies = DataVerbDependencies & {
   env?: NodeJS.ProcessEnv;
   stdout?: { write(s: string): boolean | void };
   stderr?: StatusStream;
@@ -62,8 +69,8 @@ export async function handleFindallCommand(
       '--wait and --async are mutually exclusive.',
     );
   }
-  const objective = objectiveParts.join(' ').trim();
-  if (!objective) throw new AICliError('validation', 'Objective is required.');
+  const piped = await readQueryStdin(deps);
+  const objective = mergeQueries(objectiveParts.join(' '), piped, 'Findall');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('findall', config, {
@@ -152,7 +159,7 @@ export async function handleFindallCommand(
       createdAt: new Date().toISOString(),
       next: `marmot get ${submission.taskId} --provider ${provider}`,
     };
-    stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+    await writeEnvelope(stdout, options.output, envelope);
     return;
   }
 
@@ -195,7 +202,7 @@ export async function handleFindallCommand(
     error: finalStatus.error ?? null,
     timestamp: new Date().toISOString(),
   };
-  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  await writeEnvelope(stdout, options.output, envelope);
 }
 
 export function buildFindallCommand(
@@ -203,7 +210,7 @@ export function buildFindallCommand(
 ): Command {
   return new Command('findall')
     .description('Build a list of entities matching a natural-language objective.')
-    .argument('<objective...>', 'Natural-language description of the list to build.')
+    .argument('[objective...]', 'Natural-language description of the list to build. Falls back to stdin when omitted; merges with stdin when both are provided.')
     .option('--provider <slug>', 'Web provider: exa, parallel.')
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--limit <n>', 'Max items to find.')
@@ -216,6 +223,7 @@ export function buildFindallCommand(
     .option('--raw', "Emit the provider's native response under `raw`.")
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (objectiveParts: string[], options: FindallCommandOptions) => {
       await handleFindallCommand(objectiveParts, options, deps);
     });

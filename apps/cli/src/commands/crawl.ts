@@ -23,6 +23,7 @@ import {
   getWebProviderAdapter,
 } from '../providers/web-index.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import { writeEnvelope } from '../lib/data-verb-io.js';
 
 export type CrawlCommandOptions = {
   provider?: string;
@@ -38,6 +39,7 @@ export type CrawlCommandOptions = {
   raw?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
 export type CrawlCommandDependencies = {
@@ -115,7 +117,7 @@ export async function handleCrawlCommand(
       raw: options.raw ? (result.raw ?? null) : null,
       timestamp: new Date().toISOString(),
     };
-    stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+    await writeEnvelope(stdout, options.output, envelope);
     return;
   }
 
@@ -155,7 +157,7 @@ export async function handleCrawlCommand(
       createdAt: new Date().toISOString(),
       next: `marmot get ${submission.taskId} --provider ${provider}`,
     };
-    stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+    await writeEnvelope(stdout, options.output, envelope);
     return;
   }
 
@@ -197,7 +199,7 @@ export async function handleCrawlCommand(
     error: finalStatus.error ?? null,
     timestamp: new Date().toISOString(),
   };
-  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  await writeEnvelope(stdout, options.output, envelope);
 }
 
 export function buildCrawlCommand(
@@ -219,6 +221,7 @@ export function buildCrawlCommand(
     .option('--raw', "Emit the provider's native response under `raw`.")
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (url: string, options: CrawlCommandOptions) => {
       await handleCrawlCommand(url, options, deps);
     });

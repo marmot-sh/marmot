@@ -35,7 +35,7 @@ describe('handleAnswerCommand', () => {
   it('errors on missing query', async () => {
     const { env } = await fixture();
     await expect(handleAnswerCommand([], {}, { env })).rejects.toThrowError(
-      /Query is required/,
+      /Answer requires a query/,
     );
   });
 

@@ -34,7 +34,7 @@ class Cap {
 describe('handleResearchCommand', () => {
   it('errors on missing query', async () => {
     const { env } = await fixture();
-    await expect(handleResearchCommand([], {}, { env })).rejects.toThrowError(/Query is required/);
+    await expect(handleResearchCommand([], {}, { env })).rejects.toThrowError(/Research requires a query/);
   });
 
   it('errors when --wait and --async are both set', async () => {

@@ -25,6 +25,7 @@ import {
 } from '../providers/data-index.js';
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import { writeEnvelope } from '../lib/data-verb-io.js';
 
 export type LookupCommandOptions = {
   type?: string;
@@ -52,6 +53,7 @@ export type LookupCommandOptions = {
   refresh?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
 export type LookupCommandDependencies = {
@@ -173,19 +175,13 @@ export async function handleLookupCommand(
         }),
       { stream: stderr, env },
     );
-    stdout.write(
-      `${JSON.stringify(
-        {
-          ...baseEnvelope,
-          cached,
-          data: options.raw ? null : result.data,
-          raw: options.raw ? (result.raw ?? null) : null,
-          usage: result.usage ?? null,
-        },
-        null,
-        2,
-      )}\n`,
-    );
+    await writeEnvelope(stdout, options.output, {
+      ...baseEnvelope,
+      cached,
+      data: options.raw ? null : result.data,
+      raw: options.raw ? (result.raw ?? null) : null,
+      usage: result.usage ?? null,
+    });
     return;
   }
 
@@ -225,19 +221,13 @@ export async function handleLookupCommand(
         }),
       { stream: stderr, env },
     );
-    stdout.write(
-      `${JSON.stringify(
-        {
-          ...baseEnvelope,
-          cached,
-          data: options.raw ? null : result.data,
-          raw: options.raw ? (result.raw ?? null) : null,
-          usage: result.usage ?? null,
-        },
-        null,
-        2,
-      )}\n`,
-    );
+    await writeEnvelope(stdout, options.output, {
+      ...baseEnvelope,
+      cached,
+      data: options.raw ? null : result.data,
+      raw: options.raw ? (result.raw ?? null) : null,
+      usage: result.usage ?? null,
+    });
     return;
   }
 
@@ -288,19 +278,13 @@ export async function handleLookupCommand(
       }),
     { stream: stderr, env },
   );
-  stdout.write(
-    `${JSON.stringify(
-      {
-        ...baseEnvelope,
-        cached,
-        data: options.raw ? null : result.data,
-        raw: options.raw ? (result.raw ?? null) : null,
-        usage: result.usage ?? null,
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  await writeEnvelope(stdout, options.output, {
+    ...baseEnvelope,
+    cached,
+    data: options.raw ? null : result.data,
+    raw: options.raw ? (result.raw ?? null) : null,
+    usage: result.usage ?? null,
+  });
 }
 
 export function buildLookupCommand(deps: LookupCommandDependencies = {}): Command {
@@ -331,6 +315,7 @@ export function buildLookupCommand(deps: LookupCommandDependencies = {}): Comman
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (options: LookupCommandOptions) => {
       await handleLookupCommand(options, deps);
     });
