@@ -121,14 +121,17 @@ export async function handleSetupCommand(
       return;
     }
     if (populate) {
+      // Pull from the central default-model maps so first-run defaults can
+      // never drift from the rest of the codebase. Adding a new mode here
+      // means adding to the relevant *_DEFAULT_MODELS map only.
       config = {
         version: 1,
         defaults: {
           ...(config.defaults ?? {}),
-          text: { provider: 'openrouter', model: 'openai/gpt-oss-120b' },
-          image: { provider: 'openrouter', model: 'google/gemini-2.5-flash-image-preview' },
-          speech: { provider: 'openrouter', model: 'openai/tts-1' },
-          transcription: { provider: 'openrouter', model: 'openai/whisper-1' },
+          text: { provider: 'openrouter', model: PROVIDER_DEFAULT_MODELS.openrouter },
+          image: { provider: 'openrouter', model: PROVIDER_IMAGE_DEFAULT_MODELS.openrouter! },
+          speech: { provider: 'openrouter', model: PROVIDER_SPEECH_DEFAULT_MODELS.openrouter! },
+          transcription: { provider: 'openrouter', model: PROVIDER_TRANSCRIPTION_DEFAULT_MODELS.openrouter! },
         },
       };
       await writeMarmotConfig(config, env);

@@ -8,12 +8,12 @@ Four verbs cover text, image, audio out, and audio in: `run`, `image`, `speak`, 
 
 | Provider | `run` | `image` | `speak` | `transcribe` | API key env | Extra env | Default text model | Default image | Default speech | Default STT |
 | --- | :-: | :-: | :-: | :-: | --- | --- | --- | --- | --- | --- |
-| openrouter | yes | yes | yes | yes | `OPENROUTER_API_KEY` | — | `openai/gpt-oss-120b` | `google/gemini-2.5-flash-image-preview` | `openai/tts-1` | `openai/whisper-1` |
+| openrouter | yes | yes | yes | yes | `OPENROUTER_API_KEY` | — | `openai/gpt-oss-120b` | `google/gemini-2.5-flash-image` | `openai/gpt-4o-mini-tts-2025-12-15` | `openai/whisper-1` |
 | anthropic | yes | — | — | — | `ANTHROPIC_API_KEY` | — | `claude-sonnet-4-6` | — | — | — |
 | openai | yes | yes | yes | yes | `OPENAI_API_KEY` | — | `gpt-4o-mini` | `gpt-image-1` | `tts-1` | `whisper-1` |
 | vercel | yes | yes | yes | yes | `AI_GATEWAY_API_KEY` | — | `anthropic/claude-sonnet-4.6` | `openai/dall-e-3` | `openai/tts-1` | `openai/whisper-1` |
 | cloudflare | yes | yes | yes | yes | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_ACCOUNT_ID` | `@cf/meta/llama-3.1-8b-instruct` | `@cf/black-forest-labs/flux-1-schnell` | `@cf/myshell-ai/melotts` | `@cf/openai/whisper-large-v3-turbo` |
-| ollama | yes | — | — | — | (none) | `OLLAMA_HOST` | `qwen3.5:4b` | — | — | — |
+| ollama | yes | — | — | — | (none) | `OLLAMA_HOST` | `qwen3:4b` | — | — | — |
 
 First-run auto-config picks the first ready provider from the env: `ollama` (local, no key) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic` for `text`; image/speech/transcription skip `ollama` and `anthropic`. OpenRouter is the first cloud option (and the most common default). Override with `marmot setup`, `marmot config set`, or `--provider`.
 

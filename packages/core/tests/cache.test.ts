@@ -6,12 +6,12 @@ import type { ProviderCacheFile } from '../src/types.js';
 const sampleCache: ProviderCacheFile = {
   version: 1,
   provider: 'ollama',
-  defaultModel: 'qwen3.5:4b',
+  defaultModel: 'qwen3:4b',
   fetchedAt: '2026-04-22T12:00:00.000Z',
   models: [
     {
-      id: 'qwen3.5:4b',
-      name: 'qwen3.5:4b',
+      id: 'qwen3:4b',
+      name: 'qwen3:4b',
       contextLength: null,
       pricing: null,
       inputModalities: ['text'],

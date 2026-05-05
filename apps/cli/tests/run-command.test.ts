@@ -46,7 +46,7 @@ describe('handleRunCommand', () => {
     const adapter: ProviderAdapter = {
       slug: 'ollama',
       name: 'Ollama',
-      defaultModel: 'qwen3.5:4b',
+      defaultModel: 'qwen3:4b',
       requiresApiKey: false,
     capabilities: { text: true, image: false, speech: false, transcription: false },
       generate,
@@ -55,12 +55,12 @@ describe('handleRunCommand', () => {
       refreshModels: vi.fn(async ({ now }) => ({
         version: 1 as const,
         provider: 'ollama' as const,
-        defaultModel: 'qwen3.5:4b',
+        defaultModel: 'qwen3:4b',
         fetchedAt: (now?.() ?? new Date()).toISOString(),
         models: [
           {
-            id: 'qwen3.5:4b',
-            name: 'qwen3.5:4b',
+            id: 'qwen3:4b',
+            name: 'qwen3:4b',
             contextLength: null,
             pricing: null,
             inputModalities: ['text'],
@@ -98,7 +98,7 @@ describe('handleRunCommand', () => {
     );
 
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'qwen3.5:4b',
+      model: 'qwen3:4b',
       system: 'System inline\n\nSystem from file',
       prompt: 'Inline prompt\n\nPrompt from file',
     }));

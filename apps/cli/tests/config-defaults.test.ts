@@ -46,7 +46,7 @@ function textAdapter(slug: 'ollama' | 'anthropic'): ProviderAdapter {
   return {
     slug,
     name: slug.charAt(0).toUpperCase() + slug.slice(1),
-    defaultModel: slug === 'ollama' ? 'qwen3.5:4b' : 'claude-sonnet-4-6',
+    defaultModel: slug === 'ollama' ? 'qwen3:4b' : 'claude-sonnet-4-6',
     requiresApiKey: slug !== 'ollama',
     capabilities: { text: true, image: false, speech: false, transcription: false },
     generate: vi.fn(async ({ model, prompt }) => ({
@@ -61,11 +61,11 @@ function textAdapter(slug: 'ollama' | 'anthropic'): ProviderAdapter {
     refreshModels: vi.fn(async () => ({
       version: 1 as const,
       provider: slug as 'ollama' | 'anthropic',
-      defaultModel: slug === 'ollama' ? 'qwen3.5:4b' : 'claude-sonnet-4-6',
+      defaultModel: slug === 'ollama' ? 'qwen3:4b' : 'claude-sonnet-4-6',
       fetchedAt: new Date().toISOString(),
       models: [
         {
-          id: slug === 'ollama' ? 'qwen3.5:4b' : 'claude-sonnet-4-6',
+          id: slug === 'ollama' ? 'qwen3:4b' : 'claude-sonnet-4-6',
           name: 'm',
           contextLength: null,
           pricing: null,
@@ -128,7 +128,7 @@ describe('handleRunCommand — config defaults', () => {
     );
 
     expect(adapter.generate).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'qwen3.5:4b' }),
+      expect.objectContaining({ model: 'qwen3:4b' }),
     );
     void marmotHome;
   });
@@ -167,7 +167,7 @@ describe('handleRunCommand — config defaults', () => {
       refreshModels: vi.fn(async () => ({
         version: 1 as const,
         provider: 'ollama' as const,
-        defaultModel: 'qwen3.5:4b',
+        defaultModel: 'qwen3:4b',
         fetchedAt: new Date().toISOString(),
         models: [
           {

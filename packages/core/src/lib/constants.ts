@@ -13,7 +13,7 @@ export const DEFAULT_PROVIDER: ProviderSlug = 'openrouter';
 
 export const PROVIDER_DEFAULT_MODELS: Record<ProviderSlug, string> = {
   openrouter: 'openai/gpt-oss-120b',
-  ollama: 'qwen3.5:4b',
+  ollama: 'qwen3:4b',
   anthropic: 'claude-sonnet-4-6',
   openai: 'gpt-4o-mini',
   vercel: 'anthropic/claude-sonnet-4.6',
@@ -244,7 +244,7 @@ export const PROVIDER_IMAGE_DEFAULT_MODELS: Partial<Record<ProviderSlug, string>
   openai: 'gpt-image-1',
   vercel: 'openai/dall-e-3',
   cloudflare: '@cf/black-forest-labs/flux-1-schnell',
-  openrouter: 'google/gemini-2.5-flash-image-preview',
+  openrouter: 'google/gemini-2.5-flash-image',
 };
 
 /**
@@ -255,7 +255,7 @@ export const PROVIDER_SPEECH_DEFAULT_MODELS: Partial<Record<ProviderSlug, string
   openai: 'tts-1',
   cloudflare: '@cf/myshell-ai/melotts',
   vercel: 'openai/tts-1',
-  openrouter: 'openai/tts-1',
+  openrouter: 'openai/gpt-4o-mini-tts-2025-12-15',
 };
 
 /**

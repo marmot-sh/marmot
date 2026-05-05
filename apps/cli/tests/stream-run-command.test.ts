@@ -36,7 +36,7 @@ describe('handleStreamRunCommand', () => {
     const adapter: ProviderAdapter = {
       slug: 'ollama',
       name: 'Ollama',
-      defaultModel: 'qwen3.5:4b',
+      defaultModel: 'qwen3:4b',
       requiresApiKey: false,
     capabilities: { text: true, image: false, speech: false, transcription: false },
       generate: vi.fn(),
@@ -58,12 +58,12 @@ describe('handleStreamRunCommand', () => {
       refreshModels: vi.fn(async ({ now }) => ({
         version: 1 as const,
         provider: 'ollama' as const,
-        defaultModel: 'qwen3.5:4b',
+        defaultModel: 'qwen3:4b',
         fetchedAt: (now?.() ?? new Date()).toISOString(),
         models: [
           {
-            id: 'qwen3.5:4b',
-            name: 'qwen3.5:4b',
+            id: 'qwen3:4b',
+            name: 'qwen3:4b',
             contextLength: null,
             pricing: null,
             inputModalities: ['text'],
@@ -98,7 +98,7 @@ describe('handleStreamRunCommand', () => {
 
     expect(writes.join('')).toBe('Hello world\n');
     expect(outcome.text).toBe(true);
-    expect(outcome.result.model).toBe('qwen3.5:4b');
+    expect(outcome.result.model).toBe('qwen3:4b');
     expect('text' in outcome.result ? outcome.result.text : null).toBe('Hello world');
     expect(await readFile(outputFile, 'utf8')).toBe('Hello world');
   });
