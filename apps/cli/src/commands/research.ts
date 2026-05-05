@@ -123,7 +123,7 @@ export async function handleResearchCommand(
   }
 
   const piped = await readQueryStdin(deps);
-  const query = mergeQueries(queryParts.join(' '), piped, 'Research');
+  const query = mergeQueries(deps, queryParts.join(' '), piped, 'Research');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('research', config, {

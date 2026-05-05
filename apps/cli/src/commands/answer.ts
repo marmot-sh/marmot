@@ -57,7 +57,7 @@ export async function handleAnswerCommand(
   const fetchFn = deps.fetchFn ?? fetch;
 
   const piped = await readQueryStdin(deps);
-  const query = mergeQueries(queryParts.join(' '), piped, 'Answer');
+  const query = mergeQueries(deps, queryParts.join(' '), piped, 'Answer');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('answer', config, {

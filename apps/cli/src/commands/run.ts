@@ -16,7 +16,7 @@ import { readStdinAsBytes, sniffStdin } from '../lib/stdin-sniff.js';
 import { mimeFromExtension, sniffImageMime, sniffPdfMime } from '@marmot-sh/core';
 import type { FilePart, ImagePart } from '@marmot-sh/core';
 import { AICliError, toAICliError } from '@marmot-sh/core';
-import { resolveUserPath } from '@marmot-sh/core';
+import { resolveUserPath, warnText } from '@marmot-sh/core';
 import {
   DEFAULT_RETRY_BASE_DELAY_MS,
   isRetryableProviderError,
@@ -626,7 +626,24 @@ async function prepareRunExecution(
     const stdinSource = (dependencies.stdin ?? process.stdin) as StdinReader;
     const sniffed = await sniffStdin(stdinSource, Boolean(options.textStdin));
     switch (sniffed.kind) {
-      case 'empty':
+      case 'tty':
+        // No pipe attached at all.
+        break;
+      case 'empty-pipe':
+        // Pipe attached but upstream sent zero bytes. If we have a
+        // positional/file/system prompt to fall back to, warn -- this
+        // usually means an upstream pipeline stage failed and the user
+        // should know rather than getting a "successful" generic answer.
+        if (
+          inlinePrompt.trim().length > 0
+          || promptFile?.content.trim().length
+          || systemFile?.content.trim().length
+        ) {
+          const stderr = dependencies.stderr ?? process.stderr;
+          stderr.write(
+            `${warnText('[run] stdin was piped but empty (upstream command may have failed). Falling back to other prompt sources.')}\n`,
+          );
+        }
         break;
       case 'text':
         stdinContent = sniffed.text;
