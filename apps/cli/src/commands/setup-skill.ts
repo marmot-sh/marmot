@@ -170,7 +170,7 @@ function buildActionOptions(
     opts.push({ value: ACTION_UNINSTALL, label: 'Uninstall agent skill' });
   }
 
-  opts.push({ value: ACTION_DONE, label: 'Done — leave as is' });
+  opts.push({ value: ACTION_DONE, label: 'Back to setup' });
   return opts;
 }
 

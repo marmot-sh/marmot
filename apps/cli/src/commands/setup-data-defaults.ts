@@ -125,8 +125,8 @@ export async function walkAllDataDefaults(
 
   if (webReady.size === 0 && dataReady.size === 0) {
     note(
-      'No data-provider API keys detected. Set at least one *_API_KEY env var (e.g. TAVILY_API_KEY, APOLLO_API_KEY) and re-run.',
-      'data defaults',
+      'No context-provider API keys detected. Set at least one *_API_KEY env var (e.g. TAVILY_API_KEY, APOLLO_API_KEY) and re-run.',
+      'context defaults',
     );
     return 'unchanged';
   }
@@ -162,10 +162,10 @@ export async function walkAllDataDefaults(
       value: i.value,
       label: `${i.label.padEnd(maxLabel + 4)}${i.current}`,
     }));
-    options.push({ value: BACK, label: 'Back to setup hub' });
+    options.push({ value: BACK, label: 'Back to setup' });
 
     const choice = await select({
-      message: 'Data defaults — pick a verb to change',
+      message: 'Context defaults — pick a verb to change',
       options,
     });
     if (isCancel(choice)) {

@@ -155,7 +155,7 @@ function buildActionOptions(state: CompletionsState): Array<{ value: string; lab
     });
   }
   opts.push({ value: ACTION_OTHER_SHELL, label: 'Install for a different shell' });
-  opts.push({ value: ACTION_DONE, label: 'Done — leave as is' });
+  opts.push({ value: ACTION_DONE, label: 'Back to setup' });
   return opts;
 }
 
