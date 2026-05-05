@@ -34,8 +34,8 @@ Every key under `defaults` is optional. Resolution differs by verb type:
 {
   "defaults": {
     "text":          { "provider": "openrouter", "model": "openai/gpt-oss-120b" },
-    "image":         { "provider": "openrouter", "model": "google/gemini-2.5-flash-image-preview" },
-    "speech":        { "provider": "openrouter", "model": "openai/tts-1", "voice": "alloy" },
+    "image":         { "provider": "openrouter", "model": "google/gemini-2.5-flash-image" },
+    "speech":        { "provider": "openrouter", "model": "openai/gpt-4o-mini-tts-2025-12-15", "voice": "alloy" },
     "transcription": { "provider": "openrouter", "model": "openai/whisper-1" },
 
     "search":   { "provider": "tavily" },
@@ -136,7 +136,7 @@ Three key shapes are accepted:
 ```bash
 # AI verb defaults (under defaults.<verb>.<field>)
 marmot config set text.provider anthropic
-marmot config set image.model google/gemini-2.5-flash-image-preview
+marmot config set image.model google/gemini-2.5-flash-image
 marmot config set speech.voice alloy
 
 # Web/data verb defaults (under defaults.<verb>.provider)

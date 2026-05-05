@@ -7,7 +7,7 @@ import type { NormalizedRunResult } from '../src/types.js';
 const sampleResult: NormalizedRunResult = {
   ok: true,
   provider: 'ollama',
-  model: 'qwen3.5:4b',
+  model: 'qwen3:4b',
   text: 'hello from gemma',
   usage: {
     inputTokens: 12,

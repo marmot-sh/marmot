@@ -27,12 +27,12 @@ function makeStream(isTTY: boolean) {
 const ollamaCache = (now?: () => Date) => ({
   version: 1 as const,
   provider: 'ollama' as const,
-  defaultModel: 'qwen3.5:4b',
+  defaultModel: 'qwen3:4b',
   fetchedAt: (now?.() ?? new Date()).toISOString(),
   models: [
     {
-      id: 'qwen3.5:4b',
-      name: 'qwen3.5:4b',
+      id: 'qwen3:4b',
+      name: 'qwen3:4b',
       contextLength: null,
       pricing: null,
       inputModalities: ['text'],
@@ -47,7 +47,7 @@ function makeAdapter(): ProviderAdapter {
   return {
     slug: 'ollama',
     name: 'Ollama',
-    defaultModel: 'qwen3.5:4b',
+    defaultModel: 'qwen3:4b',
     requiresApiKey: false,
     capabilities: { text: true, image: false, speech: false, transcription: false },
     async generate({ model, prompt }) {

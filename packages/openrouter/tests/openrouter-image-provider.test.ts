@@ -10,7 +10,7 @@ describe('openRouterAdapter image capabilities', () => {
   it('declares image capability and a default image model', () => {
     expect(openRouterAdapter.capabilities.image).toBe(true);
     expect(openRouterAdapter.defaultImageModel).toBe(
-      'google/gemini-2.5-flash-image-preview',
+      'google/gemini-2.5-flash-image',
     );
   });
 
@@ -31,7 +31,7 @@ describe('openRouterAdapter.refreshImageModels', () => {
               architecture: { input_modalities: ['text'], output_modalities: ['text'] },
             },
             {
-              id: 'google/gemini-2.5-flash-image-preview',
+              id: 'google/gemini-2.5-flash-image',
               architecture: { input_modalities: ['text', 'image'], output_modalities: ['image', 'text'] },
             },
             {
@@ -55,9 +55,9 @@ describe('openRouterAdapter.refreshImageModels', () => {
     });
 
     expect(result.provider).toBe('openrouter');
-    expect(result.defaultModel).toBe('google/gemini-2.5-flash-image-preview');
+    expect(result.defaultModel).toBe('google/gemini-2.5-flash-image');
     expect(result.models.map((m) => m.id)).toEqual([
-      'google/gemini-2.5-flash-image-preview',
+      'google/gemini-2.5-flash-image',
       'black-forest-labs/flux-1-schnell',
     ]);
   });
@@ -83,7 +83,7 @@ describe('openRouterAdapter.generateImage', () => {
   it('rejects without an api key', async () => {
     await expect(
       openRouterAdapter.generateImage!({
-        model: 'google/gemini-2.5-flash-image-preview',
+        model: 'google/gemini-2.5-flash-image',
         prompt: 'a marmot',
         n: 1,
       }),
@@ -97,7 +97,7 @@ describe('openRouterAdapter.generateImage', () => {
       const headers = init?.headers as Record<string, string> | undefined;
       expect(headers?.Authorization).toBe('Bearer sk-test');
       const body = init?.body ? JSON.parse(String(init.body)) : {};
-      expect(body.model).toBe('google/gemini-2.5-flash-image-preview');
+      expect(body.model).toBe('google/gemini-2.5-flash-image');
       expect(body.modalities).toEqual(['image', 'text']);
       expect(body.messages?.[0]?.content).toBe('a marmot');
 
@@ -116,7 +116,7 @@ describe('openRouterAdapter.generateImage', () => {
     });
 
     const result = await openRouterAdapter.generateImage!({
-      model: 'google/gemini-2.5-flash-image-preview',
+      model: 'google/gemini-2.5-flash-image',
       prompt: 'a marmot',
       n: 1,
       apiKey: 'sk-test',
@@ -140,7 +140,7 @@ describe('openRouterAdapter.generateImage', () => {
     );
 
     const result = await openRouterAdapter.generateImage!({
-      model: 'google/gemini-2.5-flash-image-preview',
+      model: 'google/gemini-2.5-flash-image',
       prompt: 'a marmot',
       n: 3,
       apiKey: 'sk-test',
@@ -174,7 +174,7 @@ describe('openRouterAdapter.generateImage', () => {
     const fetchFn = vi.fn(async () => new Response('unauth', { status: 401 }));
     await expect(
       openRouterAdapter.generateImage!({
-        model: 'google/gemini-2.5-flash-image-preview',
+        model: 'google/gemini-2.5-flash-image',
         prompt: 'x',
         n: 1,
         apiKey: 'bad',

@@ -12,7 +12,7 @@ describe('openRouterAdapter capabilities', () => {
       speech: true,
       transcription: true,
     });
-    expect(openRouterAdapter.defaultSpeechModel).toBe('openai/tts-1');
+    expect(openRouterAdapter.defaultSpeechModel).toBe('openai/gpt-4o-mini-tts-2025-12-15');
     expect(openRouterAdapter.defaultTranscriptionModel).toBe('openai/whisper-1');
     expect(typeof openRouterAdapter.generateSpeech).toBe('function');
     expect(typeof openRouterAdapter.refreshSpeechModels).toBe('function');
@@ -74,6 +74,24 @@ describe('openRouterAdapter.generateSpeech', () => {
       },
     });
     expect(capturedBody?.voice).toBe('alloy');
+  });
+
+  it('defaults response_format to mp3 when none is given', async () => {
+    // Some OpenRouter speech models (e.g. gpt-4o-mini-tts) silently default
+    // to raw PCM, which the marmot pipeline (mp3 temp filename, afplay) can't
+    // play. The adapter must request mp3 explicitly so output is always
+    // playable regardless of the model's silent default.
+    let capturedBody: Record<string, unknown> | undefined;
+    await openRouterAdapter.generateSpeech!({
+      apiKey: 'sk-or-test',
+      model: 'openai/gpt-4o-mini-tts-2025-12-15',
+      text: 'hi',
+      fetchFn: async (_url, init) => {
+        capturedBody = JSON.parse(String(init?.body));
+        return new Response(new Uint8Array([1, 2]), { status: 200 });
+      },
+    });
+    expect(capturedBody?.response_format).toBe('mp3');
   });
 
   it('wraps instructions inside provider.options.openai (OpenAI passthrough)', async () => {
@@ -278,7 +296,7 @@ describe('openRouterAdapter.refreshSpeechModels', () => {
       'https://openrouter.ai/api/v1/models?output_modalities=speech',
     );
     expect(result.provider).toBe('openrouter');
-    expect(result.defaultModel).toBe('openai/tts-1');
+    expect(result.defaultModel).toBe('openai/gpt-4o-mini-tts-2025-12-15');
     expect(result.models).toHaveLength(1);
     expect(result.models[0]).toMatchObject({
       id: 'openai/tts-1',

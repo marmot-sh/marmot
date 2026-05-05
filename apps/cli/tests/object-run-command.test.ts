@@ -11,7 +11,7 @@ function makeStubAdapter(output: unknown): ProviderAdapter {
   return {
     slug: 'ollama',
     name: 'Ollama',
-    defaultModel: 'qwen3.5:4b',
+    defaultModel: 'qwen3:4b',
     requiresApiKey: false,
     capabilities: { text: true, image: false, speech: false, transcription: false },
     generate: vi.fn(),
@@ -26,12 +26,12 @@ function makeStubAdapter(output: unknown): ProviderAdapter {
     refreshModels: vi.fn(async ({ now }) => ({
       version: 1 as const,
       provider: 'ollama' as const,
-      defaultModel: 'qwen3.5:4b',
+      defaultModel: 'qwen3:4b',
       fetchedAt: (now?.() ?? new Date()).toISOString(),
       models: [
         {
-          id: 'qwen3.5:4b',
-          name: 'qwen3.5:4b',
+          id: 'qwen3:4b',
+          name: 'qwen3:4b',
           contextLength: null,
           pricing: null,
           inputModalities: ['text'],
@@ -67,7 +67,7 @@ describe('handleRunCommand object mode', () => {
     const adapter: ProviderAdapter = {
       slug: 'ollama',
       name: 'Ollama',
-      defaultModel: 'qwen3.5:4b',
+      defaultModel: 'qwen3:4b',
       requiresApiKey: false,
     capabilities: { text: true, image: false, speech: false, transcription: false },
       generate: vi.fn(),
@@ -88,12 +88,12 @@ describe('handleRunCommand object mode', () => {
       refreshModels: vi.fn(async ({ now }) => ({
         version: 1 as const,
         provider: 'ollama' as const,
-        defaultModel: 'qwen3.5:4b',
+        defaultModel: 'qwen3:4b',
         fetchedAt: (now?.() ?? new Date()).toISOString(),
         models: [
           {
-            id: 'qwen3.5:4b',
-            name: 'qwen3.5:4b',
+            id: 'qwen3:4b',
+            name: 'qwen3:4b',
             contextLength: null,
             pricing: null,
             inputModalities: ['text'],
@@ -140,7 +140,7 @@ describe('handleRunCommand object mode', () => {
     };
 
     expect(parsed.output.joke).toBe('Hello world');
-    expect(parsed.model).toBe('qwen3.5:4b');
+    expect(parsed.model).toBe('qwen3:4b');
     expect(outcome.text).toBe(false);
     expect(JSON.parse(await readFile(outputFile, 'utf8'))).toMatchObject({
       output: {

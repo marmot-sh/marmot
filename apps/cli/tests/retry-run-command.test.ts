@@ -51,7 +51,7 @@ describe('handleRunCommand retries', () => {
     const adapter: ProviderAdapter = {
       slug: 'ollama',
       name: 'Ollama',
-      defaultModel: 'qwen3.5:4b',
+      defaultModel: 'qwen3:4b',
       requiresApiKey: false,
     capabilities: { text: true, image: false, speech: false, transcription: false },
       generate,
@@ -60,12 +60,12 @@ describe('handleRunCommand retries', () => {
       refreshModels: vi.fn(async ({ now }) => ({
         version: 1 as const,
         provider: 'ollama' as const,
-        defaultModel: 'qwen3.5:4b',
+        defaultModel: 'qwen3:4b',
         fetchedAt: (now?.() ?? new Date()).toISOString(),
         models: [
           {
-            id: 'qwen3.5:4b',
-            name: 'qwen3.5:4b',
+            id: 'qwen3:4b',
+            name: 'qwen3:4b',
             contextLength: null,
             pricing: null,
             inputModalities: ['text'],

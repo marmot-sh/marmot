@@ -41,8 +41,8 @@ import type {
 } from '@marmot-sh/core';
 import type { ProviderAdapter } from '@marmot-sh/core';
 
-const OPENROUTER_DEFAULT_IMAGE_MODEL = 'google/gemini-2.5-flash-image-preview';
-const OPENROUTER_DEFAULT_SPEECH_MODEL = 'openai/tts-1';
+const OPENROUTER_DEFAULT_IMAGE_MODEL = 'google/gemini-2.5-flash-image';
+const OPENROUTER_DEFAULT_SPEECH_MODEL = 'openai/gpt-4o-mini-tts-2025-12-15';
 const OPENROUTER_DEFAULT_TRANSCRIPTION_MODEL = 'openai/whisper-1';
 const OPENROUTER_AUDIO_SPEECH_URL = `${OPENROUTER_BASE_URL}/audio/speech`;
 const OPENROUTER_AUDIO_TRANSCRIPTIONS_URL = `${OPENROUTER_BASE_URL}/audio/transcriptions`;
@@ -461,12 +461,15 @@ export const openRouterAdapter: ProviderAdapter = {
     }
 
     const fetchFn = input.fetchFn ?? fetch;
+    // Default to mp3 so models like `gpt-4o-mini-tts` (whose silent default is
+    // raw PCM) still produce a playable container that downstream code (temp
+    // file extension, afplay) expects. Caller can override with --format.
     const body: Record<string, unknown> = {
       model: input.model,
       input: input.text,
       voice: input.voice ?? 'alloy',
+      response_format: input.format ?? 'mp3',
     };
-    if (input.format) body.response_format = input.format;
     if (typeof input.speed === 'number') body.speed = input.speed;
     // OpenAI-only passthrough; OpenRouter ignores it for non-OpenAI models.
     if (input.instructions) {
