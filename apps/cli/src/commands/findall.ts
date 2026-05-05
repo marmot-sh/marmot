@@ -70,7 +70,7 @@ export async function handleFindallCommand(
     );
   }
   const piped = await readQueryStdin(deps);
-  const objective = mergeQueries(objectiveParts.join(' '), piped, 'Findall');
+  const objective = mergeQueries(deps, objectiveParts.join(' '), piped, 'Findall');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('findall', config, {

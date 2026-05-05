@@ -13,48 +13,89 @@ import {
   AICliError,
   readStdin,
   resolveUserPath,
+  warnText,
   type StdinReader,
 } from '@marmot-sh/core';
 
 export type DataVerbDependencies = {
   stdin?: StdinReader;
+  stderr?: { write(s: string): boolean | void };
 };
 
-/** Read piped stdin as a single text blob. Returns the trimmed contents or
- *  null when stdin is a TTY (no pipe). Used by query verbs that want to
- *  merge a piped query/objective with a positional one. */
+/** Tagged result distinguishing "no pipe attached (TTY)" from "pipe
+ *  attached but the upstream sent zero bytes". Lets callers warn when
+ *  the empty-pipe case falls back to a positional, since it usually
+ *  means an upstream pipeline stage failed. */
+export type StdinTextResult =
+  | { kind: 'tty' }
+  | { kind: 'empty-pipe' }
+  | { kind: 'content'; text: string };
+
+export type StdinListResult =
+  | { kind: 'tty' }
+  | { kind: 'empty-pipe' }
+  | { kind: 'content'; items: string[] };
+
+/** Read piped stdin as a single text blob. */
 export async function readQueryStdin(
   deps: DataVerbDependencies,
-): Promise<string | null> {
+): Promise<StdinTextResult> {
   const raw = await readStdin(deps.stdin);
-  if (raw === null) return null;
+  if (raw === null) return { kind: 'tty' };
   const trimmed = raw.trim();
-  return trimmed ? trimmed : null;
+  if (trimmed.length === 0) return { kind: 'empty-pipe' };
+  return { kind: 'content', text: trimmed };
 }
 
-/** Read piped stdin as a newline-delimited list. Used by verbs that
- *  operate on a batch of identifiers (URLs, emails, ...). Each line is
- *  trimmed; blank lines and `#`-prefixed comments are dropped so the
- *  same input file works for both `marmot scrape -` style invocations
- *  and human-edited URL lists. */
+/** Read piped stdin as a newline-delimited list. Each line is trimmed;
+ *  blank lines and `#`-prefixed comments are dropped so the same input
+ *  file works for both `marmot scrape -` style invocations and
+ *  human-edited URL lists. */
 export async function readListStdin(
   deps: DataVerbDependencies,
-): Promise<string[]> {
+): Promise<StdinListResult> {
   const raw = await readStdin(deps.stdin);
-  if (raw === null) return [];
-  return raw
+  if (raw === null) return { kind: 'tty' };
+  const items = raw
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith('#'));
+  if (items.length === 0) return { kind: 'empty-pipe' };
+  return { kind: 'content', items };
+}
+
+/** Emit a yellow warning to stderr when an upstream pipe came back empty.
+ *  Surfacing this is the only signal we can give: Unix pipes don't
+ *  propagate the upstream process's exit code, so a piped command that
+ *  errored looks identical to a piped command that legitimately had
+ *  nothing to say. The warning hints at the former without forcing the
+ *  caller to abort. */
+function warnEmptyPipe(
+  deps: DataVerbDependencies,
+  verbLabel: string,
+): void {
+  const stderr = deps.stderr;
+  if (!stderr) return;
+  stderr.write(
+    `${warnText(`[${verbLabel.toLowerCase()}] stdin was piped but empty (upstream command may have failed). Falling back to positional input.`)}\n`,
+  );
 }
 
 /** Merge a positional list with a stdin-supplied list, preserving order
- *  (positional first) and de-duplicating. Useful for `scrape <url> [<url>]
- *  | piped urls` style invocations where both can contribute. */
-export function mergeLists(positional: string[], piped: string[]): string[] {
+ *  (positional first) and de-duplicating. */
+export function mergeLists(
+  deps: DataVerbDependencies,
+  positional: string[],
+  piped: StdinListResult,
+  verbLabel: string,
+): string[] {
+  if (piped.kind === 'empty-pipe' && positional.length > 0) {
+    warnEmptyPipe(deps, verbLabel);
+  }
+  const items = piped.kind === 'content' ? piped.items : [];
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const value of [...positional, ...piped]) {
+  for (const value of [...positional, ...items]) {
     if (seen.has(value)) continue;
     seen.add(value);
     out.push(value);
@@ -63,17 +104,26 @@ export function mergeLists(positional: string[], piped: string[]): string[] {
 }
 
 /** Merge a positional query with a stdin-supplied query using `\n\n`,
- *  same convention as run/image/speak's `mergePromptSources`. Returns
- *  the merged string. Throws a validation error when both sides are
- *  empty -- the verb has nothing to act on. */
+ *  same convention as run/image/speak's `mergePromptSources`. Throws a
+ *  validation error when both sides are empty. Warns when the pipe was
+ *  attached but empty and a positional rescued the call -- a strong
+ *  hint that an upstream stage failed. */
 export function mergeQueries(
+  deps: DataVerbDependencies,
   positional: string,
-  piped: string | null,
+  piped: StdinTextResult,
   verbLabel: string,
 ): string {
-  const parts = [positional.trim(), piped?.trim() ?? '']
-    .filter((part) => part.length > 0);
+  const trimmedPos = positional.trim();
+
+  if (piped.kind === 'empty-pipe' && trimmedPos.length > 0) {
+    warnEmptyPipe(deps, verbLabel);
+  }
+
+  const pipedText = piped.kind === 'content' ? piped.text : '';
+  const parts = [trimmedPos, pipedText].filter((part) => part.length > 0);
   const merged = parts.join('\n\n');
+
   if (!merged) {
     throw new AICliError(
       'validation',

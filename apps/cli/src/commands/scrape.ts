@@ -60,7 +60,7 @@ export async function handleScrapeCommand(
   // `marmot map example.com | marmot scrape` is a native idiom (no
   // `xargs` required). Dedup preserves positional-first order.
   const piped = await readListStdin(deps);
-  const urls = mergeLists(positionalUrls, piped);
+  const urls = mergeLists(deps, positionalUrls, piped, 'Scrape');
   if (!urls.length) {
     throw new AICliError(
       'validation',

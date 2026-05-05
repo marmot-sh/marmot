@@ -82,7 +82,7 @@ export async function handleSearchCommand(
   const fetchFn = deps.fetchFn ?? fetch;
 
   const piped = await readQueryStdin(deps);
-  const query = mergeQueries(queryParts.join(' '), piped, 'Search');
+  const query = mergeQueries(deps, queryParts.join(' '), piped, 'Search');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('search', config, {

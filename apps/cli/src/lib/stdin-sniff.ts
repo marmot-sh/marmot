@@ -17,7 +17,12 @@ import { Buffer } from 'node:buffer';
 import { AICliError, type StdinReader } from '@marmot-sh/core';
 
 export type StdinKind =
-  | { kind: 'empty' }
+  /** No pipe attached -- stdin is a TTY. */
+  | { kind: 'tty' }
+  /** Pipe attached but the upstream sent zero bytes (or only whitespace
+   *  for text). Often signals an upstream failure, since Unix pipes
+   *  don't propagate exit codes. */
+  | { kind: 'empty-pipe' }
   | { kind: 'text'; text: string }
   | { kind: 'image'; mimeType: string; bytes: Uint8Array }
   | { kind: 'audio'; mimeType: string; bytes: Uint8Array }
@@ -35,10 +40,10 @@ export async function sniffStdin(
   stdin: StdinReader,
   forceText = false,
 ): Promise<StdinKind> {
-  if (stdin.isTTY) return { kind: 'empty' };
+  if (stdin.isTTY) return { kind: 'tty' };
 
   const bytes = await readStdinBytes(stdin);
-  if (!bytes || bytes.length === 0) return { kind: 'empty' };
+  if (!bytes || bytes.length === 0) return { kind: 'empty-pipe' };
 
   if (forceText) return { kind: 'text', text: bytes.toString('utf8') };
 
