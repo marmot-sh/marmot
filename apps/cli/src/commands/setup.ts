@@ -8,7 +8,14 @@ import {
   text,
 } from '@clack/prompts';
 
-import { brandText, ensureProviderCache, warnText } from '@marmot-sh/core';
+import {
+  brandText,
+  ensureProviderCache,
+  ensureProviderImageCache,
+  ensureProviderSpeechCache,
+  ensureProviderTranscriptionCache,
+  warnText,
+} from '@marmot-sh/core';
 import { createEphemeralSpinner } from '../lib/ephemeral-spinner.js';
 import {
   PROVIDER_DEFAULT_MODELS,
@@ -662,27 +669,31 @@ async function pickModel(args: PickModelArgs): Promise<string | null | undefined
         args.provider === 'cloudflare' ? getCloudflareAccountId(args.env) : undefined,
       fetchFn: args.fetchFn,
     };
+    // All four modalities go through the same 24h-TTL ensure path now, so
+    // model lists are read from the on-disk cache when fresh and refetched
+    // lazily otherwise. Symmetric across text/image/speech/transcription.
+    const ensureInput = {
+      provider: args.provider,
+      adapter,
+      ollamaBaseUrl: args.provider === 'ollama' ? getOllamaApiBaseUrl(args.env) : undefined,
+      env: args.env,
+      ...refreshInput,
+    };
     if (args.purpose === 'text') {
-      const cache = await ensureProviderCache({
-        provider: args.provider,
-        adapter,
-        ollamaBaseUrl: args.provider === 'ollama' ? getOllamaApiBaseUrl(args.env) : undefined,
-        env: args.env,
-        ...refreshInput,
-      });
-      modelIds = cache.cache.models.map((m) => m.id);
+      const result = await ensureProviderCache(ensureInput);
+      modelIds = result.cache.models.map((m) => m.id);
     } else if (args.purpose === 'image' && adapter.refreshImageModels) {
-      const refreshed = await adapter.refreshImageModels(refreshInput);
-      modelIds = refreshed.models.map((m) => m.id);
+      const result = await ensureProviderImageCache(ensureInput);
+      modelIds = result.cache.models.map((m) => m.id);
     } else if (args.purpose === 'speech' && adapter.refreshSpeechModels) {
-      const refreshed = await adapter.refreshSpeechModels(refreshInput);
-      modelIds = refreshed.models.map((m) => m.id);
+      const result = await ensureProviderSpeechCache(ensureInput);
+      modelIds = result.cache.models.map((m) => m.id);
     } else if (
       args.purpose === 'transcription'
       && adapter.refreshTranscriptionModels
     ) {
-      const refreshed = await adapter.refreshTranscriptionModels(refreshInput);
-      modelIds = refreshed.models.map((m) => m.id);
+      const result = await ensureProviderTranscriptionCache(ensureInput);
+      modelIds = result.cache.models.map((m) => m.id);
     }
   } catch (error) {
     fetchSpin.stop(`Could not fetch model list (${(error as Error).message})`);
