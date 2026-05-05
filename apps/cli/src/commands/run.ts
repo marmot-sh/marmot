@@ -8,12 +8,11 @@ import { readFile } from 'node:fs/promises';
 
 import {
   openOutputFileStream,
-  readBinaryStdin,
   readPromptFile,
-  readStdin,
   writeOutputFile,
   type StdinReader,
 } from '@marmot-sh/core';
+import { readStdinAsBytes, sniffStdin } from '../lib/stdin-sniff.js';
 import { mimeFromExtension, sniffImageMime, sniffPdfMime } from '@marmot-sh/core';
 import type { FilePart, ImagePart } from '@marmot-sh/core';
 import { AICliError, toAICliError } from '@marmot-sh/core';
@@ -107,6 +106,7 @@ export type RunCommandOptions = {
   imageMime?: string;
   file?: string[];
   fileMime?: string;
+  textStdin?: boolean;
   text?: boolean;
   json?: boolean;
   stream?: boolean;
@@ -499,9 +499,21 @@ type PreparedRunExecution = {
   config: MarmotConfig | null;
 };
 
+type StdinPayload = { bytes: Uint8Array; mimeType?: string };
+
+/** Map a stdin file's mimeType to the corresponding model-modality
+ *  string. Audio/video/PDF all flow through the file attachment path
+ *  but providers split them out under different modality names. */
+function inferStdinFileModality(mimeType: string | undefined): string {
+  if (!mimeType) return 'file';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('video/')) return 'video';
+  return 'file';
+}
+
 async function loadImages(
   paths: string[],
-  fromStdin: boolean,
+  stdinPayload: StdinPayload | null,
   mimeOverride?: string,
 ): Promise<ImagePart[]> {
   const parts: ImagePart[] = [];
@@ -517,16 +529,10 @@ async function loadImages(
     parts.push({ data, mimeType, sourceName: path });
   }
 
-  if (fromStdin) {
-    const data = await readBinaryStdin();
-    if (!data || data.byteLength === 0) {
-      throw new AICliError(
-        'validation',
-        '--image - was passed but no image bytes were piped to stdin.',
-      );
-    }
+  if (stdinPayload) {
+    const data = stdinPayload.bytes;
     const mimeType =
-      mimeOverride ?? sniffImageMime(data) ?? 'image/png';
+      mimeOverride ?? stdinPayload.mimeType ?? sniffImageMime(data) ?? 'image/png';
     parts.push({ data, mimeType, sourceName: '<stdin>' });
   }
 
@@ -535,7 +541,7 @@ async function loadImages(
 
 async function loadFiles(
   paths: string[],
-  fromStdin: boolean,
+  stdinPayload: StdinPayload | null,
   mimeOverride?: string,
 ): Promise<FilePart[]> {
   const parts: FilePart[] = [];
@@ -551,16 +557,10 @@ async function loadFiles(
     parts.push({ data, mimeType, sourceName: path });
   }
 
-  if (fromStdin) {
-    const data = await readBinaryStdin();
-    if (!data || data.byteLength === 0) {
-      throw new AICliError(
-        'validation',
-        '--file - was passed but no bytes were piped to stdin.',
-      );
-    }
+  if (stdinPayload) {
+    const data = stdinPayload.bytes;
     const mimeType =
-      mimeOverride ?? sniffPdfMime(data) ?? 'application/octet-stream';
+      mimeOverride ?? stdinPayload.mimeType ?? sniffPdfMime(data) ?? 'application/octet-stream';
     parts.push({ data, mimeType, sourceName: '<stdin>' });
   }
 
@@ -586,17 +586,63 @@ async function prepareRunExecution(
   // Image inputs: split file paths from stdin sentinel.
   const imageRefs = options.image ?? [];
   const imagePaths = imageRefs.filter((p) => p !== '-');
-  const imageStdin = imageRefs.some((p) => p === '-');
+  const imageStdinSentinel = imageRefs.some((p) => p === '-');
 
   // File/PDF inputs: same convention.
   const fileRefs = options.file ?? [];
   const filePaths = fileRefs.filter((p) => p !== '-');
-  const fileStdin = fileRefs.some((p) => p === '-');
+  const fileStdinSentinel = fileRefs.some((p) => p === '-');
 
-  // Stdin can carry text, a binary image, or a binary file — only one.
-  const stdinContent = imageStdin || fileStdin
-    ? null
-    : await readStdin(dependencies.stdin);
+  // Read stdin once, then route. Stdin carries either text, a binary
+  // image, or a binary file — never more than one. If the user passed
+  // an explicit `--image -` / `--file -` sentinel, honor that. Otherwise
+  // sniff the first bytes: a known binary signature routes to image or
+  // file automatically; anything else is treated as a text prompt
+  // suffix (the historical default). `--text-stdin` forces the text
+  // path even when bytes look binary.
+  let stdinContent: string | null = null;
+  let stdinImagePayload: StdinPayload | null = null;
+  let stdinFilePayload: StdinPayload | null = null;
+
+  if (imageStdinSentinel || fileStdinSentinel) {
+    // Explicit sentinel: caller already told us what stdin is, skip
+    // sniffing entirely and read raw bytes. Mime falls back to the
+    // override flag, then later to magic detection inside loadImages /
+    // loadFiles.
+    const stdinSource = (dependencies.stdin ?? process.stdin) as StdinReader;
+    const bytes = await readStdinAsBytes(stdinSource);
+    if (!bytes || bytes.byteLength === 0) {
+      throw new AICliError(
+        'validation',
+        `${imageStdinSentinel ? '--image -' : '--file -'} was passed but no bytes were piped to stdin.`,
+      );
+    }
+    if (imageStdinSentinel) {
+      stdinImagePayload = { bytes, mimeType: options.imageMime };
+    } else {
+      stdinFilePayload = { bytes, mimeType: options.fileMime };
+    }
+  } else {
+    const stdinSource = (dependencies.stdin ?? process.stdin) as StdinReader;
+    const sniffed = await sniffStdin(stdinSource, Boolean(options.textStdin));
+    switch (sniffed.kind) {
+      case 'empty':
+        break;
+      case 'text':
+        stdinContent = sniffed.text;
+        break;
+      case 'image':
+        stdinImagePayload = { bytes: sniffed.bytes, mimeType: sniffed.mimeType };
+        break;
+      case 'audio':
+      case 'video':
+      case 'file':
+        // Audio/video/PDFs all flow through the file attachment path.
+        // The model's input modalities decide whether the call succeeds.
+        stdinFilePayload = { bytes: sniffed.bytes, mimeType: sniffed.mimeType };
+        break;
+    }
+  }
 
   // Apply config defaults so flag > config > hardcoded fallback. When no
   // --provider override is given and no defaults exist, try auto-config
@@ -634,10 +680,10 @@ async function prepareRunExecution(
     promptFileContent: promptFile?.content,
     stdinContent: stdinContent ?? undefined,
     imagePaths,
-    imageStdin,
+    imageStdin: stdinImagePayload !== null,
     imageMimeOverride: options.imageMime,
     filePaths,
-    fileStdin,
+    fileStdin: stdinFilePayload !== null,
     fileMimeOverride: options.fileMime,
     text: Boolean(options.text),
     json: Boolean(options.json),
@@ -704,23 +750,41 @@ async function prepareRunExecution(
     );
   }
 
-  const modelExists = cacheResult.cache.models.some((model) => model.id === input.model);
+  const modelEntry = cacheResult.cache.models.find((model) => model.id === input.model);
 
-  if (!modelExists) {
+  if (!modelEntry) {
     throw new AICliError(
       'validation',
       `Model "${input.model}" is not available for provider "${input.provider}". Refresh the cache with "marmot cache refresh ${input.provider}".`,
     );
   }
 
+  // Modality capability check. Catches the "piped a PNG into a text-only
+  // model" case before we waste a provider call -- without this the
+  // bytes get base64-encoded into a multi-megabyte text prompt and the
+  // provider rejects it as exceeding the context window.
+  const requiredModality = stdinImagePayload
+    ? 'image'
+    : stdinFilePayload
+      ? inferStdinFileModality(stdinFilePayload.mimeType)
+      : (input.imagePaths.length > 0 ? 'image' : null)
+        ?? (input.filePaths.length > 0 ? 'file' : null);
+  if (requiredModality && !modelEntry.inputModalities.includes(requiredModality)) {
+    const supported = modelEntry.inputModalities.join(', ') || 'text only';
+    throw new AICliError(
+      'validation',
+      `Model "${input.model}" does not accept ${requiredModality} input (supports: ${supported}). Pick a multimodal model, or pass --text-stdin to send the bytes as text.`,
+    );
+  }
+
   const images = await loadImages(
     input.imagePaths,
-    input.imageStdin,
+    stdinImagePayload,
     input.imageMimeOverride,
   );
   const files = await loadFiles(
     input.filePaths,
-    input.fileStdin,
+    stdinFilePayload,
     input.fileMimeOverride,
   );
 
