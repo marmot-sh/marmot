@@ -8,6 +8,7 @@ import {
   getProviderImageCachePath,
   getProviderSpeechCachePath,
   getProviderTranscriptionCachePath,
+  getProviderVideoCachePath,
 } from '../lib/paths.js';
 import { providerCacheSchema } from '../schemas/cache.js';
 import type {
@@ -15,6 +16,7 @@ import type {
   ProviderImageCacheFile,
   ProviderSpeechCacheFile,
   ProviderTranscriptionCacheFile,
+  ProviderVideoCacheFile,
   RefreshModelsInput,
 } from '../types.js';
 import type { ProviderAdapter } from '../providers.js';
@@ -228,6 +230,15 @@ export async function readProviderTranscriptionCache(
   );
 }
 
+export async function readProviderVideoCache(
+  provider: ProviderSlug,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<ProviderVideoCacheFile | null> {
+  return readJsonCache<ProviderVideoCacheFile>(
+    getProviderVideoCachePath(provider, env),
+  );
+}
+
 async function readJsonCache<T>(cachePath: string): Promise<T | null> {
   try {
     const contents = await readFile(cachePath, 'utf8');
@@ -420,11 +431,70 @@ export async function ensureProviderTranscriptionCache(
   });
 }
 
+export type ForceRefreshVideoCacheResult = {
+  cache: ProviderVideoCacheFile;
+  cachePath: string;
+};
+
+export async function writeProviderVideoCache(
+  cache: ProviderVideoCacheFile,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string> {
+  const cachePath = getProviderVideoCachePath(cache.provider, env);
+  await mkdir(dirname(cachePath), { recursive: true });
+  await writeFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
+  return cachePath;
+}
+
+export async function forceRefreshProviderVideoCache(
+  input: EnsureProviderCacheInput,
+): Promise<ForceRefreshVideoCacheResult> {
+  const env = input.env ?? process.env;
+  if (!input.adapter.refreshVideoModels) {
+    throw new AICliError(
+      'cache',
+      `${input.adapter.name} does not support video-model refresh.`,
+    );
+  }
+  const refreshedCache = await input.adapter.refreshVideoModels(input);
+  const cachePath = await writeProviderVideoCache(refreshedCache, env);
+  return { cache: refreshedCache, cachePath };
+}
+
+export type EnsureVideoCacheResult = {
+  cache: ProviderVideoCacheFile;
+  cachePath: string;
+  refreshed: boolean;
+  usedStaleCache: boolean;
+  refreshReason?: CacheRefreshContext['reason'];
+};
+
+export async function ensureProviderVideoCache(
+  input: EnsureProviderCacheInput,
+): Promise<EnsureVideoCacheResult> {
+  return ensureModalityCache({
+    input,
+    cachePath: getProviderVideoCachePath(input.provider, input.env ?? process.env),
+    read: () => readProviderVideoCache(input.provider, input.env ?? process.env),
+    refresh: () => {
+      if (!input.adapter.refreshVideoModels) {
+        throw new AICliError(
+          'cache',
+          `${input.adapter.name} does not support video-model refresh.`,
+        );
+      }
+      return input.adapter.refreshVideoModels(input);
+    },
+    write: (cache) => writeProviderVideoCache(cache, input.env ?? process.env),
+    modality: 'video',
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /*  shared modality-cache machinery                                           */
 /* -------------------------------------------------------------------------- */
 
-type ModalityCacheFile = ProviderImageCacheFile | ProviderSpeechCacheFile | ProviderTranscriptionCacheFile;
+type ModalityCacheFile = ProviderImageCacheFile | ProviderSpeechCacheFile | ProviderTranscriptionCacheFile | ProviderVideoCacheFile;
 
 type EnsureModalityCacheArgs<T extends ModalityCacheFile> = {
   input: EnsureProviderCacheInput;
@@ -432,7 +502,7 @@ type EnsureModalityCacheArgs<T extends ModalityCacheFile> = {
   read: () => Promise<T | null>;
   refresh: () => Promise<T>;
   write: (cache: T) => Promise<string>;
-  modality: 'image' | 'speech' | 'transcription';
+  modality: 'image' | 'speech' | 'transcription' | 'video';
 };
 
 /** Image/speech/transcription analog of `ensureProviderCache`. Same

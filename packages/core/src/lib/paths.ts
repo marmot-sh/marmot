@@ -6,6 +6,7 @@ import {
   PROVIDER_IMAGE_CACHE_DIRNAME,
   PROVIDER_SPEECH_CACHE_DIRNAME,
   PROVIDER_TRANSCRIPTION_CACHE_DIRNAME,
+  PROVIDER_VIDEO_CACHE_DIRNAME,
   type ProviderSlug,
 } from './constants.js';
 
@@ -78,6 +79,13 @@ export function getProviderSpeechCachePath(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   return join(getMarmotHome(env), PROVIDER_SPEECH_CACHE_DIRNAME, `${provider}.json`);
+}
+
+export function getProviderVideoCachePath(
+  provider: ProviderSlug,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return join(getMarmotHome(env), PROVIDER_VIDEO_CACHE_DIRNAME, `${provider}.json`);
 }
 
 export function getProviderTranscriptionCachePath(
