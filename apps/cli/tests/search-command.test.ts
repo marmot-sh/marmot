@@ -38,7 +38,7 @@ describe('handleSearchCommand', () => {
     const { env } = await fixture();
     await expect(
       handleSearchCommand([], {}, { env }),
-    ).rejects.toThrowError(/Search query is required/);
+    ).rejects.toThrowError(/Search requires a query/);
   });
 
   it('errors when no default provider and no flag', async () => {

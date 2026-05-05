@@ -19,6 +19,12 @@ import {
 } from '../providers/web-index.js';
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import {
+  mergeLists,
+  readListStdin,
+  writeEnvelope,
+  type DataVerbDependencies,
+} from '../lib/data-verb-io.js';
 
 export type ScrapeCommandOptions = {
   provider?: string;
@@ -30,9 +36,10 @@ export type ScrapeCommandOptions = {
   refresh?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
-export type ScrapeCommandDependencies = {
+export type ScrapeCommandDependencies = DataVerbDependencies & {
   env?: NodeJS.ProcessEnv;
   stdout?: { write(s: string): boolean | void };
   stderr?: StatusStream;
@@ -40,7 +47,7 @@ export type ScrapeCommandDependencies = {
 };
 
 export async function handleScrapeCommand(
-  urls: string[],
+  positionalUrls: string[],
   options: ScrapeCommandOptions,
   deps: ScrapeCommandDependencies = {},
 ): Promise<void> {
@@ -49,8 +56,16 @@ export async function handleScrapeCommand(
   const stderr = deps.stderr ?? process.stderr;
   const fetchFn = deps.fetchFn ?? fetch;
 
+  // Merge positional URLs with newline-delimited URLs piped on stdin so
+  // `marmot map example.com | marmot scrape` is a native idiom (no
+  // `xargs` required). Dedup preserves positional-first order.
+  const piped = await readListStdin(deps);
+  const urls = mergeLists(positionalUrls, piped);
   if (!urls.length) {
-    throw new AICliError('validation', 'At least one URL is required.');
+    throw new AICliError(
+      'validation',
+      'At least one URL is required. Pass URLs positionally or pipe them in (one per line).',
+    );
   }
 
   const config = await readMarmotConfig(env);
@@ -113,7 +128,7 @@ export async function handleScrapeCommand(
     raw: options.raw ? (result.raw ?? null) : null,
     timestamp: new Date().toISOString(),
   };
-  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  await writeEnvelope(stdout, options.output, envelope);
 }
 
 export function buildScrapeCommand(
@@ -121,7 +136,7 @@ export function buildScrapeCommand(
 ): Command {
   return new Command('scrape')
     .description('Extract markdown/text from one or more URLs.')
-    .argument('<urls...>', 'One or more URLs to scrape.')
+    .argument('[urls...]', 'One or more URLs to scrape. Falls back to stdin (newline-delimited URLs) when omitted; merges with stdin when both are provided.')
     .option('--provider <slug>', 'Web provider: exa, firecrawl, parallel, tavily.')
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--format <fmt>', 'Output format: markdown (default), text, html.')
@@ -131,6 +146,7 @@ export function buildScrapeCommand(
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (urls: string[], options: ScrapeCommandOptions) => {
       await handleScrapeCommand(urls, options, deps);
     });

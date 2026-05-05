@@ -566,7 +566,7 @@ export function createProgram(): Command {
 
   const transcribeCommand = new Command('transcribe')
     .description('Transcribe audio file to text (STT).')
-    .argument('[audioPath]', 'Path to an audio file.')
+    .argument('[audioPath]', 'Path to an audio file. Falls back to stdin (piped audio bytes) when omitted.')
     .option('--provider <provider>', 'Provider slug: openai, openrouter, vercel, cloudflare.')
     .option('--model <model>', 'Transcription model slug.')
     .option('--api-key <apiKey>', 'Provider API key override.')

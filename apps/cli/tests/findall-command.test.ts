@@ -35,7 +35,7 @@ describe('handleFindallCommand', () => {
   it('errors on missing objective', async () => {
     const { env } = await fixture();
     await expect(handleFindallCommand([], {}, { env })).rejects.toThrowError(
-      /Objective is required/,
+      /Findall requires a query/,
     );
   });
 

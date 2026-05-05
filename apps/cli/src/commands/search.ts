@@ -19,6 +19,13 @@ import {
 } from '../providers/web-index.js';
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import {
+  mergeQueries,
+  readQueryStdin,
+  writeEnvelope,
+  type DataVerbDependencies,
+} from '../lib/data-verb-io.js';
+import type { StdinReader } from '@marmot-sh/core';
 
 export type SearchCommandOptions = {
   provider?: string;
@@ -35,13 +42,15 @@ export type SearchCommandOptions = {
   refresh?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
-export type SearchCommandDependencies = {
+export type SearchCommandDependencies = DataVerbDependencies & {
   env?: NodeJS.ProcessEnv;
   stdout?: { write(s: string): boolean | void };
   stderr?: StatusStream;
   fetchFn?: typeof fetch;
+  stdin?: StdinReader;
 };
 
 function csvToList(s: string | undefined): string[] | undefined {
@@ -72,10 +81,8 @@ export async function handleSearchCommand(
   const stderr = deps.stderr ?? process.stderr;
   const fetchFn = deps.fetchFn ?? fetch;
 
-  const query = queryParts.join(' ').trim();
-  if (!query) {
-    throw new AICliError('validation', 'Search query is required.');
-  }
+  const piped = await readQueryStdin(deps);
+  const query = mergeQueries(queryParts.join(' '), piped, 'Search');
 
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('search', config, {
@@ -144,7 +151,7 @@ export async function handleSearchCommand(
     timestamp: new Date().toISOString(),
   };
 
-  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  await writeEnvelope(stdout, options.output, envelope);
 }
 
 export function buildSearchCommand(
@@ -152,7 +159,7 @@ export function buildSearchCommand(
 ): Command {
   const cmd = new Command('search')
     .description('Search the web via a configured provider.')
-    .argument('<query...>', 'Search query.')
+    .argument('[query...]', 'Search query. Falls back to stdin when omitted; merges with stdin when both are provided.')
     .option(
       '--provider <slug>',
       'Web provider: brave, exa, firecrawl, parallel, tavily.',
@@ -169,6 +176,7 @@ export function buildSearchCommand(
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (queryParts: string[], options: SearchCommandOptions) => {
       await handleSearchCommand(queryParts, options, deps);
     });

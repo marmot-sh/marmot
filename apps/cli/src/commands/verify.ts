@@ -19,6 +19,7 @@ import {
 } from '../providers/data-index.js';
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
+import { writeEnvelope } from '../lib/data-verb-io.js';
 
 export type VerifyCommandOptions = {
   email?: string;
@@ -29,6 +30,7 @@ export type VerifyCommandOptions = {
   refresh?: boolean;
   retries?: string;
   timeout?: string;
+  output?: string;
 };
 
 export type VerifyCommandDependencies = {
@@ -113,7 +115,7 @@ export async function handleVerifyCommand(
     usage: result.usage ?? null,
     timestamp: new Date().toISOString(),
   };
-  stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  await writeEnvelope(stdout, options.output, envelope);
 }
 
 export function buildVerifyCommand(deps: VerifyCommandDependencies = {}): Command {
@@ -128,6 +130,7 @@ export function buildVerifyCommand(deps: VerifyCommandDependencies = {}): Comman
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
+    .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .action(async (emailArg: string | undefined, options: VerifyCommandOptions) => {
       await handleVerifyCommand(emailArg ? [emailArg] : [], options, deps);
     });
