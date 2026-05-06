@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/parallel",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "@marmot-sh adapter for Parallel — Web search, URL extraction, NL entity finding.",
   "type": "module",
   "private": true,

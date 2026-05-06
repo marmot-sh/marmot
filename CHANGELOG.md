@@ -4,6 +4,17 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.1] — 2026-05-06
+
+### Fixed
+
+- `marmot setup` no longer reports "Agent skill: not installed" when run from a project directory that has a skill installed. Detection now walks upward from `process.cwd()` looking for a project-root marker (`.agents`, `.claude`, `.codex`, or `.opencode`) and uses the first marker-bearing ancestor as the project root for skill-state checks. Both the setup hub's status table and the menu-item hint now consult project scope alongside global, so a project install surfaces as `installed in project (<harness>)` (or `installed (global + project)` if both exist) instead of being invisible. The Agent skill submenu (`marmot setup` → "Agent skill") gets the same fix. Stops before `$HOME` so the global agent dirs (e.g. `~/.claude/`) can't be misread as project roots.
+
+### Added
+
+- New `findProjectRoot(cwd)` export in `@marmot-sh/core` for the upward walk used by setup-skill. Useful for any future code that needs the same "this is a project" signal.
+- The "project not installed" line in `marmot setup` → "Agent skill" status now shows which directory was searched, so wrong-cwd mistakes are visible at a glance.
+
 ## [0.4.0] — 2026-05-06
 
 ### Breaking
@@ -101,6 +112,7 @@ Initial public release.
 - Default plain-text output for piping; `--json` envelope for structured parsing.
 - Sessions and presets, async tasks (research/crawl/findall), response cache (opt-in per provider), agent skill bundle for Claude Code, OpenCode, Codex, and similar harnesses.
 
+[0.4.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.1
 [0.4.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.0
 [0.3.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.3.1
 [0.3.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.3.0
