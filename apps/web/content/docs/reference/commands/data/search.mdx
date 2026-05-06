@@ -19,9 +19,11 @@ marmot search <query> [flags…]
 | `--api-key <key>` | Override the env var for this call. |
 | `--limit <n>` | Max results. Capped per provider (Brave 200, others vary). |
 | `--depth <basic\|standard\|deep>` | Effort/cost tier; provider-interpreted. |
-| `--freshness <day\|week\|month\|year>` | Time filter (Brave/Tavily honor it). |
-| `--include-domains <csv>` | Restrict to listed domains where supported. |
-| `--exclude-domains <csv>` | Exclude listed domains where supported. |
+| `--freshness <day\|week\|month\|year>` | Relative time-window filter. Per-provider mapping below. |
+| `--after-date <YYYY-MM-DD>` | Absolute lower bound on publication date. |
+| `--before-date <YYYY-MM-DD>` | Absolute upper bound on publication date. |
+| `--include-domains <csv>` | Restrict to listed domains. |
+| `--exclude-domains <csv>` | Exclude listed domains. |
 | `--include-content` | Inline full page content per result if the provider supports it. |
 | `--raw` | Emit the provider's native response under `raw` instead of the normalized envelope. |
 | `--json` | Emit the structured envelope (default). |
@@ -31,6 +33,20 @@ marmot search <query> [flags…]
 | `--timeout <seconds>` | Per-attempt request timeout. Default 120. |
 
 Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
+
+## Filter support per provider
+
+Not every provider's API exposes every filter. The CLI accepts the flags uniformly, but if a provider doesn't honor one, `marmot search` warns on stderr instead of silently dropping it.
+
+| Provider | `--include-domains` / `--exclude-domains` | `--freshness` | `--after-date` | `--before-date` |
+| --- | :-: | :-: | :-: | :-: |
+| Brave | ⚠ ignored (warns) | ✓ native (`pd`/`pw`/`pm`/`py`) | ⚠ ignored (warns) | ⚠ ignored (warns) |
+| Exa | ✓ native | ✓ mapped to `startPublishedDate` | ✓ → `startPublishedDate` | ✓ → `endPublishedDate` |
+| Firecrawl | ✓ native | ✓ mapped to `tbs=qdr:d\|w\|m\|y` | ✓ → `tbs=cdr,cd_min` | ✓ → `tbs=cdr,cd_max` |
+| Parallel | ✓ → `include_domains` / `exclude_domains` | ✓ mapped to `after_date` (relative window) | ✓ → `after_date` | ⚠ not supported (warns) |
+| Tavily | ✓ native | ✓ native | ⚠ ignored (warns) | ⚠ ignored (warns) |
+
+When both `--after-date` and `--freshness` are passed, the explicit absolute date wins on every provider that honors both. `--after-date` and `--before-date` together produce a closed range on Exa and Firecrawl; on Parallel only the lower bound applies.
 
 ## Config keys
 

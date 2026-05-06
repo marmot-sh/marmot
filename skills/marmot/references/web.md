@@ -45,9 +45,11 @@ marmot search <query…> [flags]
 | `--api-key <key>`         | Override env var                                     |
 | `--limit <n>`             | Max results (Brave caps at 200; others vary)         |
 | `--depth <basic\|standard\|deep>` | Effort/cost tier; provider-interpreted       |
-| `--freshness <day\|week\|month\|year>` | Time filter (Brave/Tavily honor it)     |
-| `--include-domains <csv>` | Restrict to listed domains where supported           |
-| `--exclude-domains <csv>` | Exclude listed domains where supported               |
+| `--freshness <day\|week\|month\|year>` | Relative time filter (Brave/Tavily native; Exa/Firecrawl/Parallel emulated) |
+| `--after-date <YYYY-MM-DD>` | Absolute lower bound (Exa, Firecrawl, Parallel); ignored with stderr warn on Brave/Tavily |
+| `--before-date <YYYY-MM-DD>` | Absolute upper bound (Exa, Firecrawl); ignored with stderr warn on Brave/Tavily/Parallel |
+| `--include-domains <csv>` | Restrict to listed domains (Exa, Firecrawl, Parallel, Tavily); ignored with warn on Brave |
+| `--exclude-domains <csv>` | Exclude listed domains (same support set as --include-domains)               |
 | `--include-content`       | Inline full page content per result if supported     |
 | `--raw`                   | Native body under `raw`; `data` is null              |
 | `--json`                  | Envelope (already the default)                       |
@@ -305,5 +307,5 @@ Sync envelope:
 - `tasks remove` and `tasks prune` are local-only. Neither cancels work on the provider.
 - Async verbs ignore `--no-cache` / `--refresh` (not cached at all).
 - `--wait` and `--async` are mutually exclusive; passing both errors out.
-- `--include-domains` / `--exclude-domains` are honored where the provider exposes the field; silently ignored where it doesn't.
+- Search filter support varies by provider. `--include-domains` / `--exclude-domains` work everywhere except Brave; `--after-date` works on Exa, Firecrawl, Parallel; `--before-date` works on Exa and Firecrawl. Unsupported flags emit a stderr warning instead of being silently dropped — your filter didn't apply.
 - `crawl --instructions` doubles Tavily's cost per their docs.
