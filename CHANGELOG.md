@@ -4,6 +4,28 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.4] — 2026-05-06
+
+### Fixed
+
+- `marmot search` no longer silently drops filters that the resolved provider's API doesn't honor. Surfaced when `--include-domains "linkedin.com" --provider parallel` returned everything but LinkedIn pages.
+  - **Parallel** previously dropped `--include-domains`, `--exclude-domains`, AND `--freshness`. All three are now wired through (`include_domains`, `exclude_domains`, and a freshness→`after_date` mapping).
+  - **Exa** previously dropped `--freshness`. Now mapped to `startPublishedDate`.
+  - **Firecrawl** previously dropped `--freshness`. Now mapped to Google-style `tbs=qdr:d|w|m|y`.
+- When a flag truly isn't supported by the resolved provider's API (Brave's domain filters, absolute-date filters on Brave/Tavily, `--before-date` on Parallel), `marmot search` now warns on stderr instead of silently dropping the flag, so a user sees that their filter didn't apply.
+
+### Added
+
+- `--after-date <YYYY-MM-DD>` and `--before-date <YYYY-MM-DD>` on `marmot search` for absolute publication-date filtering. Honored by Exa (`startPublishedDate` / `endPublishedDate`), Firecrawl (Google-style `tbs=cdr,cd_min,cd_max`), and Parallel (`after_date` only — Parallel's API has no upper bound today). Brave and Tavily warn on stderr.
+- `WebSearchInput` type gains `afterDate` and `beforeDate` (both `YYYY-MM-DD` strings). Type comments document per-provider honor/ignore behavior.
+- New per-provider filter-support matrix in the [search docs](/docs/reference/commands/data/search) and the agent skill's `references/web.md`.
+- Date-input validation runs before any API call: `--after-date` / `--before-date` reject non-ISO formats (`2026/01/15`), impossible calendar dates (`2026-02-30`, `2026-13-45`, leap-year nuance), and inverted ranges (`--after-date 2026-12-31 --before-date 2026-01-01`). Same-day windows (`after === before`) are allowed.
+
+### Notes
+
+- Explicit `--after-date` wins over relative `--freshness` on every provider that honors both. `--after-date` and `--before-date` together produce a closed range on Exa and Firecrawl; on Parallel only the lower bound applies.
+- 15 new tests across `parallel-provider.test.ts`, `exa-provider.test.ts`, and `firecrawl-provider.test.ts` cover pass-through, mapping, precedence, and omission paths.
+
 ## [0.4.3] — 2026-05-06
 
 ### Added
@@ -135,6 +157,7 @@ Initial public release.
 - Default plain-text output for piping; `--json` envelope for structured parsing.
 - Sessions and presets, async tasks (research/crawl/findall), response cache (opt-in per provider), agent skill bundle for Claude Code, OpenCode, Codex, and similar harnesses.
 
+[0.4.4]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.4
 [0.4.3]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.3
 [0.4.2]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.2
 [0.4.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.1
