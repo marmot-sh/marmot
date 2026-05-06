@@ -4,6 +4,12 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.2] — 2026-05-06
+
+### Maintenance
+
+- Republished both `@marmot-sh/cli` and `marmot-sh` to refresh maintainer metadata on npm. The published-by email on these packages now resolves to the `team@paradoc.dev` group address instead of an individual contributor email. No code changes from 0.4.1 — the `dist/cli.js` artifact is byte-identical.
+
 ## [0.4.1] — 2026-05-06
 
 ### Fixed
@@ -112,6 +118,7 @@ Initial public release.
 - Default plain-text output for piping; `--json` envelope for structured parsing.
 - Sessions and presets, async tasks (research/crawl/findall), response cache (opt-in per provider), agent skill bundle for Claude Code, OpenCode, Codex, and similar harnesses.
 
+[0.4.2]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.2
 [0.4.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.1
 [0.4.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.0
 [0.3.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.3.1
