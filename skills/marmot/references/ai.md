@@ -56,6 +56,13 @@ Concatenated, joined by blank lines, in this order: positional args, `--prompt-f
 | `--stream` | Stream tokens to stdout. Forces text mode. |
 | `--json` | Emit structured envelope instead of plain text. |
 | `--text` | Plain text. Kept for back-compat (now the default). |
+| `--temperature <n>` | Sampling temperature. Provider-specific range, typically 0–2. |
+| `--max-tokens <n>` | Hard cap on completion tokens. |
+| `--top-p <n>` | Top-p / nucleus sampling, 0–1. |
+| `--seed <n>` | Reproducibility seed (provider-specific). |
+| `--stop <text>` | Stop sequence. Repeatable. |
+| `--reasoning <effort>` | Thinking/reasoning effort: `low`, `medium`, `high`. Maps to Anthropic thinking budget, OpenAI `reasoning_effort`, OpenRouter `reasoning.effort`. |
+| `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche params not covered by a dedicated flag. |
 | `-o, --output <path>` | Mirror rendered output to file. |
 | `--retries <n>` | Retry attempts on retryable provider errors. |
 | `--timeout <seconds>` | Per-attempt timeout. |
@@ -102,6 +109,7 @@ Providers: `openai`, `openrouter`, `vercel`, `cloudflare`.
 | `--style <style>` | Provider-specific (`vivid`/`natural`, etc). |
 | `--seed <n>` | Reproducibility seed. Cloudflare and some Vercel models. |
 | `--negative <prompt>` | Negative prompt. Cloudflare. |
+| `--provider-option <key=value>` | Generic passthrough. Repeatable. For niche image params (gpt-image-1 `background`/`output_format`/`moderation`, etc.). |
 | `--binary` | Force raw bytes to stdout. Requires `--n 1`. |
 | `--b64` | JSON envelope with inline base64. No file written. |
 | `--json` | JSON envelope on stdout (still writes the file). |
@@ -151,6 +159,7 @@ Providers: `openai`, `openrouter`, `vercel`, `cloudflare`.
 | `--format <fmt>` | `mp3` (default), `wav`, `flac`, `aac`, `opus`. |
 | `--speed <n>` | Playback speed 0.25–4.0. OpenAI only. |
 | `--instructions <text>` | Steering for steerable voices (e.g. `gpt-4o-mini-tts`). |
+| `--provider-option <key=value>` | Generic passthrough. Repeatable. For niche TTS params. |
 | `-o, --output <path>` | Output path. |
 | `-p, --prompt-file <path>` | Read text from file. |
 | `--play` | Play through speakers. When piped, also emits bytes downstream. |
@@ -206,6 +215,7 @@ Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. Audio source priority
 | `--language <code>` | ISO-639-1 hint (e.g. `en`, `es`). |
 | `--prompt <text>` | Bias prompt to guide transcription (names, jargon). |
 | `--format <fmt>` | `text` (default), `json`, `srt`, `vtt`, `verbose-json`. |
+| `--provider-option <key=value>` | Generic passthrough. Repeatable. For niche STT params (`timestamp_granularities`, etc.). |
 | `--text` | Plain text. Kept for back-compat (now the default). |
 | `--json` | Alias for `--format json`. |
 | `--retries <n>` | Retry attempts. |
