@@ -4,6 +4,34 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.0] — 2026-05-06
+
+### Breaking
+
+- `marmot providers list` output shape changed:
+  - Each row no longer carries a top-level `defaultModel`. The field was a relic from before marmot expanded to multi-modality — it only ever held the *text* default but was unlabeled, so an OpenAI row showing `gpt-4o-mini` looked like an across-the-board default while hiding the separate image / speech / transcription / video defaults. Per-verb defaults already live in `defaults.<verb>` in `marmot config show --json`. Web and data providers never had a meaningful `defaultModel` either.
+  - The output set grew from 6 rows (AI only) to 19 rows. Web providers (Brave, Exa, Firecrawl, Parallel, Tavily) and data providers (Apollo, Hunter, PDL, Tomba, Bouncer, Datagma, ZeroBounce, Kickbox) are now first-class in the listing — they were silently omitted before.
+  - Each row carries a new `category: "ai" | "web" | "data"` field. `cachePath` is now optional (AI-only; web and data providers have no model cache).
+
+### Added
+
+- `marmot providers list --check-keys` — diagnostic flag that layers per-provider readiness onto each row: `enabled` (config toggle), `keys[]` (every env var marmot would read with set/unset booleans), and `ready` (overall callable signal). Useful for "why isn't X ready?" debugging.
+- `marmotVersion` field in `marmot config show --json` — the installed CLI version. Distinct from the existing schema-version `version: 1` field. Saves an agent from running `marmot --version` separately.
+- `readyProviders` field in `marmot config show --json` — alphabetically sorted slugs of every provider that's callable right now (enabled in config + required credentials resolved). Single source of truth for "what are valid `--provider <slug>` arguments?" An agent can read installed version, configured defaults, and live providers in one command.
+- New core helpers: `isProviderReady(slug, config, env)`, `getReadyProviders(config, env)`, `listProviderReadiness(config, env)`.
+- Human-readable `marmot config show` now prints:
+  - Installed marmot version at the top
+  - The `video` row in AI defaults (closes a 0.3.0 oversight where the verb shipped but the human formatter never displayed it)
+  - A new "Data defaults" section listing `enrich`, `lookup`, `verify` (previously invisible in the human view despite being settable via `marmot config set`)
+  - A "Ready providers" section grouped AI / Web / Data, mirroring the JSON `readyProviders` field
+
+### Changed
+
+- Skill bundle bootstrap rewritten in `SKILL.md`: replaced "First step in every session" with "Before invoking any verb." The agent now runs a single command (`marmot config show --json`) to learn installed version, defaults, and ready providers. Added an install-fallback path (`command not found` → `npm install -g marmot-sh`) and a feature-detection note keyed on `marmotVersion`.
+- Skill `references/config.md` example envelope updated to include `marmotVersion`, `readyProviders`, and all five AI verb defaults in canonical order.
+- Skill `references/ai.md` adds the `marmot image | marmot video` canonical pipe (enabled by 0.3.1's stdin sniffing) to the patterns block and the video section's example list.
+- Docs: `configuration.mdx` documents the full `config show --json` envelope including the new fields. `providers.mdx` adds a "Discovery: which providers are wired?" section for `marmot providers list` and `--check-keys`. `quickstart.mdx` mentions `marmot config show` as the inspect-your-setup command.
+
 ## [0.3.1] — 2026-05-06
 
 ### Added
@@ -73,6 +101,7 @@ Initial public release.
 - Default plain-text output for piping; `--json` envelope for structured parsing.
 - Sessions and presets, async tasks (research/crawl/findall), response cache (opt-in per provider), agent skill bundle for Claude Code, OpenCode, Codex, and similar harnesses.
 
+[0.4.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.0
 [0.3.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.3.1
 [0.3.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.3.0
 [0.2.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.2.0
