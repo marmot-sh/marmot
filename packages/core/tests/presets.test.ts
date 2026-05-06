@@ -179,6 +179,40 @@ describe('presetSchema', () => {
     const r = presetSchema.safeParse({ mode: 'image', schema: '{}' });
     expect(r.success).toBe(false);
   });
+
+  it('accepts a minimal video preset', () => {
+    const r = presetSchema.safeParse({ mode: 'video' });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a video preset with all fields', () => {
+    const r = presetSchema.safeParse({
+      mode: 'video',
+      provider: 'openrouter',
+      model: 'google/veo-3.1-lite',
+      aspect: '16:9',
+      resolution: '720p',
+      duration: 4,
+      fps: 24,
+      audio: false,
+      n: 1,
+      seed: 42,
+      providerOption: ['negativePrompt=blurry'],
+      retries: 2,
+      timeout: 600,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects video preset with non-positive duration', () => {
+    const r = presetSchema.safeParse({ mode: 'video', duration: 0 });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects video field on a non-video preset (strict)', () => {
+    const r = presetSchema.safeParse({ mode: 'image', aspect: '16:9' });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('marmotConfigSchema presets key validation', () => {

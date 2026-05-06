@@ -17,6 +17,7 @@ import {
   type StdinReader,
 } from '@marmot-sh/core';
 import { sniffStdin } from '../lib/stdin-sniff.js';
+import { parseProviderOptions } from '../lib/provider-options.js';
 import {
   DEFAULT_RETRY_BASE_DELAY_MS,
   isRetryableProviderError,
@@ -68,6 +69,7 @@ export type VideoRunCommandOptions = {
   json?: boolean;
   retries?: string | number;
   timeout?: string | number;
+  providerOption?: string[];
 };
 
 type VideoRunCommandDependencies = {
@@ -281,6 +283,7 @@ export async function handleVideoRunCommand(
             seed: input.seed,
             audio: input.audio,
             images,
+            providerOptions: parseProviderOptions(options.providerOption),
             apiKey,
             fetchFn: dependencies.fetchFn,
             abortSignal,

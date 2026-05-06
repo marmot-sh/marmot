@@ -54,6 +54,12 @@ export type PresetWriteOptions = {
   // transcription
   language?: string;
   prompt?: string;
+  // video
+  aspect?: string;
+  resolution?: string;
+  duration?: string | number;
+  fps?: string | number;
+  audio?: boolean;
 };
 
 function parseIntField(name: string, value: string | number | undefined): number | undefined {
@@ -140,6 +146,19 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         language: opts.language,
         format: opts.format,
         prompt: opts.prompt,
+        providerOption: nonEmptyArray(opts.providerOption),
+      };
+      break;
+    case 'video':
+      candidate = {
+        ...base,
+        aspect: opts.aspect,
+        resolution: opts.resolution,
+        duration: parseIntField('duration', opts.duration),
+        fps: parseIntField('fps', opts.fps),
+        audio: opts.audio,
+        n: parseIntField('n', opts.n),
+        seed: parseIntField('seed', opts.seed),
         providerOption: nonEmptyArray(opts.providerOption),
       };
       break;
