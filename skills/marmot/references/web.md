@@ -31,7 +31,7 @@ Reference for `search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall
 
 ## Sync verbs
 
-All sync verbs share the envelope `{ok, provider, verb, cached, data, raw, usage?, timestamp}` and the cache flags `--no-cache` / `--refresh`.
+All sync verbs share the envelope `{ok, provider, verb, cached, data, raw, usage?, timestamp}` and the cache flags `--no-cache` / `--refresh`. Every verb (sync and async) accepts `-o, --output <path>` to write the JSON envelope to a file instead of stdout. Query verbs (`search`, `answer`, `research`, `findall`, `scrape`) merge piped stdin into the query input — useful for `cat queries.txt | marmot answer` or pipelines that build the query upstream.
 
 ### search
 
