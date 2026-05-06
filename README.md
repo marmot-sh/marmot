@@ -212,6 +212,10 @@ Full docs at [marmot.sh/docs](https://marmot.sh/docs?utm_source=github&utm_mediu
 
 Contributions are welcome. See [CONTRIBUTING.md](https://github.com/marmot-sh/marmot/blob/main/CONTRIBUTING.md) for details.
 
+## Acknowledgments
+
+Marmot leans on excellent open-source work. [Vercel's AI SDK](https://github.com/vercel/ai) drives model calls across every modality, with [`@ai-sdk/openai`](https://github.com/vercel/ai/tree/main/packages/openai), [`@ai-sdk/anthropic`](https://github.com/vercel/ai/tree/main/packages/anthropic), and the [OpenRouter provider](https://github.com/OpenRouterTeam/ai-sdk-provider) plugged in. [Commander](https://github.com/tj/commander.js) shapes the CLI surface and [Clack](https://github.com/bombshell-dev/clack) powers the interactive setup wizard.
+
 ## License
 
 MIT. See [LICENSE](https://github.com/marmot-sh/marmot/blob/main/LICENSE) for details.
