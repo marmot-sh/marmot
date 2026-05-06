@@ -213,6 +213,202 @@ describe('presetSchema', () => {
     const r = presetSchema.safeParse({ mode: 'image', aspect: '16:9' });
     expect(r.success).toBe(false);
   });
+
+  // Web verb presets
+
+  it('accepts a fully-populated search preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'search',
+      provider: 'parallel',
+      limit: 25,
+      depth: 'deep',
+      freshness: 'week',
+      afterDate: '2026-01-01',
+      beforeDate: '2026-12-31',
+      includeDomains: 'linkedin.com,github.com',
+      excludeDomains: 'spam.com',
+      includeContent: true,
+      retries: 2,
+      timeout: 60,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects search preset with malformed afterDate', () => {
+    const r = presetSchema.safeParse({
+      mode: 'search',
+      afterDate: '01/01/2026',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects search preset with non-positive limit', () => {
+    const r = presetSchema.safeParse({ mode: 'search', limit: 0 });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects search preset with unknown depth tier', () => {
+    const r = presetSchema.safeParse({ mode: 'search', depth: 'extreme' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects search preset with AI-mode field (strict)', () => {
+    const r = presetSchema.safeParse({
+      mode: 'search',
+      temperature: 0.5,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects search preset with AI provider', () => {
+    const r = presetSchema.safeParse({
+      mode: 'search',
+      provider: 'anthropic',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts a scrape preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'scrape',
+      provider: 'firecrawl',
+      format: 'markdown',
+      query: 'pricing details',
+      retries: 1,
+      timeout: 90,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects scrape preset with unknown format', () => {
+    const r = presetSchema.safeParse({ mode: 'scrape', format: 'docx' });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts an answer preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'answer',
+      provider: 'tavily',
+      maxCitations: 8,
+      includeSearch: true,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects answer preset with non-positive maxCitations', () => {
+    const r = presetSchema.safeParse({ mode: 'answer', maxCitations: 0 });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts a map preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'map',
+      provider: 'firecrawl',
+      search: 'docs',
+      limit: 100,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a crawl preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'crawl',
+      provider: 'firecrawl',
+      maxPages: 50,
+      maxDepth: 3,
+      instructions: 'Focus on docs and pricing.',
+      includePaths: '/docs/.*,/pricing',
+      excludePaths: '/blog/.*',
+      allowExternal: false,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects crawl preset with negative maxDepth', () => {
+    const r = presetSchema.safeParse({ mode: 'crawl', maxDepth: -1 });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts a research preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'research',
+      provider: 'parallel',
+      depth: 'deep',
+      schemaFile: '/path/to/schema.json',
+      instructions: 'Cite primary sources.',
+      pollInterval: '5,10,30',
+      maxWait: 1800,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a findall preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'findall',
+      provider: 'parallel',
+      limit: 100,
+      schema: '{"type":"object"}',
+      entityType: 'company',
+      matchConditions: '[{"name":"sector","description":"fintech"}]',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  // Data verb presets
+
+  it('accepts an enrich preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'enrich',
+      provider: 'pdl',
+      type: 'person',
+      minLikelihood: 8,
+      require: 'email,linkedin',
+      fields: 'email,linkedin,full_name',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects enrich preset with unknown type', () => {
+    const r = presetSchema.safeParse({ mode: 'enrich', type: 'building' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects enrich preset with web provider', () => {
+    const r = presetSchema.safeParse({ mode: 'enrich', provider: 'parallel' });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts a lookup preset', () => {
+    const r = presetSchema.safeParse({
+      mode: 'lookup',
+      provider: 'apollo',
+      type: 'email',
+      limit: 50,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a verify preset (minimal)', () => {
+    const r = presetSchema.safeParse({
+      mode: 'verify',
+      provider: 'hunter',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects verify preset with random extra field (strict)', () => {
+    const r = presetSchema.safeParse({
+      mode: 'verify',
+      provider: 'hunter',
+      type: 'person',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects unknown mode discriminator', () => {
+    const r = presetSchema.safeParse({ mode: 'unknown', provider: 'x' });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('marmotConfigSchema presets key validation', () => {

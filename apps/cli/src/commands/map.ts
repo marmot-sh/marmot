@@ -20,18 +20,20 @@ import {
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 
 export type MapCommandOptions = {
   provider?: string;
   apiKey?: string;
   search?: string;
-  limit?: string;
+  limit?: string | number;
   raw?: boolean;
   cache?: boolean;
   refresh?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type MapCommandDependencies = {
@@ -78,7 +80,11 @@ export async function handleMapCommand(
     timeout: options.timeout,
   });
   const onRetry = makeRetryNotifier(stderr, provider, 'map', retries);
-  const limit = options.limit ? Number.parseInt(options.limit, 10) : undefined;
+  const limit = options.limit !== undefined && options.limit !== ''
+    ? (typeof options.limit === 'number'
+        ? options.limit
+        : Number.parseInt(options.limit, 10))
+    : undefined;
   const input: WebMapInput = {
     url,
     search: options.search,
@@ -135,7 +141,9 @@ export function buildMapCommand(
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved map preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (url: string, options: MapCommandOptions) => {
-      await handleMapCommand(url, options, deps);
+      const merged = await withPreset(options, 'map');
+      await handleMapCommand(url, merged, deps);
     });
 }

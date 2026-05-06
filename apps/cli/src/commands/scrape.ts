@@ -25,6 +25,7 @@ import {
   writeEnvelope,
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 
 export type ScrapeCommandOptions = {
   provider?: string;
@@ -34,9 +35,10 @@ export type ScrapeCommandOptions = {
   raw?: boolean;
   cache?: boolean;
   refresh?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type ScrapeCommandDependencies = DataVerbDependencies & {
@@ -147,7 +149,9 @@ export function buildScrapeCommand(
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved scrape preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (urls: string[], options: ScrapeCommandOptions) => {
-      await handleScrapeCommand(urls, options, deps);
+      const merged = await withPreset(options, 'scrape');
+      await handleScrapeCommand(urls, merged, deps);
     });
 }

@@ -108,6 +108,122 @@ describe('preset create', () => {
       handlePresetCreate('p1', { mode: 'image', n: 'abc' }, { env }),
     ).rejects.toThrowError(/--n must be an integer/);
   });
+
+  it('creates a search preset with domain filters and dates', async () => {
+    const { env, dir } = await fixture();
+    const cap = captureStdout();
+    await handlePresetCreate(
+      'linkedin-people',
+      {
+        mode: 'search',
+        provider: 'parallel',
+        limit: '25',
+        depth: 'deep',
+        includeDomains: 'linkedin.com',
+        afterDate: '2026-01-01',
+        retries: '2',
+      },
+      { env, stdout: cap.writer },
+    );
+    const out = JSON.parse(cap.text);
+    expect(out.preset).toEqual({
+      mode: 'search',
+      provider: 'parallel',
+      limit: 25,
+      depth: 'deep',
+      includeDomains: 'linkedin.com',
+      afterDate: '2026-01-01',
+      retries: 2,
+    });
+    const onDisk = JSON.parse(await readFile(join(dir, 'config.json'), 'utf8'));
+    expect(onDisk.presets['linkedin-people'].includeDomains).toBe('linkedin.com');
+  });
+
+  it('rejects search preset with malformed afterDate', async () => {
+    const { env } = await fixture();
+    await expect(
+      handlePresetCreate(
+        'p1',
+        { mode: 'search', afterDate: '01/01/2026' },
+        { env },
+      ),
+    ).rejects.toThrowError(/Invalid preset/);
+  });
+
+  it('creates a research preset with schema-file and poll cadence', async () => {
+    const { env } = await fixture();
+    const cap = captureStdout();
+    await handlePresetCreate(
+      'deep-research',
+      {
+        mode: 'research',
+        provider: 'parallel',
+        depth: 'deep',
+        schemaFile: '/tmp/schema.json',
+        instructions: 'Cite primary sources.',
+        pollInterval: '5,10,30',
+        maxWait: '1800',
+      },
+      { env, stdout: cap.writer },
+    );
+    const out = JSON.parse(cap.text);
+    expect(out.preset.depth).toBe('deep');
+    expect(out.preset.pollInterval).toBe('5,10,30');
+    expect(out.preset.maxWait).toBe(1800);
+  });
+
+  it('creates an enrich preset with type, likelihood, and field controls', async () => {
+    const { env } = await fixture();
+    const cap = captureStdout();
+    await handlePresetCreate(
+      'enrich-people-pdl',
+      {
+        mode: 'enrich',
+        provider: 'pdl',
+        type: 'person',
+        minLikelihood: '8',
+        require: 'email,linkedin',
+        fields: 'email,linkedin,full_name',
+      },
+      { env, stdout: cap.writer },
+    );
+    const out = JSON.parse(cap.text);
+    expect(out.preset).toEqual({
+      mode: 'enrich',
+      provider: 'pdl',
+      type: 'person',
+      minLikelihood: 8,
+      require: 'email,linkedin',
+      fields: 'email,linkedin,full_name',
+    });
+  });
+
+  it('rejects enrich preset with web provider', async () => {
+    const { env } = await fixture();
+    await expect(
+      handlePresetCreate(
+        'p1',
+        { mode: 'enrich', provider: 'parallel' },
+        { env },
+      ),
+    ).rejects.toThrowError(/Invalid preset/);
+  });
+
+  it('creates a verify preset (minimal)', async () => {
+    const { env } = await fixture();
+    const cap = captureStdout();
+    await handlePresetCreate(
+      'verify-hunter',
+      { mode: 'verify', provider: 'hunter', retries: '1' },
+      { env, stdout: cap.writer },
+    );
+    const out = JSON.parse(cap.text);
+    expect(out.preset).toEqual({
+      mode: 'verify',
+      provider: 'hunter',
+      retries: 1,
+    });
+  });
 });
 
 describe('preset update', () => {

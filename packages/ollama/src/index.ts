@@ -37,22 +37,31 @@ const ollamaTagsResponseSchema = z.object({
 
 /** Ollama doesn't expose reasoning controls; reasoning is silently
  *  ignored. Sampling params and generic providerOptions passthrough
- *  (under the `ollama` key) work normally. */
+ *  (under the `ollama` key) work normally.
+ *
+ *  Ollama's AI SDK provider does not implement `stopSequences`. Including
+ *  the key (even as undefined) trips an `AI SDK Warning (ollama.responses
+ *  / ...): The feature "setting" is not supported. stopSequences` to
+ *  stderr on every call. Only set the key when the user actually passes
+ *  --stop. (When they do, the warning is appropriate — ollama still
+ *  doesn't honor it; the warning tells them the flag won't apply.) */
 function buildCommonOllamaArgs(input: ProviderGenerateInput) {
   const userOpts = input.providerOptions ?? {};
-  return {
+  const args: Record<string, unknown> = {
     temperature: input.temperature,
     maxOutputTokens: input.maxOutputTokens,
     topP: input.topP,
     seed: input.seed,
-    stopSequences: input.stopSequences,
-    providerOptions:
-      Object.keys(userOpts).length > 0
-        ? ({ ollama: userOpts } as unknown as Parameters<
-            typeof generateText
-          >[0]['providerOptions'])
-        : undefined,
   };
+  if (input.stopSequences && input.stopSequences.length > 0) {
+    args.stopSequences = input.stopSequences;
+  }
+  if (Object.keys(userOpts).length > 0) {
+    args.providerOptions = { ollama: userOpts } as unknown as Parameters<
+      typeof generateText
+    >[0]['providerOptions'];
+  }
+  return args;
 }
 
 export const ollamaAdapter: ProviderAdapter = {

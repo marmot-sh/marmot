@@ -29,11 +29,13 @@ import {
   writeEnvelope,
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
+import { parseIntFlag } from '../lib/parse-numeric.js';
 
 export type FindallCommandOptions = {
   provider?: string;
   apiKey?: string;
-  limit?: string;
+  limit?: string | number;
   schema?: string;
   schemaFile?: string;
   entityType?: string;
@@ -41,9 +43,10 @@ export type FindallCommandOptions = {
   wait?: boolean;
   async?: boolean;
   raw?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type FindallCommandDependencies = DataVerbDependencies & {
@@ -106,7 +109,7 @@ export async function handleFindallCommand(
     schema = JSON.parse(await readFile(options.schemaFile, 'utf8'));
   }
 
-  const limit = options.limit ? Number.parseInt(options.limit, 10) : undefined;
+  const limit = parseIntFlag('limit', options.limit);
   let matchConditions: WebFindallInput['matchConditions'];
   if (options.matchConditions) {
     try {
@@ -224,7 +227,9 @@ export function buildFindallCommand(
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved findall preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (objectiveParts: string[], options: FindallCommandOptions) => {
-      await handleFindallCommand(objectiveParts, options, deps);
+      const merged = await withPreset(options, 'findall');
+      await handleFindallCommand(objectiveParts, merged, deps);
     });
 }
