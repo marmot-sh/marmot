@@ -246,6 +246,9 @@ marmot video <prompt> [--model id] [--aspect 16:9|9:16|1:1] [--resolution 720p|1
                       [--n <count>] [--seed <int>] [-o <path>]
                       [--provider openrouter|vercel] [--api-key <key>]
                       [--retries <n>] [--timeout <seconds>] [--binary | --b64 | --json]
+
+# Or pipe image bytes in for first-frame conditioning:
+<image bytes> | marmot video <prompt>
 ```
 
 Default: 4-second 720p no-audio clip via `google/veo-3.1-lite` (~$0.03/sec, ~$0.12/clip). `--audio` opts into synced audio (more expensive). `--image` is repeatable up to 2 paths: position 1 = first-frame conditioning, position 2 = last-frame for models that support it (Veo, Kling, Seedance, Wan). A piped image on stdin is auto-detected and slotted into position 1 (so `marmot image '...' | marmot video 'animate this'` works); the cap of 2 still applies, with stdin counting toward it.

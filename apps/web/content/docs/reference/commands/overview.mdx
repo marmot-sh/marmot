@@ -41,7 +41,7 @@ description: Every top-level command, with a one-line purpose and a link to its 
 | `marmot config init` | Create an empty config (`--force` to overwrite) | [Configuration](/docs/reference/configuration) |
 | `marmot config set <key> <val>` | Set a dotted-path config key | [Configuration](/docs/reference/configuration) |
 | `marmot config unset <key>` | Remove a config key | [Configuration](/docs/reference/configuration) |
-| `marmot providers list` | Show every supported provider, env-var status, defaults | [Providers](/docs/reference/providers) |
+| `marmot providers list` | List every supported provider (AI / web / data) with env vars; pass `--check-keys` for readiness | [Providers](/docs/reference/providers) |
 | `marmot cache refresh [target]` | Refresh provider model catalogs (one provider or `all`) | [Caching](/docs/reference/caching) |
 | `marmot cache stats [--provider X]` | Show response cache size and entry count per provider | [Caching](/docs/reference/caching) |
 | `marmot cache clear [--provider X \| --all] [--query "..."] [--older-than N]` | Invalidate response cache entries | [Caching](/docs/reference/caching) |
