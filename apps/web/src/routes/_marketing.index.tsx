@@ -13,8 +13,6 @@ import {
 } from "lucide-react";
 
 import { buttonVariants } from "@marmot-sh/ui/shadcn/button";
-import { AppHeader } from "@/components/app-header";
-import { Logo } from "@/components/logo";
 import {
   ClaudeAI,
   Cursor,
@@ -24,7 +22,7 @@ import {
   OpenCode,
 } from "@/components/logos";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_marketing/")({
   component: Landing,
   head: () => {
     const title = "marmot — shell-native AI and web data";
@@ -52,16 +50,12 @@ export const Route = createFileRoute("/")({
 function Landing() {
   return (
     <>
-      <AppHeader />
-      <main className="flex-1">
-        <Hero />
-        <Workflows />
-        <BuiltForAgents />
-        <BringYourOwnKeys />
-        <WhatsInTheBox />
-        <FinalCta />
-        <Footer />
-      </main>
+      <Hero />
+      <Workflows />
+      <BuiltForAgents />
+      <BringYourOwnKeys />
+      <WhatsInTheBox />
+      <FinalCta />
     </>
   );
 }
@@ -718,6 +712,16 @@ function BringYourOwnKeys() {
           ))}
         </div>
       </div>
+
+      <div className="mt-8 flex justify-center sm:mt-10">
+        <Link
+          to="/providers"
+          className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          See all providers
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </Link>
+      </div>
     </section>
   );
 }
@@ -781,27 +785,41 @@ function WhatsInTheBox() {
           </h2>
         </div>
 
-        <div className="mx-auto mt-10 grid max-w-6xl gap-4 sm:grid-cols-4 sm:gap-5">
-          {FEATURE_TILES.map((tile) => (
-            <div
-              key={tile.title}
-              className="border border-dashed border-border bg-muted p-5 sm:p-6"
-            >
+        <div className="mx-auto mt-10 grid max-w-5xl items-center gap-8 sm:grid-cols-[auto_1fr] sm:gap-10 lg:gap-12">
+          <div className="hidden sm:block">
+            <img
+              src="/marmot-rack.webp"
+              alt=""
+              aria-hidden
+              draggable={false}
+              loading="lazy"
+              width={600}
+              height={680}
+              className="h-auto w-64 select-none lg:w-72"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+            {FEATURE_TILES.map((tile) => (
               <div
-                aria-hidden
-                className="flex h-10 w-10 items-center justify-center rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_8px_-4px_rgba(0,0,0,0.06)]"
-                style={{ background: tile.gradient }}
+                key={tile.title}
+                className="border border-dashed border-border bg-muted p-5 sm:p-6"
               >
-                <tile.icon className="h-5 w-5 text-white" aria-hidden />
+                <div
+                  aria-hidden
+                  className="flex h-10 w-10 items-center justify-center rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_8px_-4px_rgba(0,0,0,0.06)]"
+                  style={{ background: tile.gradient }}
+                >
+                  <tile.icon className="h-5 w-5 text-white" aria-hidden />
+                </div>
+                <h3 className="mt-4 text-[1rem] font-semibold leading-[1.3] tracking-[-0.005em] text-foreground">
+                  {tile.title}
+                </h3>
+                <p className="mt-1.5 text-balance text-sm leading-[1.6] text-muted-foreground">
+                  {tile.description}
+                </p>
               </div>
-              <h3 className="mt-4 text-[1rem] font-semibold leading-[1.3] tracking-[-0.005em] text-foreground">
-                {tile.title}
-              </h3>
-              <p className="mt-1.5 text-balance text-sm leading-[1.6] text-muted-foreground">
-                {tile.description}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -878,62 +896,3 @@ function FinalCta() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  footer                                                                    */
-/* -------------------------------------------------------------------------- */
-
-function Footer() {
-  return (
-    <footer className="bg-muted">
-      <div className="container mx-auto flex flex-col items-start gap-6 px-6 py-10 sm:flex-row sm:items-center sm:justify-between sm:py-12">
-        <Logo />
-        <nav
-          aria-label="Footer"
-          className="flex flex-wrap items-center gap-x-7 gap-y-2 text-[13px]"
-        >
-          <FooterLink to="/docs/$" splat="">
-            Docs
-          </FooterLink>
-          <FooterLink to="/docs/$" splat="quickstart">
-            Quick start
-          </FooterLink>
-          <FooterLink to="/docs/$" splat="installation">
-            Installation
-          </FooterLink>
-          <FooterLink href="https://github.com/marmot-sh/marmot">
-            GitHub
-          </FooterLink>
-          <FooterLink href="https://x.com/marmot_sh">
-            X
-          </FooterLink>
-        </nav>
-      </div>
-    </footer>
-  );
-}
-
-function FooterLink({
-  to,
-  splat,
-  href,
-  children,
-}: {
-  to?: "/docs/$";
-  splat?: string;
-  href?: string;
-  children: React.ReactNode;
-}) {
-  const className =
-    "text-muted-foreground transition-colors hover:text-foreground";
-  if (to)
-    return (
-      <Link to={to} params={{ _splat: splat ?? "" }} className={className}>
-        {children}
-      </Link>
-    );
-  return (
-    <a href={href} className={className}>
-      {children}
-    </a>
-  );
-}
