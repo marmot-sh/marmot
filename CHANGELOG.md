@@ -4,6 +4,20 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.5] — 2026-05-06
+
+### Fixed
+
+- **Parallel search**: 0.4.4 placed `include_domains`, `exclude_domains`, and `after_date` at the top level of the request body. Per the [V1SearchRequest spec](https://docs.parallel.ai/api-reference/search-api/search), those fields are nested under `advanced_settings.source_policy` — sending them at the top level returned `422 Request validation error` on every filtered call. The 0.4.4 user repro `marmot search "..." --include-domains "linkedin.com" --provider parallel` returned 422; with this fix it returns three `linkedin.com` URLs from a live API call.
+- **Parallel `--limit`**: previously approximated via `max_chars_total = limit*500`. Now maps directly to the documented `advanced_settings.max_results` field.
+- **Firecrawl `sources`**: 0.4.4 sent `["web"]` (array of strings); per the [`/v2/search` spec](https://docs.firecrawl.dev/api-reference/v2-openapi.json) it's an array of objects (`[{ "type": "web" }]`). The string form may have worked via back-compat coercion; the documented shape is now used.
+- **Firecrawl `tbs` cdr format**: zero-pads month and day to match the spec example exactly (`cd_min:01/15/2026` not `cd_min:1/15/2026`).
+- **Parallel adapter errors** now surface the response body (e.g. `ErrorResponse.error.message`) alongside the status code. A `422` no longer reads as `Parallel search failed with status 422.` — it includes the offending-field message Parallel returns, which is what makes wire-shape drift visible immediately.
+
+### Notes
+
+- All changes live-tested against real Parallel / Exa / Firecrawl APIs with keys from the maintainer's env. Mocked-fetch tests can't catch contract drift; live tests are the only way to verify the wire format matches the spec. This shipped because 0.4.4's tests verified our adapter sends a specific shape, but didn't verify that shape was what the API accepts.
+
 ## [0.4.4] — 2026-05-06
 
 ### Fixed
@@ -157,6 +171,7 @@ Initial public release.
 - Default plain-text output for piping; `--json` envelope for structured parsing.
 - Sessions and presets, async tasks (research/crawl/findall), response cache (opt-in per provider), agent skill bundle for Claude Code, OpenCode, Codex, and similar harnesses.
 
+[0.4.5]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.5
 [0.4.4]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.4
 [0.4.3]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.3
 [0.4.2]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.2

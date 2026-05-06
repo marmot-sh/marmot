@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/vercel",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "@marmot-sh adapter for Vercel AI Gateway — text/image/speech/transcribe (where supported).",
   "type": "module",
   "private": true,
