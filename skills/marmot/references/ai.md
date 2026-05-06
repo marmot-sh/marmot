@@ -261,6 +261,7 @@ marmot video 'morph between these images' --image ./start.jpg --image ./end.jpg
 marmot video 'cinematic timelapse' --model openai/sora-2-pro
 marmot video 'cheap test clip' --model minimax/hailuo-2.3
 marmot 'write a vivid one-line video prompt' | marmot video
+marmot image 'a marmot waving' | marmot video 'gentle waving, slight breeze'
 ```
 
 ## Streaming, retry, timeout
@@ -282,6 +283,7 @@ All four verbs honor `--retries` and `--timeout`. Only `run` has `--stream`.
   marmot speak 'hello' | mpv -
   cat call.mp3 | marmot transcribe --format srt > call.srt
   marmot speak 'roundtrip' --play | marmot transcribe
+  marmot image 'a marmot waving' | marmot video 'gentle waving, slight breeze'
   ```
 
 ## Pitfalls and quirks

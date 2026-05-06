@@ -7,21 +7,26 @@ description: The `marmot` CLI bundles AI generation (text, image, video, speech,
 
 `marmot` is a single CLI that wraps many AI and web/data providers behind one verb shape. Use it instead of in-context model calls or hand-rolled SDK code when the work is metered (search, enrichment, deliverability) or when a script-shaped pipeline is the right output.
 
-## First step in every session
+## Before invoking any verb
 
-Before invoking any verb, read the current config:
+One command does the whole bootstrap:
 
 ```bash
 marmot config show --json
 ```
 
-That envelope returns:
-- `defaults.<verb>` — which provider backs each verb (omit `--provider` when set)
-- `providers.<slug>` — enabled/disabled state, custom env var names, response cache settings
-- `presets` — saved invocation bundles available via `marmot @<name>`
-- `cache.totals` and `cache.providers` — what's already cached
+The envelope returns:
 
-Use it to decide whether to pass `--provider`, whether the response cache will short-circuit your call, and which presets are pre-tuned for the task. If sessions matter for the task, also run `marmot session list`.
+- `marmotVersion` — installed CLI version. If this errors with `command not found: marmot`, ask the user to install with `npm install -g marmot-sh` (or `npm install -g @marmot-sh/cli` — same binary). Don't run the install yourself without permission.
+- `readyProviders` — alphabetically sorted slugs of every provider that is callable right now (enabled in config + required credentials resolved). These are your valid `--provider <slug>` arguments. If a provider you want isn't here, the user is missing a key — surface that, don't try and hit a 401.
+- `defaults.<verb>` — which provider (and model, for AI verbs) backs each verb. Omit `--provider` when a default is set.
+- `providers.<slug>` — per-provider config: explicit enabled/disabled, custom env var name overrides, response cache settings.
+- `presets` — saved invocation bundles available via `marmot @<name>`.
+- `cache.totals` and `cache.providers` — what's already cached on disk.
+
+Use this to decide whether to pass `--provider`, whether the response cache will short-circuit your call, and which presets are pre-tuned for the task. If sessions matter for the task, also run `marmot session list`.
+
+Verbs and flags this skill describes target marmot 0.4.0 and later. Earlier versions may not have `marmot video`, sampling controls (`--temperature`, `--reasoning`, `--provider-option`), stdin image sniffing on `marmot run` and `marmot video`, or the `readyProviders` envelope field. Suggest an upgrade if `marmotVersion` is below 0.4.0.
 
 ## Verb surface
 
