@@ -4,6 +4,23 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.3] — 2026-05-06
+
+### Added
+
+- **Presets now cover the full AI flag surface.** Each preset mode gained the flags that landed in 0.3.0 / 0.3.1 but never propagated into preset support. Strictly additive — existing presets validate without change.
+  - **Text**: `system-file`, `schema`, `schema-file`, `schema-module`, `temperature`, `max-tokens`, `top-p`, `seed`, `stop` (repeatable), `reasoning`, `provider-option` (repeatable), `stream`, `json`.
+  - **Image**: `seed`, `negative`, `provider-option`.
+  - **Speech**: `instructions`, `provider-option`.
+  - **Transcription**: `prompt`, `provider-option`.
+- **New `video` preset mode.** `marmot video` shipped in 0.3.0 without preset support; this release adds it. New `presetVideoSchema` covers `aspect`, `resolution`, `duration`, `fps`, `audio`, `n`, `seed`, `provider-option`, plus the shared `provider`/`model`/`retries`/`timeout`. `marmot video` gains `--preset <name>` and the `@name` sigil (via the global rewrite, no per-verb plumbing needed).
+- `--provider-option <key=value>` on `marmot video`. Plumbs through to the `generateVideo` adapter call. Vercel's video adapter already reads `providerOptions`; OpenRouter passes them through silently for now.
+- New `VideoPreset` type export in `@marmot-sh/core`.
+
+### Notes
+
+- All preset field names are camelCase to match commander's parsed option keys verbatim. Runtime merging is unchanged — `applyPreset` already iterates preset keys and fills `undefined` slots, so any new field automatically flows into the verb's options without per-verb glue. The `--preset` flag and the `@name` sigil work the same way they did in earlier versions.
+
 ## [0.4.2] — 2026-05-06
 
 ### Maintenance
@@ -118,6 +135,7 @@ Initial public release.
 - Default plain-text output for piping; `--json` envelope for structured parsing.
 - Sessions and presets, async tasks (research/crawl/findall), response cache (opt-in per provider), agent skill bundle for Claude Code, OpenCode, Codex, and similar harnesses.
 
+[0.4.3]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.3
 [0.4.2]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.2
 [0.4.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.1
 [0.4.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.4.0

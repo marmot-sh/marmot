@@ -83,7 +83,7 @@ describe('preset create', () => {
   it('rejects unknown mode', async () => {
     const { env } = await fixture();
     await expect(
-      handlePresetCreate('p1', { mode: 'video' }, { env }),
+      handlePresetCreate('p1', { mode: 'banana' }, { env }),
     ).rejects.toThrowError(/Unknown mode/);
   });
 
