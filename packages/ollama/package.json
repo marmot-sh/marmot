@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/ollama",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "@marmot-sh adapter for Ollama (local) — text/image/speech/transcribe (where supported).",
   "type": "module",
   "private": true,
