@@ -113,7 +113,7 @@ describe('parallelAdapter.search', () => {
     ).rejects.toThrowError(/status 401/);
   });
 
-  it('passes includeDomains and excludeDomains to the request body (closes 0.4.3 silent-drop bug)', async () => {
+  it('nests includeDomains and excludeDomains under advanced_settings.source_policy per spec (closes 0.4.4 422 bug)', async () => {
     let captured: Record<string, unknown> | undefined;
     await parallelAdapter.search!({
       apiKey: 'k',
@@ -126,12 +126,20 @@ describe('parallelAdapter.search', () => {
       }) as unknown as typeof fetch,
     });
     expect(captured).toMatchObject({
-      include_domains: ['linkedin.com', 'github.com'],
-      exclude_domains: ['spam.com'],
+      advanced_settings: {
+        source_policy: {
+          include_domains: ['linkedin.com', 'github.com'],
+          exclude_domains: ['spam.com'],
+        },
+      },
     });
+    // Critical: domain fields must NOT be at the top level. That's the
+    // exact 422 we shipped in 0.4.4.
+    expect(captured).not.toHaveProperty('include_domains');
+    expect(captured).not.toHaveProperty('exclude_domains');
   });
 
-  it('passes afterDate as after_date in YYYY-MM-DD form', async () => {
+  it('nests afterDate under advanced_settings.source_policy.after_date in YYYY-MM-DD form', async () => {
     let captured: Record<string, unknown> | undefined;
     await parallelAdapter.search!({
       apiKey: 'k',
@@ -142,10 +150,13 @@ describe('parallelAdapter.search', () => {
         return okJson({ results: [] });
       }) as unknown as typeof fetch,
     });
-    expect(captured).toMatchObject({ after_date: '2026-01-15' });
+    expect(captured).toMatchObject({
+      advanced_settings: { source_policy: { after_date: '2026-01-15' } },
+    });
+    expect(captured).not.toHaveProperty('after_date');
   });
 
-  it('maps relative freshness to after_date when afterDate is not set', async () => {
+  it('maps relative freshness to advanced_settings.source_policy.after_date when afterDate is not set', async () => {
     let captured: Record<string, unknown> | undefined;
     await parallelAdapter.search!({
       apiKey: 'k',
@@ -156,7 +167,9 @@ describe('parallelAdapter.search', () => {
         return okJson({ results: [] });
       }) as unknown as typeof fetch,
     });
-    expect((captured as Record<string, string>).after_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const after = (captured as { advanced_settings?: { source_policy?: { after_date?: string } } })
+      ?.advanced_settings?.source_policy?.after_date;
+    expect(after).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it('explicit afterDate wins over freshness mapping', async () => {
@@ -171,10 +184,29 @@ describe('parallelAdapter.search', () => {
         return okJson({ results: [] });
       }) as unknown as typeof fetch,
     });
-    expect(captured).toMatchObject({ after_date: '2026-01-15' });
+    expect(captured).toMatchObject({
+      advanced_settings: { source_policy: { after_date: '2026-01-15' } },
+    });
   });
 
-  it('omits date fields entirely when neither afterDate nor freshness is set', async () => {
+  it('uses advanced_settings.max_results for --limit (replaces the max_chars_total approximation)', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await parallelAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      limit: 25,
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({
+      advanced_settings: { max_results: 25 },
+    });
+    expect(captured).not.toHaveProperty('max_chars_total');
+  });
+
+  it('omits advanced_settings entirely when no filter / limit is requested', async () => {
     let captured: Record<string, unknown> | undefined;
     await parallelAdapter.search!({
       apiKey: 'k',
@@ -184,9 +216,27 @@ describe('parallelAdapter.search', () => {
         return okJson({ results: [] });
       }) as unknown as typeof fetch,
     });
+    expect(captured).not.toHaveProperty('advanced_settings');
     expect(captured).not.toHaveProperty('after_date');
     expect(captured).not.toHaveProperty('include_domains');
-    expect(captured).not.toHaveProperty('exclude_domains');
+    expect(captured).not.toHaveProperty('max_chars_total');
+  });
+
+  it('surfaces Parallel error message in the thrown error on 422', async () => {
+    const fetchFn = (async () =>
+      new Response(
+        JSON.stringify({
+          type: 'error',
+          error: {
+            ref_id: 'search_xxx',
+            message: "Field 'include_domains' is not a valid top-level parameter",
+          },
+        }),
+        { status: 422, headers: { 'content-type': 'application/json' } },
+      )) as unknown as typeof fetch;
+    await expect(
+      parallelAdapter.search!({ apiKey: 'k', query: 'x', fetchFn }),
+    ).rejects.toThrowError(/422.*Field 'include_domains' is not a valid top-level parameter/);
   });
 });
 

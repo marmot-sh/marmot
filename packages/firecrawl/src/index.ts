@@ -49,9 +49,11 @@ type FirecrawlSearchResponse = {
 export function buildFirecrawlTbs(input: WebSearchInput): string | null {
   if (input.afterDate || input.beforeDate) {
     const fmt = (d: string): string => {
-      // YYYY-MM-DD → M/D/YYYY (the Google-search format Firecrawl expects).
+      // YYYY-MM-DD → MM/DD/YYYY (the Google-search format Firecrawl
+      // documents; zero-padded month and day to match the spec
+      // example exactly even though Google itself accepts both forms).
       const [y, m, day] = d.split('-');
-      return `${Number(m)}/${Number(day)}/${y}`;
+      return `${m}/${day}/${y}`;
     };
     const parts = ['cdr:1'];
     if (input.afterDate) parts.push(`cd_min:${fmt(input.afterDate)}`);
@@ -79,9 +81,13 @@ async function firecrawlSearch(input: WebSearchInput): Promise<WebSearchResult> 
   }
   const fetchFn = input.fetchFn ?? fetch;
 
+  // Per Firecrawl's POST /v2/search spec, `sources` is an array of
+  // objects (`[{type:'web'}]`), not an array of strings. The previous
+  // string form may have worked via back-compat coercion; the
+  // documented shape is the safer wire format.
   const body: Record<string, unknown> = {
     query: input.query,
-    sources: ['web'],
+    sources: [{ type: 'web' }],
   };
   if (typeof input.limit === 'number') body.limit = input.limit;
   if (input.includeDomains?.length) body.includeDomains = input.includeDomains;
