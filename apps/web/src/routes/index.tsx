@@ -57,6 +57,7 @@ function Landing() {
         <Hero />
         <Workflows />
         <BuiltForAgents />
+        <BringYourOwnKeys />
         <WhatsInTheBox />
         <FinalCta />
         <Footer />
@@ -147,7 +148,7 @@ function Terminal({
             </span>
           )}
         </div>
-        <div className="px-4 py-5 sm:px-6 sm:py-6">{children}</div>
+        <div className="px-4 py-3 sm:px-6 sm:py-4">{children}</div>
       </div>
     </div>
   );
@@ -159,7 +160,7 @@ function Terminal({
 
 function Hero() {
   return (
-    <section className="container mx-auto px-6 overflow-x-clip pt-10 pb-12 sm:pt-14 sm:pb-16 lg:pt-16">
+    <section className="container mx-auto px-6 overflow-x-clip pt-4 pb-12 sm:pt-8 sm:pb-16 lg:pt-10">
       <div className="mb-6 flex justify-start sm:justify-center">
         <a
           href="https://github.com/marmot-sh/marmot"
@@ -178,7 +179,7 @@ function Hero() {
         bloating context — multiple providers, one interface.
       </p>
 
-      <div className="relative mt-12 mx-auto max-w-2xl">
+      <div className="relative mt-8 mx-auto max-w-2xl sm:mt-10">
         {/* Dark mode: warm radial glow behind dots; 2:1 ellipse (rx = 2·ry in a
             square box), centered on the terminal, fading to transparent. */}
         <div
@@ -249,7 +250,7 @@ function Hero() {
         />
       </div>
 
-      <div className="mt-12 flex flex-row items-center justify-center gap-3">
+      <div className="mt-8 flex flex-row items-center justify-center gap-3 sm:mt-10">
         <Link
           to="/docs/$"
           params={{ _splat: "quickstart" }}
@@ -643,6 +644,85 @@ function BuiltForAgents() {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  bring your own keys                                                       */
+/* -------------------------------------------------------------------------- */
+
+const AI_PROVIDERS: readonly string[] = [
+  "Ollama",
+  "OpenRouter",
+  "Vercel AI Gateway",
+  "Cloudflare",
+  "OpenAI",
+  "Anthropic",
+];
+
+// Grouped roughly by purpose: web/search, people-data, email verification.
+// Order is intentional, not alphabetical -- closer to how a user would
+// scan when answering "is my stack supported?"
+const DATA_PROVIDERS: readonly string[] = [
+  "Brave",
+  "Exa",
+  "Firecrawl",
+  "Parallel",
+  "Tavily",
+  "Apollo",
+  "Hunter",
+  "People Data Labs",
+  "Tomba",
+  "Bouncer",
+  "Datagma",
+  "ZeroBounce",
+  "Kickbox",
+];
+
+/** Asymmetric-corner provider chip. TL + BR are tight (rounded-sm), TR +
+ *  BL are loose (rounded-lg). The mismatched radii give the row an
+ *  envelope/tag feel that matches marmot's terminal-bracket motif
+ *  elsewhere on the page. */
+function ProviderChip({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center rounded-tl-sm rounded-tr-lg rounded-br-sm rounded-bl-lg border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-foreground">
+      {name}
+    </span>
+  );
+}
+
+function BringYourOwnKeys() {
+  return (
+    <section className="bg-muted/50 py-12 sm:py-16">
+      <div className="container mx-auto px-6 max-w-3xl text-center">
+        <h2 className="text-balance text-[1.75rem] font-[680] leading-[1.15] tracking-[-0.015em] text-foreground sm:text-[2.25rem]">
+          Bring your own keys.
+        </h2>
+        <p className="mx-auto mt-4 max-w-[58ch] text-balance text-base leading-[1.55] text-muted-foreground sm:text-lg">
+          Marmot brokers calls to the AI and data providers your stack already
+          runs on.
+        </p>
+      </div>
+
+      <div className="container mx-auto px-6 mt-10 flex max-w-3xl flex-col gap-3 sm:mt-12 sm:gap-4">
+        <div
+          aria-label="Supported AI providers"
+          className="flex flex-wrap justify-center gap-2 sm:gap-2.5"
+        >
+          {AI_PROVIDERS.map((name) => (
+            <ProviderChip key={name} name={name} />
+          ))}
+        </div>
+        <div
+          aria-label="Supported data and web providers"
+          className="flex flex-wrap justify-center gap-2 sm:gap-2.5"
+        >
+          {DATA_PROVIDERS.map((name) => (
+            <ProviderChip key={name} name={name} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  what's in the box                                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -693,7 +773,7 @@ const FEATURE_TILES: FeatureTile[] = [
 
 function WhatsInTheBox() {
   return (
-    <section className="bg-muted/50 py-12 sm:py-16">
+    <section className="py-12 sm:py-16">
       <div className="container mx-auto px-6">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-balance text-[1.75rem] font-[680] leading-[1.15] tracking-[-0.015em] text-foreground sm:text-[2.25rem]">
@@ -736,14 +816,15 @@ function WhatsInTheBox() {
  *  block with the two-line install + setup recipe. */
 function FinalCta() {
   return (
-    <section className="container mx-auto overflow-x-clip px-6 py-20 sm:py-24">
-      <div className="mx-auto max-w-3xl text-center">
-        <h2 className="text-balance text-center text-[2rem] font-[680] leading-[1.1] tracking-[-0.025em] text-foreground sm:leading-[1.05] sm:text-[2.75rem] lg:text-[3.25rem]">
-          Try Marmot now.
-        </h2>
-      </div>
+    <section className="bg-muted/50 py-20 sm:py-24">
+      <div className="container mx-auto overflow-x-clip px-6">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-balance text-center text-[2rem] font-[680] leading-[1.1] tracking-[-0.025em] text-foreground sm:leading-[1.05] sm:text-[2.75rem] lg:text-[3.25rem]">
+            Try Marmot now.
+          </h2>
+        </div>
 
-      <div className="relative mx-auto mt-8 w-fit max-w-full sm:mt-10">
+        <div className="relative mx-auto mt-8 w-fit max-w-full sm:mt-10">
         {/* Same dark-mode glow + dot lattice as hero; tighter ellipse (50% radii)
             for the smaller terminal. */}
         <div
@@ -780,17 +861,18 @@ function FinalCta() {
           <span className={D.prompt}>$</span>{" "}
           <span className={D.cmd}>marmot setup</span>
         </CopyableTerminal>
-      </div>
+        </div>
 
-      <div className="mt-6 flex justify-center sm:mt-8">
-        <Link
-          to="/docs/$"
-          params={{ _splat: "quickstart" }}
-          className={buttonVariants({ size: "default", className: CTA_SIZE_SM_UP })}
-        >
-          Quick start
-          <ArrowRight aria-hidden />
-        </Link>
+        <div className="mt-6 flex justify-center sm:mt-8">
+          <Link
+            to="/docs/$"
+            params={{ _splat: "quickstart" }}
+            className={buttonVariants({ size: "default", className: CTA_SIZE_SM_UP })}
+          >
+            Quick start
+            <ArrowRight aria-hidden />
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -820,6 +902,9 @@ function Footer() {
           </FooterLink>
           <FooterLink href="https://github.com/marmot-sh/marmot">
             GitHub
+          </FooterLink>
+          <FooterLink href="https://x.com/marmot_sh">
+            X
           </FooterLink>
         </nav>
       </div>
