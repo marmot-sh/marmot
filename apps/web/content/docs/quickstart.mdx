@@ -16,6 +16,14 @@ The first AI call auto-configures a default provider from your environment and
 stores it in `~/.marmot/config.json`. After that, the same command runs
 without extra setup.
 
+To inspect what's wired up — installed version, configured defaults, which
+providers are callable right now — run:
+
+```bash
+marmot config show           # human-readable
+marmot config show --json    # full envelope (marmotVersion, defaults, readyProviders, …)
+```
+
 ## Pipe real input
 
 Marmot reads stdin and appends it to your prompt.
