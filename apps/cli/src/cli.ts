@@ -461,9 +461,10 @@ export function createProgram(): Command {
 
   providersCommand
     .command('list')
-    .description('List supported providers and default models.')
-    .action(async () => {
-      await handleProvidersListCommand();
+    .description('List every supported provider — AI, web, and data — with category and env var names.')
+    .option('--check-keys', 'Also report enabled state, per-env-var set/unset, and overall ready status per provider.')
+    .action(async (options: { checkKeys?: boolean }) => {
+      await handleProvidersListCommand({ checkKeys: Boolean(options.checkKeys) });
     });
 
   const modelsCommand = new Command('models')
