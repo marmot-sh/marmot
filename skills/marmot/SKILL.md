@@ -28,9 +28,10 @@ Use it to decide whether to pass `--provider`, whether the response cache will s
 | Category | Verb | One-liner |
 | --- | --- | --- |
 | AI | `run` | Text generation. Default verb; `marmot "..."` is shorthand. |
-| AI | `image` | Image generation. TTY plays a path; piped emits raw bytes. |
-| AI | `speak` | Text-to-speech. TTY plays audio; piped emits raw bytes. |
+| AI | `image` | Image generation. TTY writes a path; piped emits raw bytes. |
+| AI | `video` | Video generation (Veo, Sora, Kling, Hailuo, Seedance, Wan). Async; routinely 1–5 min. |
 | AI | `transcribe` | Speech-to-text. Plain-text by default, `--json` for envelope. |
+| AI | `speak` | Text-to-speech. TTY plays audio; piped emits raw bytes. |
 | Web | `search` | Web search. |
 | Web | `scrape` | URL(s) → markdown / text / html. |
 | Web | `answer` | Query → answer + citations. |
