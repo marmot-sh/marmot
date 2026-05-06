@@ -308,37 +308,148 @@ describe('preset list + show', () => {
 
 describe('expandPresetSigil', () => {
   it('rewrites @name into --preset name', () => {
-    const out = expandPresetSigil(['node', 'marmot', '@deep-research', 'hello world']);
+    // No verb injection when preset can't be resolved (lookup returns null).
+    const out = expandPresetSigil(
+      ['node', 'marmot', '@deep-research', 'hello world'],
+      () => null,
+    );
     expect(out).toEqual(['node', 'marmot', '--preset', 'deep-research', 'hello world']);
   });
 
   it('only consumes the first @name token', () => {
-    const out = expandPresetSigil(['node', 'marmot', '@first', '@second']);
+    const out = expandPresetSigil(['node', 'marmot', '@first', '@second'], () => null);
     expect(out).toEqual(['node', 'marmot', '--preset', 'first', '@second']);
   });
 
   it('leaves invalid slugs alone (e.g. @User-Bad)', () => {
-    const out = expandPresetSigil(['node', 'marmot', 'run', '@User-Bad', 'prompt']);
+    const out = expandPresetSigil(
+      ['node', 'marmot', 'run', '@User-Bad', 'prompt'],
+      () => null,
+    );
     expect(out).toEqual(['node', 'marmot', 'run', '@User-Bad', 'prompt']);
   });
 
   it('does not rewrite when --preset is already present', () => {
-    const out = expandPresetSigil(['node', 'marmot', '--preset', 'a', '@b']);
+    const out = expandPresetSigil(['node', 'marmot', '--preset', 'a', '@b'], () => null);
     expect(out).toEqual(['node', 'marmot', '--preset', 'a', '@b']);
   });
 
   it('does not rewrite when --preset=name is already present', () => {
-    const out = expandPresetSigil(['node', 'marmot', '--preset=a', '@b']);
+    const out = expandPresetSigil(['node', 'marmot', '--preset=a', '@b'], () => null);
     expect(out).toEqual(['node', 'marmot', '--preset=a', '@b']);
   });
 
   it('handles bare @ (too short) by ignoring it', () => {
-    const out = expandPresetSigil(['node', 'marmot', '@']);
+    const out = expandPresetSigil(['node', 'marmot', '@'], () => null);
     expect(out).toEqual(['node', 'marmot', '@']);
   });
 
-  it('works on subcommand verbs (image, speak, etc.)', () => {
-    const out = expandPresetSigil(['node', 'marmot', 'image', '@square_1024', 'a marmot']);
+  it('preserves an explicit verb when given (image @square_1024 …)', () => {
+    const out = expandPresetSigil(
+      ['node', 'marmot', 'image', '@square_1024', 'a marmot'],
+      () => 'image',
+    );
     expect(out).toEqual(['node', 'marmot', 'image', '--preset', 'square_1024', 'a marmot']);
+  });
+
+  // 0.4.7: verb-routing for @name at argv[2] (no explicit verb)
+
+  it('injects search verb when sigil is at argv[2] and preset mode is search', () => {
+    const out = expandPresetSigil(
+      ['node', 'marmot', '@linkedin', 'Daniel Francis Abel Police'],
+      (name) => (name === 'linkedin' ? 'search' : null),
+    );
+    expect(out).toEqual([
+      'node',
+      'marmot',
+      'search',
+      '--preset',
+      'linkedin',
+      'Daniel Francis Abel Police',
+    ]);
+  });
+
+  it('injects research verb for research-mode preset', () => {
+    const out = expandPresetSigil(
+      ['node', 'marmot', '@deep-fintech', 'stripe vs adyen'],
+      () => 'research',
+    );
+    expect(out).toEqual([
+      'node',
+      'marmot',
+      'research',
+      '--preset',
+      'deep-fintech',
+      'stripe vs adyen',
+    ]);
+  });
+
+  it('injects speak verb for speech-mode preset', () => {
+    const out = expandPresetSigil(['node', 'marmot', '@my-voice', 'hello'], () => 'speech');
+    expect(out).toEqual(['node', 'marmot', 'speak', '--preset', 'my-voice', 'hello']);
+  });
+
+  it('injects transcribe verb for transcription-mode preset', () => {
+    const out = expandPresetSigil(
+      ['node', 'marmot', '@my-stt', './audio.wav'],
+      () => 'transcription',
+    );
+    expect(out).toEqual([
+      'node',
+      'marmot',
+      'transcribe',
+      '--preset',
+      'my-stt',
+      './audio.wav',
+    ]);
+  });
+
+  it('does not inject a verb for text-mode preset (default run)', () => {
+    const out = expandPresetSigil(['node', 'marmot', '@summarizer', 'a body of text'], () => 'text');
+    expect(out).toEqual([
+      'node',
+      'marmot',
+      '--preset',
+      'summarizer',
+      'a body of text',
+    ]);
+  });
+
+  it('does not inject when preset cannot be resolved', () => {
+    const out = expandPresetSigil(['node', 'marmot', '@missing', 'q'], () => null);
+    expect(out).toEqual(['node', 'marmot', '--preset', 'missing', 'q']);
+  });
+
+  it('does not inject when sigil is not at argv[2] (explicit verb already wins)', () => {
+    // User typed `marmot scrape @some-search-preset url` — explicit verb is
+    // honored, no injection. The mode-mismatch error surfaces later.
+    const out = expandPresetSigil(
+      ['node', 'marmot', 'scrape', '@some-search', 'https://example.com'],
+      () => 'search',
+    );
+    expect(out).toEqual([
+      'node',
+      'marmot',
+      'scrape',
+      '--preset',
+      'some-search',
+      'https://example.com',
+    ]);
+  });
+
+  it('injects enrich verb for enrich-mode preset', () => {
+    const out = expandPresetSigil(
+      ['node', 'marmot', '@enrich-pdl', '--email', 'a@b.com'],
+      () => 'enrich',
+    );
+    expect(out).toEqual([
+      'node',
+      'marmot',
+      'enrich',
+      '--preset',
+      'enrich-pdl',
+      '--email',
+      'a@b.com',
+    ]);
   });
 });

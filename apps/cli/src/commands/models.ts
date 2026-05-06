@@ -19,7 +19,11 @@ export type ModelsCommandOptions = {
   provider?: string;
   mode?: string;
   json?: boolean;
+  search?: string;
+  limit?: string | number;
 };
+
+const DEFAULT_SEARCH_LIMIT = 10;
 
 type ModelsCommandDependencies = {
   env?: NodeJS.ProcessEnv;
@@ -63,12 +67,61 @@ export async function handleModelsCommand(
     }
   }
 
+  // --search filters the model list within each bucket; --limit caps the
+  // total results across all buckets (default 10, 0 = no limit). Buckets
+  // that end up empty after filtering still appear so users see "no
+  // matches" per-provider rather than a silent disappearance.
+  const search = options.search?.trim();
+  if (search) {
+    const needle = search.toLowerCase();
+    const limit = parseSearchLimit(options.limit);
+    let remaining = limit;
+    for (const bucket of buckets) {
+      if (!bucket.cached) {
+        bucket.models = [];
+        continue;
+      }
+      const matched = bucket.models.filter(
+        (m) =>
+          m.id.toLowerCase().includes(needle) ||
+          m.name.toLowerCase().includes(needle),
+      );
+      if (limit === 0) {
+        bucket.models = matched;
+      } else {
+        const take = matched.slice(0, Math.max(0, remaining));
+        bucket.models = take;
+        remaining -= take.length;
+      }
+    }
+  }
+
   if (options.json) {
-    writeLine(stdout, JSON.stringify({ ok: true, buckets }, null, 2));
+    writeLine(
+      stdout,
+      JSON.stringify(
+        {
+          ok: true,
+          buckets,
+          ...(search ? { search, totalMatches: buckets.reduce((acc, b) => acc + b.models.length, 0) } : {}),
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
-  writeLine(stdout, formatHumanReadable(buckets));
+  writeLine(stdout, formatHumanReadable(buckets, { search }));
+}
+
+function parseSearchLimit(value: string | number | undefined): number {
+  if (value === undefined || value === null || value === '') return DEFAULT_SEARCH_LIMIT;
+  const n = typeof value === 'number' ? value : Number.parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new Error(`--limit must be a non-negative integer (got "${value}"). Use 0 for no limit.`);
+  }
+  return n;
 }
 
 function supportsMode(
@@ -165,7 +218,10 @@ function resolveModes(value: string | undefined): readonly Mode[] {
   return [value as Mode];
 }
 
-function formatHumanReadable(buckets: ModeBucket[]): string {
+function formatHumanReadable(
+  buckets: ModeBucket[],
+  options: { search?: string } = {},
+): string {
   if (buckets.length === 0) {
     return 'No matching providers.';
   }
@@ -185,7 +241,7 @@ function formatHumanReadable(buckets: ModeBucket[]): string {
       continue;
     }
     if (bucket.models.length === 0) {
-      lines.push('    (cache empty)');
+      lines.push(options.search ? '    (no matches)' : '    (cache empty)');
       continue;
     }
     for (const m of bucket.models) {
@@ -197,5 +253,9 @@ function formatHumanReadable(buckets: ModeBucket[]): string {
 
   lines.push('');
   lines.push('* = default model (set via `marmot config set <verb>.model <id>`)');
+  if (options.search) {
+    const total = buckets.reduce((acc, b) => acc + b.models.length, 0);
+    lines.push(`Matched ${total} model${total === 1 ? '' : 's'} for "${options.search}".`);
+  }
   return lines.join('\n');
 }

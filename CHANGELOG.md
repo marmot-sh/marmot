@@ -4,6 +4,20 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.7] — 2026-05-06
+
+### Added
+
+- **`@preset` sigil now infers the verb.** Previously `marmot @linkedin "query"` rewrote to `marmot --preset linkedin "query"`, which dispatched to the default text-run verb and errored: "preset has mode 'search' but this command requires 'text'." The sigil now peeks at the saved preset's mode and injects the matching verb when no explicit verb is present, so `marmot @linkedin "query"` dispatches to `search` automatically. Mode→verb mapping covers all 15 modes; the three AI exceptions (`speech`→`speak`, `transcription`→`transcribe`, `text`→default-run) are remapped. Explicit verbs still win — `marmot scrape @some-search-preset url` keeps `scrape` and surfaces a clean mode-mismatch error rather than silently swapping.
+- **`marmot models --search <query>`**. Case-insensitive substring filter on model id and display name. Composes with existing `--provider` and `--mode` filters: `marmot models --search gpt --provider openai --mode text`. Defaults to `--limit 10` total matches across providers; pass `--limit 0` to remove the cap. Plain `marmot models` (no `--search`) keeps current behavior — full list per bucket.
+
+### Fixed
+
+- **Cache key normalization.** Two improvements that increase hit rate without conflating semantically-different requests:
+  - **Trim leading/trailing whitespace on string values.** `"acme"` and `"  acme  "` now hash to the same cache key. Internal whitespace and word ordering remain significant — `"John Smith Acme"` and `"Acme John Smith"` still hash differently because search engines rank them differently and we don't want a hit on one to return the other's results.
+  - **Sort filter arrays whose order doesn't change API semantics.** `includeDomains: ["a.com","b.com"]` and `["b.com","a.com"]` now produce the same cache key. Same for `excludeDomains`, `includePaths`, `excludePaths`, and `stop`. Other arrays (e.g. message history) remain order-sensitive.
+- Case in queries remains a meaningful distinction (`Apple` company vs `apple` fruit are different search intents — separate cache entries by design).
+
 ## [0.4.6] — 2026-05-06
 
 ### Added

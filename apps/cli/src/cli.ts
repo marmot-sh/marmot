@@ -86,11 +86,15 @@ import {
   handleStreamRunCommand,
   type RunCommandOptions,
 } from './commands/run.js';
+import { readFileSync } from 'node:fs';
+
 import {
   PRESET_NAME_REGEX,
   formatCliError,
   formatCliErrorJson,
   getExitCode,
+  getMarmotConfigPath,
+  type PresetMode,
 } from '@marmot-sh/core';
 import { withPreset } from './lib/with-preset.js';
 
@@ -517,6 +521,8 @@ export function createProgram(): Command {
     .description('List cached models per provider and mode (text/image/speech/transcription).')
     .option('--provider <slug>', 'Filter to one provider.')
     .option('--mode <mode>', 'Filter to one mode: text, image, speech, transcription.')
+    .option('--search <query>', 'Case-insensitive substring filter on model id and name.')
+    .option('--limit <n>', 'Cap total matches when --search is set (default 10; 0 for no limit).')
     .option('--json', 'Output as JSON.')
     .action(async (options: ModelsCommandOptions) => {
       await handleModelsCommand(options);
@@ -742,16 +748,58 @@ function installPipeHandlers(): void {
   }
 }
 
+/** Mode → verb dispatch table for sigil expansion. The 12 web/data modes
+ *  share their name with their verb. The three AI exceptions remap, and
+ *  `text` returns null because it dispatches to the default (no verb token). */
+const MODE_TO_VERB: Record<PresetMode, string | null> = {
+  text: null,
+  image: 'image',
+  video: 'video',
+  speech: 'speak',
+  transcription: 'transcribe',
+  search: 'search',
+  scrape: 'scrape',
+  answer: 'answer',
+  map: 'map',
+  crawl: 'crawl',
+  research: 'research',
+  findall: 'findall',
+  enrich: 'enrich',
+  lookup: 'lookup',
+  verify: 'verify',
+};
+
+/** Best-effort sync read of a preset's mode for sigil expansion. Bypasses
+ *  zod validation — we only need `mode`, and any malformed-config errors
+ *  will surface clearly later when commander dispatches to the verb. */
+function readPresetModeSync(name: string): PresetMode | null {
+  try {
+    const path = getMarmotConfigPath();
+    const raw = readFileSync(path, 'utf8');
+    const config = JSON.parse(raw) as { presets?: Record<string, { mode?: string }> };
+    const mode = config.presets?.[name]?.mode;
+    if (!mode || !(mode in MODE_TO_VERB)) return null;
+    return mode as PresetMode;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Rewrites a single `@preset-name` token (anywhere after argv[1]) into an
- * explicit `--preset <name>` pair. The sigil is a shorthand for `--preset`,
- * not a separate mechanism, so it goes through the same withPreset flow.
+ * explicit `--preset <name>` pair. When the user hasn't specified a verb,
+ * peek at the saved preset's mode and inject the matching verb so
+ * `marmot @linkedin "query"` dispatches to `search` instead of falling
+ * back to text-run and erroring on a mode mismatch.
  *
  * Only the first matching token is consumed; additional `@…` tokens are
  * left in place so `marmot run "@user said hi"` keeps the literal in the
  * prompt. Refuses if --preset is already present.
  */
-export function expandPresetSigil(argv: readonly string[]): string[] {
+export function expandPresetSigil(
+  argv: readonly string[],
+  lookupMode: (name: string) => PresetMode | null = readPresetModeSync,
+): string[] {
   const out = [...argv];
   const hasExplicit = out.some((a) => a === '--preset' || a.startsWith('--preset='));
   if (hasExplicit) return out;
@@ -761,6 +809,19 @@ export function expandPresetSigil(argv: readonly string[]): string[] {
     if (!tok.startsWith('@') || tok.length < 2) continue;
     const candidate = tok.slice(1);
     if (!PRESET_NAME_REGEX.test(candidate)) continue;
+
+    // Inject a verb if argv[2] is the sigil itself — meaning the user typed
+    // `marmot @name ...` with no explicit verb. If argv[2] is a flag (starts
+    // with `-`) or another token, treat that as the user's choice and don't
+    // override.
+    if (i === 2) {
+      const mode = lookupMode(candidate);
+      const verb = mode ? MODE_TO_VERB[mode] : null;
+      if (verb) {
+        out.splice(i, 1, verb, '--preset', candidate);
+        return out;
+      }
+    }
     out.splice(i, 1, '--preset', candidate);
     return out;
   }
