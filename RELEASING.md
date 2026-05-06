@@ -28,9 +28,26 @@ Before you publish:
   node apps/cli/dist/cli.js --help       # groups render with orange titles
   node apps/cli/dist/cli.js about        # banner + version + marmot.sh
   ```
-- [ ] Bump versions in **both** package.json files:
-  - `apps/cli/package.json` `version`
-  - `apps/marmot-sh/package.json` `version`
+- [ ] Bump versions in **every workspace** to the new release version. All workspaces move in lockstep with the CLI — internal packages aren't published, but the version field is a release stamp so a checkout of `v0.x.y` reflects "everything under this monorepo was at 0.x.y." The CLI bundle ships from `apps/cli`, so its version is what users see, but every `packages/*/package.json` and the unscoped alias bump together.
+  - `apps/cli/package.json` `version` (the canonical published version)
+  - `apps/marmot-sh/package.json` `version` (the unscoped alias)
+  - `packages/*/package.json` `version` (every workspace under `packages/`)
+  - One-shot helper:
+    ```bash
+    node -e '
+      const fs=require("fs");
+      const v="0.x.y";
+      for (const f of [
+        "apps/cli/package.json",
+        "apps/marmot-sh/package.json",
+        ...fs.readdirSync("packages").map(d=>`packages/${d}/package.json`),
+      ]) {
+        const p=JSON.parse(fs.readFileSync(f));
+        p.version=v;
+        fs.writeFileSync(f, JSON.stringify(p,null,2)+"\n");
+      }
+    '
+    ```
 - [ ] Add a new entry to `CHANGELOG.md` describing what changed (Breaking / Added / Changed / Fixed sections, plus a Migration note when the version is breaking). The CHANGELOG entry should be in the same commit as the version bump so the tag points at code whose CHANGELOG already documents the release.
 
 ## Publishing

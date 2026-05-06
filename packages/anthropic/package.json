@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/anthropic",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "@marmot-sh adapter for Anthropic Claude — text/image/speech/transcribe (where supported).",
   "type": "module",
   "private": true,
