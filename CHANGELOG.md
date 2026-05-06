@@ -4,6 +4,14 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.3.1] — 2026-05-06
+
+### Added
+
+- Binary stdin sniffing on `marmot video`. A piped image (PNG, JPEG, WebP, GIF) is auto-detected and slotted into the first reference-image position, so `marmot image 'a marmot waving' | marmot video 'gentle waving, slight breeze'` now works without an explicit `--image` flag. Mirrors the pattern that 0.3.0 added to `marmot run`. Stdin image counts toward the existing two-image (first-frame + last-frame) cap; explicit `--image` flags shift one slot over so a stdin first-frame combines naturally with an explicit last-frame.
+- `marmot video` rejects audio / video / PDF stdin with a clear validation error instead of decoding the bytes as UTF-8 prompt text.
+- `marmot video` warns when stdin is piped but empty and a positional or `--prompt-file` prompt rescued the call (matches the 0.3.0 `marmot run` behavior).
+
 ## [0.3.0] — 2026-05-05
 
 ### Added
@@ -65,6 +73,7 @@ Initial public release.
 - Default plain-text output for piping; `--json` envelope for structured parsing.
 - Sessions and presets, async tasks (research/crawl/findall), response cache (opt-in per provider), agent skill bundle for Claude Code, OpenCode, Codex, and similar harnesses.
 
+[0.3.1]: https://github.com/marmot-sh/marmot/releases/tag/v0.3.1
 [0.3.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.3.0
 [0.2.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.2.0
 [0.1.0]: https://github.com/marmot-sh/marmot/releases/tag/v0.1.0
