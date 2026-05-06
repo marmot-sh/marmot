@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   detectHarnesses,
   fetchLatestSkillSha,
+  findProjectRoot,
   getCanonicalSkillDir,
   harnessFor,
   installSkill,
@@ -376,5 +377,48 @@ describe('uninstallSkill', () => {
 
     expect(result.removedSymlinks).toContain(linkPath);
     await expect(readFile(join(canonical, 'SKILL.md'), 'utf8')).rejects.toThrow();
+  });
+});
+
+describe('findProjectRoot', () => {
+  it('returns the cwd when it has a marker dir', async () => {
+    const dir = await fixture();
+    await mkdir(join(dir, '.agents'), { recursive: true });
+    expect(findProjectRoot(dir)).toBe(dir);
+  });
+
+  it('walks upward to find a marker on a parent', async () => {
+    const root = await fixture();
+    await mkdir(join(root, '.claude'), { recursive: true });
+    const sub = join(root, 'apps', 'web');
+    await mkdir(sub, { recursive: true });
+    expect(findProjectRoot(sub)).toBe(root);
+  });
+
+  it('detects each of the four marker directories', async () => {
+    for (const marker of ['.agents', '.claude', '.codex', '.opencode']) {
+      const dir = await fixture();
+      await mkdir(join(dir, marker), { recursive: true });
+      expect(findProjectRoot(dir)).toBe(dir);
+    }
+  });
+
+  it('returns null when no marker is found and the walk hits the filesystem root', async () => {
+    // tmpdir is outside $HOME on most systems and unlikely to contain
+    // any of the marker dirs at intermediate levels.
+    const dir = await fixture();
+    expect(findProjectRoot(dir)).toBe(null);
+  });
+
+  it('returns the deepest marker-bearing ancestor (does not skip closer markers)', async () => {
+    const outer = await fixture();
+    await mkdir(join(outer, '.agents'), { recursive: true });
+    const inner = join(outer, 'inner-project');
+    await mkdir(join(inner, '.claude'), { recursive: true });
+    const sub = join(inner, 'src');
+    await mkdir(sub, { recursive: true });
+    // Walk from sub finds inner first (closer ancestor with marker),
+    // not outer.
+    expect(findProjectRoot(sub)).toBe(inner);
   });
 });

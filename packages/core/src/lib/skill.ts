@@ -127,6 +127,43 @@ export function getCanonicalSkillDir(
   return join(base, '.agents', 'skills', SKILL_NAME);
 }
 
+/**
+ * Marker directories that signal "this is a project root that participates
+ * in agent skill workflows". `.agents/` is marmot's canonical location;
+ * the per-harness dirs (`.claude`, `.codex`, `.opencode`) are also valid
+ * signals because someone setting up project-scoped agent context
+ * typically creates one of those at the project root.
+ */
+const PROJECT_ROOT_MARKERS = ['.agents', '.claude', '.codex', '.opencode'] as const;
+
+/**
+ * Walk upward from `startCwd` looking for a directory that contains one
+ * of the project-scope marker directories. Returns the marker-bearing
+ * directory, or null when none is found.
+ *
+ * Stops *before* inspecting `$HOME` — global agent dirs (`~/.claude`,
+ * `~/.agents`, etc.) live at home and must not be misread as project
+ * roots. They're surfaced via `readSkillState('global', …)` instead.
+ *
+ * Also stops at the filesystem root (`/`, `C:\`) for paths that don't
+ * descend from home.
+ */
+export function findProjectRoot(
+  startCwd: string = process.cwd(),
+): string | null {
+  const stop = homedir();
+  let dir = startCwd;
+  while (dir !== stop) {
+    if (PROJECT_ROOT_MARKERS.some((m) => existsSync(join(dir, m)))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return null; // hit filesystem root
+    dir = parent;
+  }
+  return null; // walked up to home without finding a project marker
+}
+
 /* -- harness detection ----------------------------------------------------- */
 
 export function detectHarnesses(
