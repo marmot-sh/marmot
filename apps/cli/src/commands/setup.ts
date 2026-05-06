@@ -36,7 +36,7 @@ import {
   resolveProviderAuth,
   type AnyProviderSlug,
 } from '@marmot-sh/core';
-import { readSkillState, statsAll } from '@marmot-sh/core';
+import { findProjectRoot, readSkillState, statsAll } from '@marmot-sh/core';
 import { readCompletionsState } from '@marmot-sh/core';
 import { writeMarmotConfig, readMarmotConfig } from '@marmot-sh/core';
 import { MARMOT_VERSION } from '../lib/version.js';
@@ -428,21 +428,10 @@ async function formatStatusSnapshot(
       ? 'no caches enabled'
       : `${enabledCount} enabled · ${formatBytes(totalBytes)} total`;
 
-  // Skill: installed yes/no + linked harness for confirmation.
-  let skillLine = 'not installed';
-  try {
-    const state = await readSkillState('global', {
-      env,
-      cwd: process.cwd(),
-      skipRemote: true,
-    });
-    if (state.installed) {
-      const linked = state.linkedHarnesses[0];
-      skillLine = linked ? `installed (${linked})` : 'installed';
-    }
-  } catch {
-    // readSkillState only fails on unexpected I/O — fall back to "not installed".
-  }
+  // Skill: report whichever scope is installed (or both). Walk upward
+  // from cwd to a project root so a project install in an ancestor
+  // directory is detected when setup runs from a subdirectory.
+  const skillLine = await formatSkillHint(env);
 
   return formatTable(
     [
@@ -543,11 +532,40 @@ function cacheHint(config: MarmotConfig): string {
 }
 
 async function skillHint(env: NodeJS.ProcessEnv): Promise<string> {
+  return formatSkillHint(env);
+}
+
+/**
+ * Compute the "Agent skill" status hint shown both in the top-of-screen
+ * status table and as the menu-item hint for the Agent skill row.
+ * Checks BOTH global scope (`~/.agents/skills/marmot/`) and project
+ * scope (`<projectRoot>/.agents/skills/marmot/`, where projectRoot is
+ * resolved by walking upward from cwd looking for marker dirs). Reports
+ * one of: "not installed", "installed (<harness>)", "installed in
+ * project (<harness>)", or "installed (global + project)" so a user
+ * running setup from a project directory sees their existing project
+ * install instead of being told to install fresh.
+ */
+async function formatSkillHint(env: NodeJS.ProcessEnv): Promise<string> {
   try {
-    const state = await readSkillState('global', { env, cwd: process.cwd(), skipRemote: true });
-    if (!state.installed) return 'not installed';
-    const linked = state.linkedHarnesses[0];
-    return linked ? `installed (${linked})` : 'installed';
+    const cwd = findProjectRoot(process.cwd()) ?? process.cwd();
+    const [global, project] = await Promise.all([
+      readSkillState('global', { env, cwd, skipRemote: true }),
+      readSkillState('project', { env, cwd, skipRemote: true }),
+    ]);
+
+    if (global.installed && project.installed) {
+      return 'installed (global + project)';
+    }
+    if (global.installed) {
+      const linked = global.linkedHarnesses[0];
+      return linked ? `installed (${linked})` : 'installed';
+    }
+    if (project.installed) {
+      const linked = project.linkedHarnesses[0];
+      return linked ? `installed in project (${linked})` : 'installed in project';
+    }
+    return 'not installed';
   } catch {
     return 'not installed';
   }
