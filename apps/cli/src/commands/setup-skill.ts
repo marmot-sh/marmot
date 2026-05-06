@@ -8,6 +8,7 @@ import { cancel, confirm, isCancel, note, select, spinner } from '@clack/prompts
 
 import {
   detectHarnesses,
+  findProjectRoot,
   installSkill,
   listKnownHarnesses,
   readSkillState,
@@ -23,7 +24,16 @@ const ACTION_UNINSTALL = '__uninstall__';
 const ACTION_DONE = '__done__';
 
 export async function walkSkillSetup(env: NodeJS.ProcessEnv = process.env): Promise<void> {
-  const cwd = process.cwd();
+  const launchCwd = process.cwd();
+  // Walk upward from the launch directory looking for a project root
+  // (marker dirs: .agents, .claude, .codex, .opencode). When we find
+  // one, that becomes the cwd for project-scope detection — so the
+  // wizard recognizes a previously installed project skill even when
+  // the user is in a subdirectory of the project. Stops before $HOME
+  // so the global agent dirs aren't misread as project roots.
+  const projectRoot = findProjectRoot(launchCwd);
+  const cwd = projectRoot ?? launchCwd;
+
   const detected = detectHarnesses(env);
 
   if (detected.length === 0) {
@@ -42,7 +52,7 @@ export async function walkSkillSetup(env: NodeJS.ProcessEnv = process.env): Prom
   ]);
   detectSpin.stop('Skill state checked');
 
-  note(formatStatus(globalState, projectState, detected), 'agent skill');
+  note(formatStatus(globalState, projectState, detected, launchCwd, projectRoot), 'agent skill');
 
   const choice = await select({
     message: 'What would you like to do?',
@@ -116,6 +126,8 @@ function formatStatus(
   global: SkillState,
   project: SkillState,
   detected: HarnessSlug[],
+  launchCwd: string,
+  projectRoot: string | null,
 ): string {
   const lines: string[] = [];
 
@@ -137,7 +149,14 @@ function formatStatus(
       lines.push(`         linked: ${project.linkedHarnesses.join(', ')}`);
     }
   } else {
-    lines.push('project  not installed');
+    // When no project install was found, show the directory we
+    // searched from so the user can spot a wrong-cwd mistake at a
+    // glance. If we resolved upward to a project root that has no
+    // skill yet, also show that.
+    const searchedFrom = projectRoot && projectRoot !== launchCwd
+      ? `${projectRoot} (resolved from ${launchCwd})`
+      : launchCwd;
+    lines.push(`project  not installed in ${searchedFrom}`);
   }
 
   lines.push('');
