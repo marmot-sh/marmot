@@ -74,3 +74,12 @@ export function brandText(
 export function warnText(text: string): string {
   return `\x1b[33m${text}\x1b[0m`;
 }
+
+/**
+ * Wrap text in a success-green ANSI escape. Used to flag positive states
+ * like "installed" / "ready" in setup status output. Standard ANSI green
+ * (`32`) — works on every terminal, no truecolor needed.
+ */
+export function successText(text: string): string {
+  return `\x1b[32m${text}\x1b[0m`;
+}
