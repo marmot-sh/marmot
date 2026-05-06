@@ -4,7 +4,11 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { handleSearchCommand } from '../src/commands/search.js';
+import {
+  assertDateRangeCoherent,
+  handleSearchCommand,
+  validateIsoDate,
+} from '../src/commands/search.js';
 import { writeMarmotConfig } from '@marmot-sh/core';
 
 const tempDirs: string[] = [];
@@ -215,5 +219,76 @@ describe('handleSearchCommand', () => {
       ),
     ).rejects.toThrowError(/--retries must be an integer between 0 and 10/);
     expect(calls).toBe(0);
+  });
+});
+
+describe('validateIsoDate', () => {
+  it('returns undefined for missing input', () => {
+    expect(validateIsoDate('after-date', undefined)).toBeUndefined();
+  });
+
+  it('accepts a well-formed date', () => {
+    expect(validateIsoDate('after-date', '2026-01-15')).toBe('2026-01-15');
+  });
+
+  it('rejects bad format with a clear message', () => {
+    expect(() => validateIsoDate('after-date', '2026/01/15')).toThrowError(
+      /--after-date must be in YYYY-MM-DD format/,
+    );
+    expect(() => validateIsoDate('before-date', '5-6-2026')).toThrowError(/--before-date/);
+    expect(() => validateIsoDate('after-date', '2026-1-15')).toThrowError(/YYYY-MM-DD format/);
+  });
+
+  it('rejects impossible months and days even when format is correct', () => {
+    expect(() => validateIsoDate('after-date', '2026-13-45')).toThrowError(
+      /not a real calendar date/,
+    );
+    expect(() => validateIsoDate('after-date', '2026-02-30')).toThrowError(/real calendar/);
+    expect(() => validateIsoDate('after-date', '2026-04-31')).toThrowError(/real calendar/);
+    expect(() => validateIsoDate('after-date', '2026-00-15')).toThrowError(/real calendar/);
+  });
+
+  it('accepts Feb 29 in leap years and rejects in non-leap years', () => {
+    expect(validateIsoDate('after-date', '2024-02-29')).toBe('2024-02-29');
+    expect(() => validateIsoDate('after-date', '2026-02-29')).toThrowError(
+      /not a real calendar date/,
+    );
+  });
+
+  it('accepts ordinary edge dates: Dec 31, Jan 1, end-of-month', () => {
+    expect(validateIsoDate('after-date', '2026-12-31')).toBe('2026-12-31');
+    expect(validateIsoDate('after-date', '2026-01-01')).toBe('2026-01-01');
+    expect(validateIsoDate('before-date', '2026-04-30')).toBe('2026-04-30');
+  });
+});
+
+describe('assertDateRangeCoherent', () => {
+  it('no-ops when both bounds are absent', () => {
+    expect(() => assertDateRangeCoherent(undefined, undefined)).not.toThrow();
+  });
+
+  it('no-ops when only one bound is set', () => {
+    expect(() => assertDateRangeCoherent('2026-01-15', undefined)).not.toThrow();
+    expect(() => assertDateRangeCoherent(undefined, '2026-01-15')).not.toThrow();
+  });
+
+  it('accepts a coherent range (after < before)', () => {
+    expect(() => assertDateRangeCoherent('2026-01-15', '2026-02-15')).not.toThrow();
+  });
+
+  it('accepts a same-day window (after === before)', () => {
+    expect(() => assertDateRangeCoherent('2026-01-15', '2026-01-15')).not.toThrow();
+  });
+
+  it('rejects an inverted range (after > before)', () => {
+    expect(() => assertDateRangeCoherent('2026-12-31', '2026-01-01')).toThrowError(
+      /range is inverted/,
+    );
+  });
+
+  it('rejects an inverted range with crossed years', () => {
+    expect(() => assertDateRangeCoherent('2026-01-01', '2025-12-31')).toThrowError(
+      /--after-date \(2026-01-01\) is later than --before-date \(2025-12-31\)/,
+    );
   });
 });

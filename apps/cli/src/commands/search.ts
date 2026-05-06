@@ -95,11 +95,19 @@ function warnUnsupportedSearchFlags(
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Validate a `YYYY-MM-DD` flag value. Returns the value unchanged on
- *  success; returns `undefined` for missing input; throws an
- *  AICliError for badly-formatted strings (e.g. `2026/05/06`,
- *  `5-6-2026`). */
-function validateIsoDate(
+/** Validate a `YYYY-MM-DD` flag value. Two layers:
+ *
+ *  1. **Format**: reject strings that don't match the `YYYY-MM-DD`
+ *     shape (`2026/05/06`, `5-6-2026`).
+ *  2. **Real date**: reject impossible calendar values (`2026-02-30`,
+ *     `2026-13-45`, `2026-04-31`, `2026-02-29` in non-leap years).
+ *     Format-correct strings can still be nonsense; this catches that
+ *     before the API rejects them.
+ *
+ *  Returns the value unchanged on success; returns `undefined` for
+ *  missing input; throws an AICliError otherwise.
+ */
+export function validateIsoDate(
   flag: 'after-date' | 'before-date',
   value: string | undefined,
 ): string | undefined {
@@ -110,7 +118,33 @@ function validateIsoDate(
       `--${flag} must be in YYYY-MM-DD format (got "${value}").`,
     );
   }
+  // Real-date check via UTC round-trip. JavaScript silently rolls
+  // overflow (Feb 30 → Mar 2), so the only way to detect "this is not
+  // a real day" is to parse and compare ISO output back to the input.
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new AICliError(
+      'validation',
+      `--${flag} "${value}" is not a real calendar date.`,
+    );
+  }
   return value;
+}
+
+/** Reject inverted date ranges before any API call. `afterDate` and
+ *  `beforeDate` are both `YYYY-MM-DD` strings, which sort
+ *  lexicographically the same as chronologically — no parsing needed.
+ *  `afterDate === beforeDate` is allowed (same-day window). */
+export function assertDateRangeCoherent(
+  afterDate: string | undefined,
+  beforeDate: string | undefined,
+): void {
+  if (afterDate && beforeDate && afterDate > beforeDate) {
+    throw new AICliError(
+      'validation',
+      `--after-date (${afterDate}) is later than --before-date (${beforeDate}). The range is inverted and matches no results.`,
+    );
+  }
 }
 
 function parseLimit(s: string | undefined): number | undefined {
@@ -163,13 +197,17 @@ export async function handleSearchCommand(
     timeout: options.timeout,
   });
   const onRetry = makeRetryNotifier(stderr, provider, 'search', retries);
+  const afterDate = validateIsoDate('after-date', options.afterDate);
+  const beforeDate = validateIsoDate('before-date', options.beforeDate);
+  assertDateRangeCoherent(afterDate, beforeDate);
+
   const input: WebSearchInput = {
     query,
     limit: parseLimit(options.limit),
     depth: options.depth,
     freshness: options.freshness,
-    afterDate: validateIsoDate('after-date', options.afterDate),
-    beforeDate: validateIsoDate('before-date', options.beforeDate),
+    afterDate,
+    beforeDate,
     includeDomains: csvToList(options.includeDomains),
     excludeDomains: csvToList(options.excludeDomains),
     includeContent: options.includeContent,
