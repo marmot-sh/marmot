@@ -294,10 +294,25 @@ function formatCacheSummary(stats: CacheStats[]): string {
   return lines.join('\n');
 }
 
-function formatConfigHuman(config: MarmotConfig, configPath: string, cacheStats: CacheStats[]): string {
+function formatConfigHuman(
+  config: MarmotConfig,
+  configPath: string,
+  cacheStats: CacheStats[],
+  readyProviders: string[],
+  marmotVersion: string,
+): string {
   const defaults = config.defaults ?? {};
-  const aiVerbs = ['text', 'image', 'speech', 'transcription'] as const;
+  // text, image, video, transcription, speech — matches the canonical
+  // ordering used in docs and the docs nav. Adding `video` here closes
+  // the 0.3.0 gap where the verb shipped but never appeared in the
+  // human config-show output.
+  const aiVerbs = ['text', 'image', 'video', 'transcription', 'speech'] as const;
   const webVerbs = ['search', 'scrape', 'research', 'answer', 'crawl', 'map', 'findall'] as const;
+  // Data verbs (enrich/lookup/verify) are first-class everywhere else
+  // in the CLI but have been invisible in `marmot config show` until
+  // now. Surface them in their own section so users discover that
+  // setting `defaults.enrich.provider` is even an option.
+  const dataVerbs = ['enrich', 'lookup', 'verify'] as const;
 
   const aiRows = aiVerbs.map((v) =>
     buildRow(v, defaults[v] as Record<string, unknown> | undefined),
@@ -305,9 +320,12 @@ function formatConfigHuman(config: MarmotConfig, configPath: string, cacheStats:
   const webRows = webVerbs.map((v) =>
     buildRow(v, defaults[v] as Record<string, unknown> | undefined),
   );
-  const allRows = [...aiRows, ...webRows];
+  const dataRows = dataVerbs.map((v) =>
+    buildRow(v, defaults[v] as Record<string, unknown> | undefined),
+  );
+  const allRows = [...aiRows, ...webRows, ...dataRows];
 
-  // Auto-size each column to the longest entry across both sections.
+  // Auto-size each column to the longest entry across all sections.
   const verbW = Math.max(...allRows.map((r) => r.verb.length));
   const providerW = Math.max(...allRows.map((r) => r.provider.length));
 
@@ -319,18 +337,48 @@ function formatConfigHuman(config: MarmotConfig, configPath: string, cacheStats:
   };
 
   const lines: string[] = [];
+  lines.push(`marmot ${marmotVersion}`);
   lines.push(`config: ${configPath}`);
   lines.push('');
   lines.push('AI defaults:');
   for (const r of aiRows) lines.push(renderRow(r));
   lines.push('');
-  lines.push('Web/data defaults:');
+  lines.push('Web defaults:');
   for (const r of webRows) lines.push(renderRow(r));
+  lines.push('');
+  lines.push('Data defaults:');
+  for (const r of dataRows) lines.push(renderRow(r));
+  lines.push('');
+  lines.push('Ready providers:');
+  lines.push(formatReadyProviders(readyProviders));
   lines.push('');
   lines.push('Response cache:');
   lines.push(formatCacheSummary(cacheStats));
   lines.push('');
   lines.push('Tip: pass --json for the structured envelope.');
+  return lines.join('\n');
+}
+
+/**
+ * Render the ready provider slugs grouped by category. Reads which
+ * category each slug belongs to from the canonical slug arrays
+ * imported at the top of this module — same source of truth as
+ * `listProviderSummaries`.
+ */
+function formatReadyProviders(slugs: string[]): string {
+  if (slugs.length === 0) {
+    return '  (none — set at least one provider key, e.g. `export OPENROUTER_API_KEY=...`)';
+  }
+  const aiSet = new Set<string>(PROVIDERS as readonly string[]);
+  const webSet = new Set<string>(WEB_PROVIDERS as readonly string[]);
+  const dataSet = new Set<string>(DATA_PROVIDERS as readonly string[]);
+  const ai = slugs.filter((s) => aiSet.has(s));
+  const web = slugs.filter((s) => webSet.has(s));
+  const data = slugs.filter((s) => dataSet.has(s));
+  const lines: string[] = [];
+  if (ai.length > 0) lines.push(`  AI:    ${ai.join(', ')}`);
+  if (web.length > 0) lines.push(`  Web:   ${web.join(', ')}`);
+  if (data.length > 0) lines.push(`  Data:  ${data.join(', ')}`);
   return lines.join('\n');
 }
 
@@ -374,7 +422,16 @@ export async function handleConfigShow(
     if (banner) {
       stderr.write(`${warnText(banner)}\n\n`);
     }
-    writeLine(stdout, formatConfigHuman(config, getMarmotConfigPath(env), cacheStats));
+    writeLine(
+      stdout,
+      formatConfigHuman(
+        config,
+        getMarmotConfigPath(env),
+        cacheStats,
+        getReadyProviders(config, env),
+        MARMOT_VERSION,
+      ),
+    );
   }
 }
 
