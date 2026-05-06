@@ -37,6 +37,18 @@ type ExaSearchResponse = {
   autopromptString?: string;
 };
 
+/** Convert marmot's relative freshness window to a `YYYY-MM-DD` floor
+ *  for providers that only accept absolute date filtering. `now`
+ *  defaulted for normal use; injectable for tests. */
+function freshnessToIsoDate(
+  freshness: NonNullable<WebSearchInput['freshness']>,
+  now: Date = new Date(),
+): string {
+  const days = { day: 1, week: 7, month: 30, year: 365 }[freshness];
+  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  return cutoff.toISOString().slice(0, 10);
+}
+
 function depthToType(
   depth: WebSearchInput['depth'] | undefined,
 ): 'auto' | 'fast' | 'neural' {
@@ -64,6 +76,19 @@ async function exaSearch(input: WebSearchInput): Promise<WebSearchResult> {
   if (typeof input.limit === 'number') body.numResults = input.limit;
   if (input.includeDomains?.length) body.includeDomains = input.includeDomains;
   if (input.excludeDomains?.length) body.excludeDomains = input.excludeDomains;
+  // Exa uses ISO-8601 datetimes for date filtering. Map from marmot's
+  // YYYY-MM-DD afterDate/beforeDate (start of day for after, end of
+  // day for before so the bound is inclusive of the named day) and
+  // also map relative freshness to startPublishedDate when no
+  // afterDate is set. Explicit afterDate wins over freshness.
+  if (input.afterDate) {
+    body.startPublishedDate = `${input.afterDate}T00:00:00.000Z`;
+  } else if (input.freshness) {
+    body.startPublishedDate = `${freshnessToIsoDate(input.freshness)}T00:00:00.000Z`;
+  }
+  if (input.beforeDate) {
+    body.endPublishedDate = `${input.beforeDate}T23:59:59.999Z`;
+  }
   if (input.includeContent) body.contents = { text: true };
 
   let response: Response;

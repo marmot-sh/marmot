@@ -8,6 +8,7 @@ import {
   resolveRetryOptions,
   resolveWebVerbDefaults,
   runWithRetries,
+  warnText,
   withSpinner,
   type StatusStream,
   type WebSearchInput,
@@ -33,6 +34,8 @@ export type SearchCommandOptions = {
   limit?: string;
   depth?: 'basic' | 'standard' | 'deep';
   freshness?: 'day' | 'week' | 'month' | 'year';
+  afterDate?: string;
+  beforeDate?: string;
   includeDomains?: string;
   excludeDomains?: string;
   includeContent?: boolean;
@@ -60,6 +63,54 @@ function csvToList(s: string | undefined): string[] | undefined {
     .map((x) => x.trim())
     .filter(Boolean);
   return parts.length > 0 ? parts : undefined;
+}
+
+/** Per-provider feature gaps. Each entry lists the search flags marmot
+ *  exposes that this provider's API doesn't honor. When a user passes
+ *  one of these, we warn on stderr instead of silently dropping it,
+ *  so they don't think their filter worked when it didn't. */
+const UNSUPPORTED_SEARCH_FLAGS: Record<string, readonly string[]> = {
+  brave: ['includeDomains', 'excludeDomains', 'afterDate', 'beforeDate'],
+  tavily: ['afterDate', 'beforeDate'],
+  parallel: ['beforeDate'],
+};
+
+function warnUnsupportedSearchFlags(
+  stderr: StatusStream,
+  provider: string,
+  options: SearchCommandOptions,
+): void {
+  const unsupported = UNSUPPORTED_SEARCH_FLAGS[provider] ?? [];
+  const passed: string[] = [];
+  if (unsupported.includes('includeDomains') && options.includeDomains) passed.push('--include-domains');
+  if (unsupported.includes('excludeDomains') && options.excludeDomains) passed.push('--exclude-domains');
+  if (unsupported.includes('afterDate') && options.afterDate) passed.push('--after-date');
+  if (unsupported.includes('beforeDate') && options.beforeDate) passed.push('--before-date');
+  if (passed.length === 0) return;
+  const list = passed.join(', ');
+  stderr.write(
+    `${warnText(`[search] ${provider} doesn't honor ${list}; the flag will be ignored. Try a different provider for this filter.`)}\n`,
+  );
+}
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Validate a `YYYY-MM-DD` flag value. Returns the value unchanged on
+ *  success; returns `undefined` for missing input; throws an
+ *  AICliError for badly-formatted strings (e.g. `2026/05/06`,
+ *  `5-6-2026`). */
+function validateIsoDate(
+  flag: 'after-date' | 'before-date',
+  value: string | undefined,
+): string | undefined {
+  if (!value) return undefined;
+  if (!ISO_DATE_RE.test(value)) {
+    throw new AICliError(
+      'validation',
+      `--${flag} must be in YYYY-MM-DD format (got "${value}").`,
+    );
+  }
+  return value;
 }
 
 function parseLimit(s: string | undefined): number | undefined {
@@ -99,6 +150,11 @@ export async function handleSearchCommand(
     );
   }
 
+  // Per-provider unsupported-flag warnings. Surface the silent drops
+  // before the call so the user knows the flag isn't going to do
+  // anything, instead of seeing unfiltered results and wondering why.
+  warnUnsupportedSearchFlags(stderr, provider, options);
+
   const { apiKey } = resolveProviderAuth(provider, config, env, {
     apiKey: options.apiKey,
   });
@@ -112,6 +168,8 @@ export async function handleSearchCommand(
     limit: parseLimit(options.limit),
     depth: options.depth,
     freshness: options.freshness,
+    afterDate: validateIsoDate('after-date', options.afterDate),
+    beforeDate: validateIsoDate('before-date', options.beforeDate),
     includeDomains: csvToList(options.includeDomains),
     excludeDomains: csvToList(options.excludeDomains),
     includeContent: options.includeContent,
@@ -167,7 +225,9 @@ export function buildSearchCommand(
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--limit <n>', 'Max results (capped per provider).')
     .option('--depth <tier>', 'Search depth: basic, standard, deep.')
-    .option('--freshness <range>', 'Freshness window: day, week, month, year.')
+    .option('--freshness <range>', 'Relative freshness window: day, week, month, year. Mapped per provider (Brave/Tavily native, Exa/Firecrawl emulated, Parallel ignored — use --after-date instead).')
+    .option('--after-date <YYYY-MM-DD>', 'Lower bound for absolute date filtering. Honored by Exa, Firecrawl, Parallel; ignored by Brave and Tavily.')
+    .option('--before-date <YYYY-MM-DD>', 'Upper bound for absolute date filtering. Honored by Exa and Firecrawl; ignored by Brave, Tavily, and Parallel.')
     .option('--include-domains <csv>', 'Comma-separated domains to include.')
     .option('--exclude-domains <csv>', 'Comma-separated domains to exclude.')
     .option('--include-content', 'Inline full page content where supported.')

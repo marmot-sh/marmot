@@ -536,8 +536,21 @@ export type WebSearchInput = {
   limit?: number;
   /** Search-depth hint: provider interprets. */
   depth?: 'basic' | 'standard' | 'deep';
-  /** Time-window filter. Brave/Tavily honor it. */
+  /** Relative time-window filter. Honored by Brave (native), Tavily
+   *  (native), Exa (mapped to startPublishedDate), Firecrawl (mapped
+   *  to Google-style `tbs=qdr:d|w|m|y`). Parallel doesn't have a
+   *  freshness primitive — pass `afterDate` instead. */
   freshness?: 'day' | 'week' | 'month' | 'year';
+  /** Lower bound for absolute date filtering. ISO date `YYYY-MM-DD`.
+   *  Honored by Exa (`startPublishedDate`), Firecrawl (Google `tbs`
+   *  `cd_min`), Parallel (`after_date`). Brave and Tavily don't
+   *  expose absolute-date filtering — they ignore it. */
+  afterDate?: string;
+  /** Upper bound for absolute date filtering. ISO date `YYYY-MM-DD`.
+   *  Honored by Exa (`endPublishedDate`), Firecrawl (Google `tbs`
+   *  `cd_max`). Brave, Tavily, and Parallel don't expose
+   *  upper-bound filtering — they ignore it. */
+  beforeDate?: string;
   includeDomains?: string[];
   excludeDomains?: string[];
   /** When true, fold full page content into each result if the provider supports it. */

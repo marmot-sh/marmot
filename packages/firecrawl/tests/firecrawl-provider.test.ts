@@ -100,6 +100,75 @@ describe('firecrawlAdapter.search', () => {
     });
     expect(result.data.results).toEqual([]);
   });
+
+  it('passes afterDate / beforeDate as a Google-style cdr tbs', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await firecrawlAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      afterDate: '2026-01-15',
+      beforeDate: '2026-02-15',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ success: true, data: { web: [] } });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:1/15/2026,cd_max:2/15/2026' });
+  });
+
+  it('passes only afterDate as cdr with cd_min', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await firecrawlAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      afterDate: '2026-01-15',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ success: true, data: { web: [] } });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:1/15/2026' });
+  });
+
+  it('maps relative freshness to qdr quick-date-range', async () => {
+    const captured: string[] = [];
+    const fetchFn = (async (_u: string | URL | Request, init?: RequestInit) => {
+      captured.push(JSON.parse(String(init?.body)).tbs as string);
+      return okJson({ success: true, data: { web: [] } });
+    }) as unknown as typeof fetch;
+    for (const f of ['day', 'week', 'month', 'year'] as const) {
+      await firecrawlAdapter.search!({ apiKey: 'k', query: 'x', freshness: f, fetchFn });
+    }
+    expect(captured).toEqual(['qdr:d', 'qdr:w', 'qdr:m', 'qdr:y']);
+  });
+
+  it('explicit absolute date bounds win over relative freshness', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await firecrawlAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      afterDate: '2026-01-15',
+      freshness: 'year',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ success: true, data: { web: [] } });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:1/15/2026' });
+  });
+
+  it('omits tbs entirely when no date filter is requested', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await firecrawlAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ success: true, data: { web: [] } });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).not.toHaveProperty('tbs');
+  });
 });
 
 describe('firecrawlAdapter.scrape', () => {

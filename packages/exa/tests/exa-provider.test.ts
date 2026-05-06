@@ -116,6 +116,79 @@ describe('exaAdapter.search', () => {
       exaAdapter.search!({ apiKey: 'k', query: 'x', fetchFn: errStatus(503) }),
     ).rejects.toThrowError(/status 503/);
   });
+
+  it('passes afterDate as startPublishedDate in ISO datetime form', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await exaAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      afterDate: '2026-01-15',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ startPublishedDate: '2026-01-15T00:00:00.000Z' });
+  });
+
+  it('passes beforeDate as endPublishedDate at end-of-day', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await exaAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      beforeDate: '2026-02-15',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ endPublishedDate: '2026-02-15T23:59:59.999Z' });
+  });
+
+  it('maps relative freshness to startPublishedDate when afterDate is not set', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await exaAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      freshness: 'week',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect((captured as Record<string, string>).startPublishedDate).toMatch(
+      /^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/,
+    );
+  });
+
+  it('explicit afterDate wins over freshness mapping', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await exaAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      afterDate: '2026-01-15',
+      freshness: 'year',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ startPublishedDate: '2026-01-15T00:00:00.000Z' });
+  });
+
+  it('omits date fields entirely when neither afterDate nor beforeDate nor freshness is set', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await exaAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).not.toHaveProperty('startPublishedDate');
+    expect(captured).not.toHaveProperty('endPublishedDate');
+  });
 });
 
 describe('exaAdapter.scrape', () => {
