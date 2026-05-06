@@ -26,7 +26,7 @@ The envelope returns:
 
 Use this to decide whether to pass `--provider`, whether the response cache will short-circuit your call, and which presets are pre-tuned for the task. If sessions matter for the task, also run `marmot session list`.
 
-Verbs and flags this skill describes target marmot 0.4.0 and later. Earlier versions may not have `marmot video`, sampling controls (`--temperature`, `--reasoning`, `--provider-option`), stdin image sniffing on `marmot run` and `marmot video`, or the `readyProviders` envelope field. Suggest an upgrade if `marmotVersion` is below 0.4.0.
+Verbs and flags this skill describes target marmot 0.4.7 and later. Earlier versions may not have `marmot video`, sampling controls (`--temperature`, `--reasoning`, `--provider-option`), stdin image sniffing on `marmot run` and `marmot video`, the `readyProviders` envelope field, presets for web/data verbs, sigil verb-routing (`marmot @<name>` auto-dispatches to the matching verb), or `marmot models --search`. Suggest an upgrade if `marmotVersion` is below 0.4.7.
 
 ## Verb surface
 

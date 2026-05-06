@@ -243,20 +243,57 @@ Constraints: must pass either `--provider` or `--all`, never both. `--query` req
 
 `marmot cache refresh [provider|all]` is a different cache. It rebuilds the per-provider model catalogs under `~/.marmot/cache/models/{text,images,speech,transcription}/<provider>.json`. Unrelated to the response cache. Use it after rotating keys or when a new model isn't visible in `setup`.
 
+### Listing and searching models (0.4.7+)
+
+```bash
+marmot models                                    # all cached models, every provider/mode
+marmot models --provider openai --mode text      # filter to one bucket
+marmot models --search gpt                       # case-insensitive substring on id + name (top 10)
+marmot models --search sora --provider openai --limit 5
+marmot models --search claude --mode text --limit 0   # 0 = no cap
+```
+
+`--search` matches case-insensitive substrings of model id and display name. Default `--limit 10` total matches across all returned buckets; pass `--limit 0` to remove the cap. `--json` returns the structured envelope with `buckets`, plus `search` and `totalMatches` when `--search` is set. Use this when you know part of a model name but not the exact slug — faster than scrolling through the full `marmot models` output.
+
 ## 8. Presets
 
 Saved invocation bundles. Stored under top-level `presets` map in `config.json`. One preset is scoped to one mode.
 
 ### Modes and fields
 
-Common to every mode: `--provider`, `--model`, `--retries`, `--timeout`.
+Presets exist for every verb category. Common to every mode: `--provider`, `--retries`, `--timeout`. AI modes additionally accept `--model`. Web and data modes do not — provider implies the API surface.
 
-| Mode | Extra fields |
-| --- | --- |
-| `text` | `--system` |
-| `image` | `--size`, `--quality`, `--style`, `--n` (1..10) |
-| `speech` | `--voice`, `--format`, `--speed` |
-| `transcription` | `--language`, `--format` |
+**AI modes**
+
+| Mode | Verb | Extra fields |
+| --- | --- | --- |
+| `text` | (default) | `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop`, `--reasoning`, `--provider-option`, `--stream`, `--json` |
+| `image` | `image` | `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n` (1..10), `--provider-option` |
+| `video` | `video` | `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio`/`--no-audio`, `--n`, `--seed`, `--provider-option` |
+| `speech` | `speak` | `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option` |
+| `transcription` | `transcribe` | `--language`, `--format`, `--prompt`, `--provider-option` |
+
+**Web modes**
+
+| Mode | Verb | Extra fields |
+| --- | --- | --- |
+| `search` | `search` | `--limit`, `--depth`, `--freshness`, `--after-date`, `--before-date`, `--include-domains`, `--exclude-domains`, `--include-content` |
+| `scrape` | `scrape` | `--format`, `--query` |
+| `answer` | `answer` | `--max-citations`, `--include-search` |
+| `map` | `map` | `--search`, `--limit` |
+| `crawl` | `crawl` | `--max-pages`, `--max-depth`, `--instructions`, `--include-paths`, `--exclude-paths`, `--allow-external` |
+| `research` | `research` | `--depth`, `--schema`, `--schema-file`, `--instructions`, `--poll-interval`, `--max-wait` |
+| `findall` | `findall` | `--limit`, `--schema`, `--schema-file`, `--entity-type`, `--match-conditions` |
+
+**Data modes**
+
+| Mode | Verb | Extra fields |
+| --- | --- | --- |
+| `enrich` | `enrich` | `--type` (person/org), `--min-likelihood`, `--require`, `--fields` |
+| `lookup` | `lookup` | `--type` (person/org/email), `--limit` |
+| `verify` | `verify` | (provider, retries, timeout only) |
+
+Per-call identifiers (`--email`, `--linkedin`, `--query`, etc.) intentionally stay as call-time flags, not preset-shaped, because they vary per invocation.
 
 ### Naming
 
@@ -280,14 +317,23 @@ marmot preset delete deep-research
 ### Use a preset
 
 ```bash
-marmot @deep-research "summarize this paper"           # sigil shorthand
-marmot run --preset deep-research "summarize this"     # long form
-marmot image @square-1024 "a marmot in the alps"
+# Sigil routes to the matching verb automatically (0.4.7+):
+marmot @deep-research "summarize this paper"                 # → run (text)
+marmot @linkedin "Daniel Francis Abel Police"                # → search
+marmot @research-fintech "stripe vs adyen"                   # → research
+marmot @enrich-pdl --email tcook@apple.com                   # → enrich
+marmot @square-1024 "a marmot in the alps"                   # → image
+
+# Long form and explicit verbs both work:
+marmot run --preset deep-research "summarize this"
+marmot search --preset linkedin "..."
 marmot speak @narrator "welcome"
 marmot transcribe @whisper_en ./talk.mp3
 ```
 
-Mode mismatch is rejected: `marmot image @deep-research "..."` fails because `deep-research` is mode `text`. The `@name` sigil expands to `--preset <name>` before commander parses; only the first matching token is consumed, so `"@user said hi"` inside a quoted prompt is left alone.
+The `@name` sigil expands to `--preset <name>` before commander parses, and (as of 0.4.7) injects the verb that matches the preset's mode when no explicit verb is present. Mode → verb is 1:1 for the 12 web/data and image/video modes; the three AI exceptions are remapped: `speech` → `speak`, `transcription` → `transcribe`, `text` → default-run (no verb token).
+
+Mode mismatch is rejected when an explicit verb conflicts with the preset's mode: `marmot scrape @some-search-preset url` fails with `Preset "..." has mode "search", but this command requires "scrape"`. Only the first matching `@…` token is consumed, so `"@user said hi"` inside a quoted prompt is left alone.
 
 ### Resolution order
 

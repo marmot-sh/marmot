@@ -1,9 +1,9 @@
 ---
 title: Presets
-description: marmot preset — create, update, list, and use saved command bundles.
+description: marmot preset — create, update, list, and use saved command bundles. Available across every verb.
 ---
 
-Use presets to save provider, model, and mode-specific flags under a name.
+Use presets to save provider, model, and verb-specific flags under a name. Presets exist for every verb category — AI generation (text, image, video, speech, transcription), web (search, scrape, answer, map, crawl, research, findall), and data (enrich, lookup, verify).
 
 ```bash
 marmot preset create <name> --mode <mode> [flags…]
@@ -11,8 +11,23 @@ marmot preset update <name> [flags…]
 marmot preset delete <name>
 marmot preset list
 marmot preset show <name>
-marmot @<name> ...
+
+marmot @<name> "..."           # sigil — auto-routes to the right verb
+marmot search @<name> "..."    # explicit verb still works
 ```
+
+## The `@name` sigil
+
+The shorthand `@<name>` expands to `--preset <name>`. As of 0.4.7, it also routes to the verb that matches the preset's mode when no explicit verb is given. So a search-mode preset dispatches to `marmot search`, an enrich-mode preset to `marmot enrich`, and so on:
+
+```bash
+marmot preset create linkedin --mode search --provider parallel --include-domains linkedin.com
+marmot @linkedin "Daniel Francis Abel Police"   # → marmot search
+```
+
+Mode → verb mapping covers all 15 modes. Three AI exceptions remap because the verb name differs from the mode name: `speech` → `speak`, `transcription` → `transcribe`, `text` → default-run (no verb token needed).
+
+Explicit verbs still win — `marmot scrape @some-search-preset url` keeps `scrape` as the verb and surfaces a clean mode-mismatch error rather than silently swapping. Only the first matching `@…` token is consumed, so `marmot run "@user said hi"` keeps the literal in the prompt.
 
 ## Create
 
@@ -20,7 +35,7 @@ marmot @<name> ...
 marmot preset create <name> --mode <mode> [flags…]
 ```
 
-Creates a preset. The name must be a slug: lowercase letters, digits, `-`, and `_`, with no leading, trailing, or consecutive separators.
+Names follow the slug regex `^[a-z0-9]+([-_][a-z0-9]+)*$` — lowercase letters and digits with single `-` or `_` separators (no leading, trailing, or consecutive separators).
 
 ## Update
 
@@ -28,26 +43,81 @@ Creates a preset. The name must be a slug: lowercase letters, digits, `-`, and `
 marmot preset update <name> [flags…]
 ```
 
-Patches fields on an existing preset. Only supplied flags change. A preset's mode is fixed; delete and recreate it if the mode needs to change.
+Patches the supplied flags onto an existing preset. A preset's mode is fixed; delete and recreate it if the mode needs to change.
 
-## Create and update flags
+## Modes and their preset-shaped flags
 
-| Flag | Description |
-| --- | --- |
-| `--mode <mode>` | Preset mode: `text`, `image`, `speech`, or `transcription`. Required for `create`; optional on `update` but must match the existing mode. |
-| `--provider <provider>` | Provider slug to use when the preset is active. |
-| `--model <model>` | Model slug to use when the preset is active. |
-| `--system <text>` | System prompt. Text mode only. |
-| `--size <WxH>` | Image size, for example `1024x1024`. Image mode only. |
-| `--quality <level>` | Image quality. Image mode only; provider-specific. |
-| `--style <style>` | Image style. Image mode only; provider-specific. |
-| `--n <count>` | Number of images. Image mode only. |
-| `--voice <voice>` | Voice id. Speech mode only. |
-| `--format <format>` | Output format. Speech and transcription modes. |
-| `--speed <number>` | Playback speed multiplier. Speech mode only. |
-| `--language <code>` | ISO-639-1 language hint. Transcription mode only. |
-| `--retries <count>` | Default retry count for calls using this preset. |
-| `--timeout <seconds>` | Default per-attempt timeout for calls using this preset. |
+Common to every mode: `--provider`, `--retries`, `--timeout`. AI modes also accept `--model`. Web and data modes do not — provider implies the API surface.
+
+### AI modes
+
+| Mode | Verb | Mode-specific flags |
+| --- | --- | --- |
+| `text` | (default) | `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop`, `--reasoning`, `--provider-option`, `--stream`, `--json` |
+| `image` | `image` | `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n`, `--provider-option` |
+| `video` | `video` | `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio` / `--no-audio`, `--n`, `--seed`, `--provider-option` |
+| `speech` | `speak` | `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option` |
+| `transcription` | `transcribe` | `--language`, `--format`, `--prompt`, `--provider-option` |
+
+### Web modes
+
+| Mode | Verb | Mode-specific flags |
+| --- | --- | --- |
+| `search` | `search` | `--limit`, `--depth`, `--freshness`, `--after-date`, `--before-date`, `--include-domains`, `--exclude-domains`, `--include-content` |
+| `scrape` | `scrape` | `--format`, `--query` |
+| `answer` | `answer` | `--max-citations`, `--include-search` |
+| `map` | `map` | `--search`, `--limit` |
+| `crawl` | `crawl` | `--max-pages`, `--max-depth`, `--instructions`, `--include-paths`, `--exclude-paths`, `--allow-external` |
+| `research` | `research` | `--depth`, `--schema`, `--schema-file`, `--instructions`, `--poll-interval`, `--max-wait` |
+| `findall` | `findall` | `--limit`, `--schema`, `--schema-file`, `--entity-type`, `--match-conditions` |
+
+### Data modes
+
+| Mode | Verb | Mode-specific flags |
+| --- | --- | --- |
+| `enrich` | `enrich` | `--type` (person / org), `--min-likelihood`, `--require`, `--fields` |
+| `lookup` | `lookup` | `--type` (person / org / email), `--limit` |
+| `verify` | `verify` | (provider, retries, timeout only) |
+
+Per-call identifiers — `--email`, `--linkedin`, `--first-name`, `--query`, etc. on data verbs — intentionally stay as call-time flags, not preset-shaped, because they vary per invocation.
+
+## Use
+
+```bash
+marmot search --preset <name> "..."
+marmot @<name> "..."
+```
+
+Explicit flags always win over preset values. The preset only fills slots the user hasn't set. So this call uses the saved provider but bumps the limit:
+
+```bash
+marmot @linkedin "Daniel Francis Abel Police" --limit 50
+```
+
+## Examples
+
+```bash
+# Search preset bound to LinkedIn results via Parallel
+marmot preset create linkedin-people \
+  --mode search --provider parallel --include-domains linkedin.com --limit 25
+marmot @linkedin-people "Daniel Francis Abel Police"
+
+# Deep research with a fixed schema
+marmot preset create research-fintech \
+  --mode research --provider parallel --depth deep \
+  --schema-file ~/schemas/research-output.json
+marmot @research-fintech "competitive analysis on stripe vs adyen"
+
+# People enrichment via PDL with a likelihood floor
+marmot preset create enrich-people-pdl \
+  --mode enrich --provider pdl --type person --min-likelihood 8
+marmot @enrich-people-pdl --email tcook@apple.com
+
+# AI image preset
+marmot preset create square-1024 \
+  --mode image --provider openai --size 1024x1024 --quality hd
+marmot @square-1024 "a marmot in the alps"
+```
 
 ## Delete
 
@@ -55,52 +125,36 @@ Patches fields on an existing preset. Only supplied flags change. A preset's mod
 marmot preset delete <name>
 ```
 
-Removes a preset. The command reports whether a preset was removed.
+Returns `{removed: false}` if the name didn't exist (not an error).
 
-## List
-
-```bash
-marmot preset list
-```
-
-Lists every preset with its name, mode, provider, and model.
-
-## Show
+## List and show
 
 ```bash
-marmot preset show <name>
+marmot preset list                # JSON: [{name, mode, provider, model}]
+marmot preset show <name>         # JSON: full preset body
 ```
-
-Prints the full settings for one preset.
-
-## Use
-
-```bash
-marmot run --preset <name> "summarize this"
-marmot @<name> "summarize this"
-```
-
-`@<name>` is shorthand for `--preset <name>`. Explicit flags still win, so this call keeps the preset but overrides the model:
-
-```bash
-marmot @deep-research --model claude-haiku-4-5 "summarize this"
-```
-
-Presets only apply to their own mode. A text preset works with `marmot run`, but not `marmot image`.
 
 ## Config keys
 
-Presets live under the top-level `presets` map in `~/.marmot/config.json`.
+Presets live under the top-level `presets` map in `~/.marmot/config.json`:
 
 ```json
 {
   "presets": {
-    "deep-research": {
-      "mode": "text",
-      "provider": "anthropic",
-      "model": "claude-opus-4-7",
-      "system": "Be terse and cite sources."
+    "linkedin-people": {
+      "mode": "search",
+      "provider": "parallel",
+      "limit": 25,
+      "includeDomains": "linkedin.com"
+    },
+    "research-fintech": {
+      "mode": "research",
+      "provider": "parallel",
+      "depth": "deep",
+      "schemaFile": "~/schemas/research-output.json"
     }
   }
 }
 ```
+
+Presets store flags only, never credentials.
