@@ -1,12 +1,7 @@
 import {
-  PROVIDER_API_KEY_ENV_VARS,
-  PROVIDER_DEFAULT_MODELS,
-  PROVIDER_DISPLAY_NAMES,
-  PROVIDER_EXTRA_ENV_VARS,
+  listProviderSummaries as coreListProviderSummaries,
   type ProviderSlug,
-  PROVIDERS,
 } from '@marmot-sh/core';
-import { getProviderCachePath } from '@marmot-sh/core';
 import type {
   ProviderCapabilities,
   ProviderGenerateInput,
@@ -77,21 +72,5 @@ export function getProviderAdapter(provider: ProviderSlug): ProviderAdapter {
 export function listProviderSummaries(
   env: NodeJS.ProcessEnv = process.env,
 ): ProviderSummary[] {
-  return PROVIDERS.map((provider) => {
-    const apiKeyEnvVar = PROVIDER_API_KEY_ENV_VARS[provider];
-    const extraEnvVars = PROVIDER_EXTRA_ENV_VARS[provider];
-    const envVars = [
-      ...(apiKeyEnvVar ? [apiKeyEnvVar] : []),
-      ...extraEnvVars,
-    ];
-
-    return {
-      slug: provider,
-      name: PROVIDER_DISPLAY_NAMES[provider],
-      defaultModel: PROVIDER_DEFAULT_MODELS[provider],
-      requiresApiKey: apiKeyEnvVar !== null,
-      cachePath: getProviderCachePath(provider, env),
-      env: envVars,
-    };
-  });
+  return coreListProviderSummaries(env);
 }

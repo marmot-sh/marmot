@@ -5,11 +5,18 @@ import { listProviderSummaries } from '../src/providers/index.js';
 describe('listProviderSummaries', () => {
   const env = { HOME: '/tmp/marmot-test-home' };
 
-  it('lists all six providers with their slugs and display names', () => {
+  it('returns all 19 providers across AI, web, and data categories', () => {
     const summaries = listProviderSummaries(env);
-    const slugs = summaries.map((s) => s.slug).sort();
-    expect(slugs).toEqual(
+    expect(summaries).toHaveLength(19);
+    const aiSlugs = summaries.filter((s) => s.category === 'ai').map((s) => s.slug).sort();
+    const webSlugs = summaries.filter((s) => s.category === 'web').map((s) => s.slug).sort();
+    const dataSlugs = summaries.filter((s) => s.category === 'data').map((s) => s.slug).sort();
+    expect(aiSlugs).toEqual(
       ['anthropic', 'cloudflare', 'ollama', 'openai', 'openrouter', 'vercel'],
+    );
+    expect(webSlugs).toEqual(['brave', 'exa', 'firecrawl', 'parallel', 'tavily']);
+    expect(dataSlugs).toEqual(
+      ['apollo', 'bouncer', 'datagma', 'hunter', 'kickbox', 'pdl', 'tomba', 'zerobounce'],
     );
   });
 
@@ -17,8 +24,10 @@ describe('listProviderSummaries', () => {
     const summaries = listProviderSummaries(env);
     const ollama = summaries.find((s) => s.slug === 'ollama');
     const openrouter = summaries.find((s) => s.slug === 'openrouter');
+    const exa = summaries.find((s) => s.slug === 'exa');
     expect(ollama?.requiresApiKey).toBe(false);
     expect(openrouter?.requiresApiKey).toBe(true);
+    expect(exa?.requiresApiKey).toBe(true);
   });
 
   it('lists Ollama with OLLAMA_HOST as its env var', () => {
@@ -29,7 +38,6 @@ describe('listProviderSummaries', () => {
   it('lists Vercel with AI_GATEWAY_API_KEY', () => {
     const summary = listProviderSummaries(env).find((s) => s.slug === 'vercel');
     expect(summary?.env).toEqual(['AI_GATEWAY_API_KEY']);
-    expect(summary?.defaultModel).toBe('anthropic/claude-sonnet-4.6');
   });
 
   it('lists Cloudflare with both API token and account id env vars', () => {
@@ -47,5 +55,36 @@ describe('listProviderSummaries', () => {
       (s) => s.slug === 'anthropic',
     );
     expect(summary?.env).toEqual(['ANTHROPIC_API_KEY']);
+  });
+
+  it('lists Tomba with both API key and secret env vars', () => {
+    const summary = listProviderSummaries(env).find((s) => s.slug === 'tomba');
+    expect(summary?.env).toEqual(['TOMBA_API_KEY', 'TOMBA_SECRET_KEY']);
+    expect(summary?.category).toBe('data');
+  });
+
+  it('lists web providers with their single API key env var and no cachePath', () => {
+    const tavily = listProviderSummaries(env).find((s) => s.slug === 'tavily');
+    expect(tavily?.env).toEqual(['TAVILY_API_KEY']);
+    expect(tavily?.category).toBe('web');
+    expect(tavily?.cachePath).toBeUndefined();
+  });
+
+  it('AI providers carry a cachePath; web/data providers do not', () => {
+    const summaries = listProviderSummaries(env);
+    for (const s of summaries) {
+      if (s.category === 'ai') {
+        expect(s.cachePath).toBeTypeOf('string');
+      } else {
+        expect(s.cachePath).toBeUndefined();
+      }
+    }
+  });
+
+  it('does not surface a top-level defaultModel field (per-modality defaults live in config defaults.<verb>)', () => {
+    const summaries = listProviderSummaries(env);
+    for (const s of summaries) {
+      expect(s).not.toHaveProperty('defaultModel');
+    }
   });
 });
