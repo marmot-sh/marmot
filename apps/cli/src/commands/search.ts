@@ -26,12 +26,13 @@ import {
   writeEnvelope,
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 import type { StdinReader } from '@marmot-sh/core';
 
 export type SearchCommandOptions = {
   provider?: string;
   apiKey?: string;
-  limit?: string;
+  limit?: string | number;
   depth?: 'basic' | 'standard' | 'deep';
   freshness?: 'day' | 'week' | 'month' | 'year';
   afterDate?: string;
@@ -43,9 +44,10 @@ export type SearchCommandOptions = {
   json?: boolean;
   cache?: boolean;
   refresh?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type SearchCommandDependencies = DataVerbDependencies & {
@@ -147,9 +149,9 @@ export function assertDateRangeCoherent(
   }
 }
 
-function parseLimit(s: string | undefined): number | undefined {
-  if (!s) return undefined;
-  const n = Number.parseInt(s, 10);
+function parseLimit(s: string | number | undefined): number | undefined {
+  if (s === undefined || s === null || s === '') return undefined;
+  const n = typeof s === 'number' ? s : Number.parseInt(s, 10);
   if (!Number.isFinite(n) || n <= 0) {
     throw new AICliError('validation', `--limit must be a positive integer (got "${s}").`);
   }
@@ -275,8 +277,10 @@ export function buildSearchCommand(
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved search preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (queryParts: string[], options: SearchCommandOptions) => {
-      await handleSearchCommand(queryParts, options, deps);
+      const merged = await withPreset(options, 'search');
+      await handleSearchCommand(queryParts, merged, deps);
     });
   return cmd;
 }

@@ -735,7 +735,11 @@ async function prepareRunExecution(
     maxOutputTokens: options.maxTokens,
     topP: options.topP,
     seed: options.seed,
-    stopSequences: options.stop,
+    // Commander's collectStop defaults to [] when --stop isn't passed.
+    // Empty arrays look like "an explicit empty value" to downstream
+    // adapters and the Vercel AI SDK warns when a provider doesn't
+    // implement stopSequences (Ollama). Treat absence as undefined.
+    stopSequences: options.stop && options.stop.length > 0 ? options.stop : undefined,
     reasoning: options.reasoning,
     providerOptions: parseProviderOptions(options.providerOption),
     text: Boolean(options.text),

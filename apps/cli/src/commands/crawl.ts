@@ -24,12 +24,14 @@ import {
 } from '../providers/web-index.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
+import { parseIntFlag } from '../lib/parse-numeric.js';
 
 export type CrawlCommandOptions = {
   provider?: string;
   apiKey?: string;
-  maxPages?: string;
-  maxDepth?: string;
+  maxPages?: string | number;
+  maxDepth?: string | number;
   instructions?: string;
   includePaths?: string;
   excludePaths?: string;
@@ -37,9 +39,10 @@ export type CrawlCommandOptions = {
   wait?: boolean;
   async?: boolean;
   raw?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type CrawlCommandDependencies = {
@@ -88,8 +91,8 @@ export async function handleCrawlCommand(
 
   const input: WebCrawlInput = {
     url,
-    maxPages: options.maxPages ? Number.parseInt(options.maxPages, 10) : undefined,
-    maxDepth: options.maxDepth ? Number.parseInt(options.maxDepth, 10) : undefined,
+    maxPages: parseIntFlag('max-pages', options.maxPages),
+    maxDepth: parseIntFlag('max-depth', options.maxDepth),
     instructions: options.instructions,
     includePaths: csv(options.includePaths),
     excludePaths: csv(options.excludePaths),
@@ -222,7 +225,9 @@ export function buildCrawlCommand(
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved crawl preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (url: string, options: CrawlCommandOptions) => {
-      await handleCrawlCommand(url, options, deps);
+      const merged = await withPreset(options, 'crawl');
+      await handleCrawlCommand(url, merged, deps);
     });
 }

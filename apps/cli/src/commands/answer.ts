@@ -25,18 +25,20 @@ import {
   writeEnvelope,
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 
 export type AnswerCommandOptions = {
   provider?: string;
   apiKey?: string;
-  maxCitations?: string;
+  maxCitations?: string | number;
   includeSearch?: boolean;
   raw?: boolean;
   cache?: boolean;
   refresh?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type AnswerCommandDependencies = DataVerbDependencies & {
@@ -82,8 +84,10 @@ export async function handleAnswerCommand(
     timeout: options.timeout,
   });
   const onRetry = makeRetryNotifier(stderr, provider, 'answer', retries);
-  const maxCitations = options.maxCitations
-    ? Number.parseInt(options.maxCitations, 10)
+  const maxCitations = options.maxCitations !== undefined && options.maxCitations !== ''
+    ? (typeof options.maxCitations === 'number'
+        ? options.maxCitations
+        : Number.parseInt(options.maxCitations, 10))
     : undefined;
   const input: WebAnswerInput = {
     query,
@@ -141,7 +145,9 @@ export function buildAnswerCommand(
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved answer preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (queryParts: string[], options: AnswerCommandOptions) => {
-      await handleAnswerCommand(queryParts, options, deps);
+      const merged = await withPreset(options, 'answer');
+      await handleAnswerCommand(queryParts, merged, deps);
     });
 }

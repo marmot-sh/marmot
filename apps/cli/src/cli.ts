@@ -87,15 +87,12 @@ import {
   type RunCommandOptions,
 } from './commands/run.js';
 import {
-  AICliError,
   PRESET_NAME_REGEX,
-  applyPreset,
   formatCliError,
   formatCliErrorJson,
   getExitCode,
-  getPreset,
-  type PresetMode,
 } from '@marmot-sh/core';
+import { withPreset } from './lib/with-preset.js';
 
 function collectImage(value: string, previous: string[] = []): string[] {
   return previous.concat([value]);
@@ -111,21 +108,6 @@ function collectStop(value: string, previous: string[] = []): string[] {
 
 function collectProviderOption(value: string, previous: string[] = []): string[] {
   return previous.concat([value]);
-}
-
-async function withPreset<T extends { preset?: string }>(
-  options: T,
-  expectedMode: PresetMode,
-): Promise<T> {
-  if (!options.preset) return options;
-  const preset = await getPreset(options.preset);
-  if (preset.mode !== expectedMode) {
-    throw new AICliError(
-      'validation',
-      `Preset "${options.preset}" has mode "${preset.mode}", but this command requires "${expectedMode}".`,
-    );
-  }
-  return applyPreset(preset, options);
 }
 
 function addRunOptions(command: Command): Command {
@@ -214,7 +196,42 @@ function addPresetWriteOptions(command: Command): Command {
     .option('--duration <seconds>', 'Clip length in seconds (video mode).')
     .option('--fps <n>', 'Frames per second (video mode).')
     .option('--audio', 'Include synced audio (video mode). Pass --no-audio to force off.')
-    .option('--no-audio', 'Force audio off (video mode).');
+    .option('--no-audio', 'Force audio off (video mode).')
+    // Web/data shared
+    .option('--limit <n>', 'Max results (search / map / findall / lookup mode).')
+    .option('--depth <tier>', 'Depth tier: basic, standard, deep (search / research mode).')
+    // Search
+    .option('--freshness <range>', 'Relative freshness window: day, week, month, year (search mode).')
+    .option('--after-date <YYYY-MM-DD>', 'Lower bound absolute date (search mode).')
+    .option('--before-date <YYYY-MM-DD>', 'Upper bound absolute date (search mode).')
+    .option('--include-domains <csv>', 'Comma-separated domains to include (search mode).')
+    .option('--exclude-domains <csv>', 'Comma-separated domains to exclude (search mode).')
+    .option('--include-content', 'Inline full page content where supported (search mode).')
+    // Scrape
+    .option('--query <text>', 'Tavily-style chunk reranking intent (scrape mode).')
+    // Answer
+    .option('--max-citations <n>', 'Cap citations included (answer mode).')
+    .option('--include-search', 'Also return underlying search results (answer mode).')
+    // Map
+    .option('--search <text>', 'Relevance ordering query (map mode).')
+    // Crawl
+    .option('--max-pages <n>', 'Cap pages crawled (crawl mode).')
+    .option('--max-depth <n>', 'Discovery depth (crawl mode).')
+    .option('--include-paths <csv>', 'Regex patterns of paths to include (crawl mode).')
+    .option('--exclude-paths <csv>', 'Regex patterns of paths to exclude (crawl mode).')
+    .option('--allow-external', 'Follow off-domain links (crawl mode).')
+    // Research
+    .option('--poll-interval <s>', 'Override poll cadence in seconds, or csv backoff steps (research mode).')
+    .option('--max-wait <s>', 'Maximum total wait time in seconds (research mode).')
+    // Findall
+    .option('--entity-type <name>', 'Entity type for the search (findall mode, Parallel).')
+    .option('--match-conditions <json>', 'JSON array of {name, description} conditions (findall mode, Parallel).')
+    // Enrich / Lookup
+    .option('--type <kind>', 'Entity type: person, org (enrich mode); person, org, email (lookup mode).')
+    // Enrich
+    .option('--min-likelihood <n>', 'Reject results below this likelihood (enrich mode).')
+    .option('--require <fields>', 'Comma-separated fields the result must populate (enrich mode).')
+    .option('--fields <list>', 'Comma-separated fields to return (enrich mode).');
 }
 
 function buildPresetCommand(): Command {

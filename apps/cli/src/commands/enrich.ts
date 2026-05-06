@@ -26,6 +26,7 @@ import {
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 
 export type EnrichCommandOptions = {
   type?: string;
@@ -47,7 +48,7 @@ export type EnrichCommandOptions = {
   website?: string;
   ticker?: string;
   // Match controls
-  minLikelihood?: string;
+  minLikelihood?: string | number;
   require?: string;
   fields?: string;
   // Output
@@ -55,9 +56,10 @@ export type EnrichCommandOptions = {
   json?: boolean;
   cache?: boolean;
   refresh?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type EnrichCommandDependencies = {
@@ -73,9 +75,9 @@ function csvToList(s: string | undefined): string[] | undefined {
   return parts.length > 0 ? parts : undefined;
 }
 
-function parseMinLikelihood(s: string | undefined): number | undefined {
-  if (!s) return undefined;
-  const n = Number.parseInt(s, 10);
+function parseMinLikelihood(s: string | number | undefined): number | undefined {
+  if (s === undefined || s === null || s === '') return undefined;
+  const n = typeof s === 'number' ? s : Number.parseInt(s, 10);
   if (!Number.isFinite(n) || n < 1) {
     throw new AICliError(
       'validation',
@@ -309,8 +311,10 @@ export function buildEnrichCommand(deps: EnrichCommandDependencies = {}): Comman
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved enrich preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (options: EnrichCommandOptions) => {
-      await handleEnrichCommand(options, deps);
+      const merged = await withPreset(options, 'enrich');
+      await handleEnrichCommand(merged, deps);
     });
   return cmd;
 }

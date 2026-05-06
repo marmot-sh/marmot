@@ -26,6 +26,7 @@ import {
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 
 export type LookupCommandOptions = {
   type?: string;
@@ -33,7 +34,7 @@ export type LookupCommandOptions = {
   apiKey?: string;
   // Common filters
   q?: string;
-  limit?: string;
+  limit?: string | number;
   cursor?: string;
   // Person/org filters
   title?: string;
@@ -51,9 +52,10 @@ export type LookupCommandOptions = {
   raw?: boolean;
   cache?: boolean;
   refresh?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type LookupCommandDependencies = {
@@ -69,9 +71,9 @@ function csvToList(s: string | undefined): string[] | undefined {
   return parts.length > 0 ? parts : undefined;
 }
 
-function parseLimit(s: string | undefined): number | undefined {
-  if (!s) return undefined;
-  const n = Number.parseInt(s, 10);
+function parseLimit(s: string | number | undefined): number | undefined {
+  if (s === undefined || s === null || s === '') return undefined;
+  const n = typeof s === 'number' ? s : Number.parseInt(s, 10);
   if (!Number.isFinite(n) || n <= 0) {
     throw new AICliError('validation', `--limit must be a positive integer (got "${s}").`);
   }
@@ -316,8 +318,10 @@ export function buildLookupCommand(deps: LookupCommandDependencies = {}): Comman
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved lookup preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (options: LookupCommandOptions) => {
-      await handleLookupCommand(options, deps);
+      const merged = await withPreset(options, 'lookup');
+      await handleLookupCommand(merged, deps);
     });
   return cmd;
 }

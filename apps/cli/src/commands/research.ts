@@ -29,6 +29,7 @@ import {
   writeEnvelope,
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 
 export type ResearchCommandOptions = {
   provider?: string;
@@ -40,11 +41,12 @@ export type ResearchCommandOptions = {
   wait?: boolean;
   async?: boolean;
   pollInterval?: string;
-  maxWait?: string;
+  maxWait?: string | number;
   raw?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type ResearchCommandDependencies = DataVerbDependencies & {
@@ -54,8 +56,8 @@ export type ResearchCommandDependencies = DataVerbDependencies & {
   fetchFn?: typeof fetch;
 };
 
-function parsePositiveSeconds(value: string, label: string): number {
-  const n = Number.parseInt(value, 10);
+function parsePositiveSeconds(value: string | number, label: string): number {
+  const n = typeof value === 'number' ? value : Number.parseInt(value, 10);
   if (!Number.isFinite(n) || n < 1) {
     throw new AICliError(
       'validation',
@@ -264,7 +266,9 @@ export function buildResearchCommand(
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved research preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (queryParts: string[], options: ResearchCommandOptions) => {
-      await handleResearchCommand(queryParts, options, deps);
+      const merged = await withPreset(options, 'research');
+      await handleResearchCommand(queryParts, merged, deps);
     });
 }

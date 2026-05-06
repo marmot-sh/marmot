@@ -20,6 +20,7 @@ import {
 import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
+import { withPreset } from '../lib/with-preset.js';
 
 export type VerifyCommandOptions = {
   email?: string;
@@ -28,9 +29,10 @@ export type VerifyCommandOptions = {
   raw?: boolean;
   cache?: boolean;
   refresh?: boolean;
-  retries?: string;
-  timeout?: string;
+  retries?: string | number;
+  timeout?: string | number;
   output?: string;
+  preset?: string;
 };
 
 export type VerifyCommandDependencies = {
@@ -131,8 +133,10 @@ export function buildVerifyCommand(deps: VerifyCommandDependencies = {}): Comman
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('--preset <name>', 'Apply a saved verify preset as defaults (explicit flags still win). Shorthand: @name.')
     .action(async (emailArg: string | undefined, options: VerifyCommandOptions) => {
-      await handleVerifyCommand(emailArg ? [emailArg] : [], options, deps);
+      const merged = await withPreset(options, 'verify');
+      await handleVerifyCommand(emailArg ? [emailArg] : [], merged, deps);
     });
   return cmd;
 }

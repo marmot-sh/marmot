@@ -60,6 +60,40 @@ export type PresetWriteOptions = {
   duration?: string | number;
   fps?: string | number;
   audio?: boolean;
+  // web/data shared
+  limit?: string | number;
+  depth?: string;
+  // search
+  freshness?: string;
+  afterDate?: string;
+  beforeDate?: string;
+  includeDomains?: string;
+  excludeDomains?: string;
+  includeContent?: boolean;
+  // answer
+  maxCitations?: string | number;
+  includeSearch?: boolean;
+  // scrape
+  query?: string;
+  // map
+  search?: string;
+  // crawl
+  maxPages?: string | number;
+  maxDepth?: string | number;
+  includePaths?: string;
+  excludePaths?: string;
+  allowExternal?: boolean;
+  // research
+  pollInterval?: string;
+  maxWait?: string | number;
+  // findall
+  entityType?: string;
+  matchConditions?: string;
+  // enrich
+  type?: string;
+  minLikelihood?: string | number;
+  require?: string;
+  fields?: string;
 };
 
 function parseIntField(name: string, value: string | number | undefined): number | undefined {
@@ -160,6 +194,124 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         n: parseIntField('n', opts.n),
         seed: parseIntField('seed', opts.seed),
         providerOption: nonEmptyArray(opts.providerOption),
+      };
+      break;
+    case 'search':
+      // search has no model field — drop it from base.
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        limit: parseIntField('limit', opts.limit),
+        depth: opts.depth,
+        freshness: opts.freshness,
+        afterDate: opts.afterDate,
+        beforeDate: opts.beforeDate,
+        includeDomains: opts.includeDomains,
+        excludeDomains: opts.excludeDomains,
+        includeContent: opts.includeContent,
+      };
+      break;
+    case 'scrape':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        format: opts.format,
+        query: opts.query,
+      };
+      break;
+    case 'answer':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        maxCitations: parseIntField('max-citations', opts.maxCitations),
+        includeSearch: opts.includeSearch,
+      };
+      break;
+    case 'map':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        search: opts.search,
+        limit: parseIntField('limit', opts.limit),
+      };
+      break;
+    case 'crawl':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        maxPages: parseIntField('max-pages', opts.maxPages),
+        maxDepth: parseIntField('max-depth', opts.maxDepth),
+        instructions: opts.instructions,
+        includePaths: opts.includePaths,
+        excludePaths: opts.excludePaths,
+        allowExternal: opts.allowExternal,
+      };
+      break;
+    case 'research':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        depth: opts.depth,
+        schema: opts.schema,
+        schemaFile: opts.schemaFile,
+        instructions: opts.instructions,
+        pollInterval: opts.pollInterval,
+        maxWait: parseIntField('max-wait', opts.maxWait),
+      };
+      break;
+    case 'findall':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        limit: parseIntField('limit', opts.limit),
+        schema: opts.schema,
+        schemaFile: opts.schemaFile,
+        entityType: opts.entityType,
+        matchConditions: opts.matchConditions,
+      };
+      break;
+    case 'enrich':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        type: opts.type,
+        minLikelihood: parseIntField('min-likelihood', opts.minLikelihood),
+        require: opts.require,
+        fields: opts.fields,
+      };
+      break;
+    case 'lookup':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
+        type: opts.type,
+        limit: parseIntField('limit', opts.limit),
+      };
+      break;
+    case 'verify':
+      candidate = {
+        mode,
+        provider: opts.provider,
+        retries: parseIntField('retries', opts.retries),
+        timeout: parseIntField('timeout', opts.timeout),
       };
       break;
   }
@@ -264,7 +416,13 @@ export async function handlePresetList(
   const names = Object.keys(presets).sort();
   const summary = names.map((name) => {
     const p = presets[name]!;
-    return { name, mode: p.mode, provider: p.provider, model: p.model };
+    return {
+      name,
+      mode: p.mode,
+      provider: p.provider,
+      // Only AI presets carry a model field; web/data presets don't.
+      model: 'model' in p ? p.model : undefined,
+    };
   });
   writeLine(stdout, JSON.stringify({ presets: summary }, null, 2));
 }

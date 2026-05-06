@@ -4,6 +4,41 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.4.6] — 2026-05-06
+
+### Added
+
+- **Preset coverage extends to all 10 web and data verbs.** Previously, `marmot preset create` only supported AI modes (`text`, `image`, `video`, `speech`, `transcription`). Saved bundles for search/research/etc. weren't possible, so every invocation re-typed the same provider/limit/domain flags. 0.4.6 adds preset modes for `search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`, `enrich`, `lookup`, and `verify`.
+- Each new preset mode validates only the fields that make sense for that verb. `search` carries provider, limit, depth, freshness, after-/before-date, include/exclude domains, include-content, retries, timeout. `research` carries provider, depth, schema (or schema-file), instructions, poll cadence, max-wait. `enrich` carries provider, type (person/org), min-likelihood, require/fields. Per-call identifiers (`--email`, `--linkedin`, `--query`, etc.) intentionally stay as call-time flags, not preset-shaped.
+- `--preset <name>` flag (and `@name` shorthand) wired onto every web/data verb command. Same merge semantics as the AI verbs: explicit flags win, preset values fill `undefined` slots, mode discriminator is dropped.
+
+### Examples
+
+```bash
+marmot preset create linkedin-people \
+  --mode search --provider parallel --include-domains linkedin.com --limit 25
+marmot search "Daniel Francis Abel Police" --preset linkedin-people
+marmot @linkedin-people "another query"
+
+marmot preset create deep-research-fintech \
+  --mode research --provider parallel --depth deep \
+  --schema-file ~/schemas/research-output.json --instructions "Cite primary sources."
+marmot @deep-research-fintech "competitive analysis on stripe vs adyen"
+
+marmot preset create enrich-people-pdl \
+  --mode enrich --provider pdl --type person --min-likelihood 8
+marmot @enrich-people-pdl --email tcook@apple.com
+```
+
+### Fixed
+
+- **Ollama: spurious AI SDK warning on every call.** Commander defaults `--stop` to `[]`, and that empty array was forwarded to the Vercel AI SDK as `stopSequences: []`. The SDK's Ollama provider doesn't implement `stopSequences`, so it emitted `AI SDK Warning (ollama.responses / <model>): The feature "setting" is not supported. stopSequences` to stderr on every Ollama text run, even when the user hadn't passed `--stop`. The empty array is now treated as absent, and the Ollama adapter only forwards `stopSequences` when the user actually supplied stop tokens. (When users do pass `--stop`, the warning still appears — correctly — flagging that Ollama won't honor it.)
+
+### Notes
+
+- Strictly additive: existing presets (text/image/video/speech/transcription) continue to validate without change. New preset shapes use strict zod unions; passing a flag from the wrong mode (e.g. `--temperature` on a search preset) is silently dropped at flag-build time, same as the AI verbs.
+- Schema field names match commander's option keys verbatim (e.g. `includeDomains` as a CSV string, not `string[]`) so the generic `applyPreset` merge engine fills option slots without per-verb glue.
+
 ## [0.4.5] — 2026-05-06
 
 ### Fixed

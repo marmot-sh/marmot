@@ -92,7 +92,23 @@ const speechDefaultsSchema = z
   })
   .strict();
 
-export const PRESET_MODES = ['text', 'image', 'video', 'speech', 'transcription'] as const;
+export const PRESET_MODES = [
+  'text',
+  'image',
+  'video',
+  'speech',
+  'transcription',
+  'search',
+  'scrape',
+  'answer',
+  'map',
+  'crawl',
+  'research',
+  'findall',
+  'enrich',
+  'lookup',
+  'verify',
+] as const;
 export type PresetMode = (typeof PRESET_MODES)[number];
 
 // Slug-format preset names: lowercase letters and digits, with single
@@ -201,12 +217,159 @@ const presetVideoSchema = z
   })
   .strict();
 
+// Web/data verb presets. Field names match commander's option keys
+// verbatim (e.g. includeDomains as a CSV string, not string[]) so
+// applyPreset merges directly into options without per-verb glue.
+// CSV-shaped fields stay as strings; the verb's existing csvToList
+// parser handles them downstream.
+
+const isoDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format.');
+
+const presetSearchSchema = z
+  .object({
+    mode: z.literal('search'),
+    provider: webProviderSlugSchema.optional(),
+    limit: z.number().int().positive().optional(),
+    depth: z.enum(['basic', 'standard', 'deep']).optional(),
+    freshness: z.enum(['day', 'week', 'month', 'year']).optional(),
+    afterDate: isoDateSchema.optional(),
+    beforeDate: isoDateSchema.optional(),
+    includeDomains: z.string().min(1).optional(),
+    excludeDomains: z.string().min(1).optional(),
+    includeContent: z.boolean().optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetScrapeSchema = z
+  .object({
+    mode: z.literal('scrape'),
+    provider: webProviderSlugSchema.optional(),
+    format: z.enum(['markdown', 'text', 'html']).optional(),
+    query: z.string().min(1).optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetAnswerSchema = z
+  .object({
+    mode: z.literal('answer'),
+    provider: webProviderSlugSchema.optional(),
+    maxCitations: z.number().int().positive().optional(),
+    includeSearch: z.boolean().optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetMapSchema = z
+  .object({
+    mode: z.literal('map'),
+    provider: webProviderSlugSchema.optional(),
+    search: z.string().min(1).optional(),
+    limit: z.number().int().positive().optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetCrawlSchema = z
+  .object({
+    mode: z.literal('crawl'),
+    provider: webProviderSlugSchema.optional(),
+    maxPages: z.number().int().positive().optional(),
+    maxDepth: z.number().int().min(0).optional(),
+    instructions: z.string().min(1).optional(),
+    includePaths: z.string().min(1).optional(),
+    excludePaths: z.string().min(1).optional(),
+    allowExternal: z.boolean().optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetResearchSchema = z
+  .object({
+    mode: z.literal('research'),
+    provider: webProviderSlugSchema.optional(),
+    depth: z.enum(['basic', 'standard', 'deep']).optional(),
+    schema: z.string().min(1).optional(),
+    schemaFile: z.string().trim().min(1).optional(),
+    instructions: z.string().min(1).optional(),
+    pollInterval: z.string().min(1).optional(),
+    maxWait: z.number().int().positive().optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetFindallSchema = z
+  .object({
+    mode: z.literal('findall'),
+    provider: webProviderSlugSchema.optional(),
+    limit: z.number().int().positive().optional(),
+    schema: z.string().min(1).optional(),
+    schemaFile: z.string().trim().min(1).optional(),
+    entityType: z.string().min(1).optional(),
+    matchConditions: z.string().min(1).optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetEnrichSchema = z
+  .object({
+    mode: z.literal('enrich'),
+    provider: dataProviderSlugSchema.optional(),
+    type: z.enum(['person', 'org']).optional(),
+    minLikelihood: z.number().int().positive().optional(),
+    require: z.string().min(1).optional(),
+    fields: z.string().min(1).optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetLookupSchema = z
+  .object({
+    mode: z.literal('lookup'),
+    provider: dataProviderSlugSchema.optional(),
+    type: z.enum(['person', 'org', 'email']).optional(),
+    limit: z.number().int().positive().optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+const presetVerifySchema = z
+  .object({
+    mode: z.literal('verify'),
+    provider: dataProviderSlugSchema.optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
 export const presetSchema = z.discriminatedUnion('mode', [
   presetTextSchema,
   presetImageSchema,
   presetVideoSchema,
   presetSpeechSchema,
   presetTranscriptionSchema,
+  presetSearchSchema,
+  presetScrapeSchema,
+  presetAnswerSchema,
+  presetMapSchema,
+  presetCrawlSchema,
+  presetResearchSchema,
+  presetFindallSchema,
+  presetEnrichSchema,
+  presetLookupSchema,
+  presetVerifySchema,
 ]);
 
 export type Preset = z.infer<typeof presetSchema>;
@@ -215,6 +378,16 @@ export type ImagePreset = z.infer<typeof presetImageSchema>;
 export type VideoPreset = z.infer<typeof presetVideoSchema>;
 export type SpeechPreset = z.infer<typeof presetSpeechSchema>;
 export type TranscriptionPreset = z.infer<typeof presetTranscriptionSchema>;
+export type SearchPreset = z.infer<typeof presetSearchSchema>;
+export type ScrapePreset = z.infer<typeof presetScrapeSchema>;
+export type AnswerPreset = z.infer<typeof presetAnswerSchema>;
+export type MapPreset = z.infer<typeof presetMapSchema>;
+export type CrawlPreset = z.infer<typeof presetCrawlSchema>;
+export type ResearchPreset = z.infer<typeof presetResearchSchema>;
+export type FindallPreset = z.infer<typeof presetFindallSchema>;
+export type EnrichPreset = z.infer<typeof presetEnrichSchema>;
+export type LookupPreset = z.infer<typeof presetLookupSchema>;
+export type VerifyPreset = z.infer<typeof presetVerifySchema>;
 
 export const marmotConfigSchema = z
   .object({
