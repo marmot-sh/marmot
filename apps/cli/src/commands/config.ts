@@ -10,6 +10,7 @@ import {
   PROVIDERS,
   WEB_PROVIDERS,
   formatStaleDefaultsBanner,
+  getReadyProviders,
   marmotConfigSchema,
   statsAll,
   warnText,
@@ -19,6 +20,7 @@ import {
 import { writeLine, type OutputWriter } from '@marmot-sh/core';
 
 import { readStaleDefaults } from '../lib/stale-defaults.js';
+import { MARMOT_VERSION } from '../lib/version.js';
 
 export type ConfigCommandDependencies = {
   env?: NodeJS.ProcessEnv;
@@ -346,11 +348,14 @@ export async function handleConfigShow(
     const totalEntries = cacheStats.reduce((acc, s) => acc + s.entries, 0);
     const totalBytes = cacheStats.reduce((acc, s) => acc + s.bytes, 0);
     const stale = await readStaleDefaults(config, env);
+    const readyProviders = getReadyProviders(config, env);
     writeLine(
       stdout,
       JSON.stringify(
         {
+          marmotVersion: MARMOT_VERSION,
           ...config,
+          readyProviders,
           cache: {
             totals: { entries: totalEntries, bytes: totalBytes },
             providers: cacheStats,
