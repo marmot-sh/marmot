@@ -92,7 +92,7 @@ const speechDefaultsSchema = z
   })
   .strict();
 
-export const PRESET_MODES = ['text', 'image', 'speech', 'transcription'] as const;
+export const PRESET_MODES = ['text', 'image', 'video', 'speech', 'transcription'] as const;
 export type PresetMode = (typeof PRESET_MODES)[number];
 
 // Slug-format preset names: lowercase letters and digits, with single
@@ -183,9 +183,28 @@ const presetTranscriptionSchema = z
   })
   .strict();
 
+const presetVideoSchema = z
+  .object({
+    mode: z.literal('video'),
+    provider: providerSlugSchema.optional(),
+    model: z.string().trim().min(1).optional(),
+    aspect: z.string().trim().min(1).optional(),
+    resolution: z.string().trim().min(1).optional(),
+    duration: z.number().int().positive().optional(),
+    fps: z.number().int().positive().optional(),
+    audio: z.boolean().optional(),
+    n: z.number().int().min(1).max(10).optional(),
+    seed: z.number().int().optional(),
+    providerOption: z.array(z.string().min(1)).optional(),
+    retries: z.number().int().min(0).optional(),
+    timeout: z.number().int().min(1).optional(),
+  })
+  .strict();
+
 export const presetSchema = z.discriminatedUnion('mode', [
   presetTextSchema,
   presetImageSchema,
+  presetVideoSchema,
   presetSpeechSchema,
   presetTranscriptionSchema,
 ]);
@@ -193,6 +212,7 @@ export const presetSchema = z.discriminatedUnion('mode', [
 export type Preset = z.infer<typeof presetSchema>;
 export type TextPreset = z.infer<typeof presetTextSchema>;
 export type ImagePreset = z.infer<typeof presetImageSchema>;
+export type VideoPreset = z.infer<typeof presetVideoSchema>;
 export type SpeechPreset = z.infer<typeof presetSpeechSchema>;
 export type TranscriptionPreset = z.infer<typeof presetTranscriptionSchema>;
 

@@ -207,7 +207,14 @@ function addPresetWriteOptions(command: Command): Command {
     .option('--format <format>', 'Output format (speech / transcription mode).')
     // Transcription
     .option('--language <code>', 'ISO-639-1 language hint (transcription mode).')
-    .option('--prompt <text>', 'Bias prompt to guide transcription (transcription mode).');
+    .option('--prompt <text>', 'Bias prompt to guide transcription (transcription mode).')
+    // Video
+    .option('--aspect <ratio>', 'Aspect ratio in W:H form (video mode).')
+    .option('--resolution <res>', 'Resolution label or WxH (video mode).')
+    .option('--duration <seconds>', 'Clip length in seconds (video mode).')
+    .option('--fps <n>', 'Frames per second (video mode).')
+    .option('--audio', 'Include synced audio (video mode). Pass --no-audio to force off.')
+    .option('--no-audio', 'Force audio off (video mode).');
 }
 
 function buildPresetCommand(): Command {
@@ -653,8 +660,11 @@ export function createProgram(): Command {
     .option('--json', 'Print JSON envelope (paths only).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 600).')
-    .action(async (promptParts: string[], options: VideoRunCommandOptions) => {
-      await handleVideoRunCommand(promptParts, options);
+    .option('--provider-option <key=value>', 'Generic passthrough (repeatable). Lands in providerOptions[<provider>] for niche video params.', collectProviderOption, [] as string[])
+    .option('--preset <name>', 'Apply a saved preset as defaults (explicit flags still win). Shorthand: @name.')
+    .action(async (promptParts: string[], options: VideoRunCommandOptions & { preset?: string }) => {
+      const merged = await withPreset(options, 'video');
+      await handleVideoRunCommand(promptParts, merged);
     });
 
   const completionsCommand = new Command('completions')
