@@ -36,7 +36,12 @@ import {
   resolveProviderAuth,
   type AnyProviderSlug,
 } from '@marmot-sh/core';
-import { findProjectRoot, readSkillState, statsAll } from '@marmot-sh/core';
+import {
+  findProjectRoot,
+  readSkillState,
+  statsAll,
+  successText,
+} from '@marmot-sh/core';
 import { readCompletionsState } from '@marmot-sh/core';
 import { writeMarmotConfig, readMarmotConfig } from '@marmot-sh/core';
 import { MARMOT_VERSION } from '../lib/version.js';
@@ -554,16 +559,19 @@ async function formatSkillHint(env: NodeJS.ProcessEnv): Promise<string> {
       readSkillState('project', { env, cwd, skipRemote: true }),
     ]);
 
+    // Green checkmark signals "installed". Scope copy is plain text so
+    // it inherits clack's muted hint color — keeps the success signal
+    // bold and the supporting context quiet.
+    const check = successText('✓');
+
     if (global.installed && project.installed) {
-      return 'installed (global + project)';
+      return `${check} installed globally and in project`;
     }
     if (global.installed) {
-      const linked = global.linkedHarnesses[0];
-      return linked ? `installed (${linked})` : 'installed';
+      return `${check} installed globally`;
     }
     if (project.installed) {
-      const linked = project.linkedHarnesses[0];
-      return linked ? `installed in project (${linked})` : 'installed in project';
+      return `${check} installed in project`;
     }
     return 'not installed';
   } catch {
