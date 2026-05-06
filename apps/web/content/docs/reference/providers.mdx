@@ -79,6 +79,17 @@ A handful of cells in the matrix above need a paid plan to work. Listed here so 
 - **Exa `findall`** uses the Websets API, which requires a Pro Exa plan. Personal plans return 401.
 - **Apollo `lookup` and `enrich --type person`** require a paid plan with master-key access. Free-tier keys return 403 with `error_code: API_INACCESSIBLE`.
 
+## Discovery: which providers are wired?
+
+`marmot providers list` returns one row per supported provider — all 19, across AI, web, and data — with the env vars it reads. Pass `--check-keys` to also report enabled state, per-env-var set/unset, and an overall `ready` boolean per row.
+
+```bash
+marmot providers list                # supported providers + env vars
+marmot providers list --check-keys   # adds enabled / keys / ready diagnostic
+```
+
+For the bottom-line "what providers can I use right now?" answer, prefer `marmot config show --json` and read the `readyProviders` array. That field returns just the slugs of providers whose credentials resolve and that aren't disabled in config — same source data as `--check-keys`, but in a one-line summary instead of a per-row table.
+
 ## API key precedence
 
 Per call:

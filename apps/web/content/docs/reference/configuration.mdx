@@ -7,6 +7,8 @@ Marmot keeps your default provider and model for each verb in a single config fi
 
 ## Top level
 
+The shape on disk:
+
 ```json
 {
   "version": 1,
@@ -18,10 +20,30 @@ Marmot keeps your default provider and model for each verb in a single config fi
 
 | Key | Type | Notes |
 | --- | --- | --- |
-| `version` | number | Always `1`. Bumped on breaking schema changes. |
+| `version` | number | Always `1`. Config-schema version, bumped on breaking schema changes. |
 | `defaults` | object | Per-verb defaults (which provider backs each verb, which model). |
 | `providers` | object | Per-provider settings (enable, response cache, custom env vars). |
 | `presets` | object | Saved bundles of flags, used via `marmot @<name>` and `--preset`. |
+
+`marmot config show --json` returns the same envelope plus three runtime-derived fields, so an agent or script can read its full bootstrap signal in a single call:
+
+```json
+{
+  "marmotVersion": "0.4.0",
+  "version": 1,
+  "defaults": { … },
+  "providers": { … },
+  "presets": { … },
+  "readyProviders": ["ollama", "openrouter", "tavily"],
+  "cache": { "totals": { … }, "providers": [ … ] }
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `marmotVersion` | The installed CLI version. Different field from `version` (which is the config-schema version). |
+| `readyProviders` | Alphabetically sorted slugs of every provider that is callable right now: not disabled in config, primary credential set, secondary credential set if required (Tomba secret, Cloudflare account id). Use these as valid `--provider <slug>` arguments. |
+| `cache` | Response cache totals and per-provider breakdown. See [Caching](/docs/reference/caching). |
 
 ## Defaults
 
@@ -162,4 +184,11 @@ marmot config show --json                           # raw envelope
 marmot config path                                  # print the config file path
 ```
 
-`marmot config show` also reports the total response cache size and entry count, broken down per provider. See [Caching](/docs/reference/caching).
+The human-readable `marmot config show` output (no `--json`) prints:
+
+- Installed marmot version and the path to the config file
+- AI defaults (`text`, `image`, `video`, `transcription`, `speech`)
+- Web defaults (`search`, `scrape`, `research`, `answer`, `crawl`, `map`, `findall`)
+- Data defaults (`enrich`, `lookup`, `verify`)
+- Ready providers grouped by category (AI / Web / Data) — same source as the JSON `readyProviders` field
+- Response cache totals (and per-provider breakdown — see [Caching](/docs/reference/caching))
