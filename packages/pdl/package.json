@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/pdl",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "@marmot-sh adapter for People Data Labs — Person search and enrichment across ~3B profiles.",
   "type": "module",
   "private": true,
