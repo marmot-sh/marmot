@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/cli",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Marmot — unified CLI for AI generation, web research, and data lookup.",
   "type": "module",
   "license": "MIT",
