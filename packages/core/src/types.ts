@@ -259,13 +259,33 @@ export type NormalizedImageRunResult = {
   timestamp: string;
 };
 
+export type ProviderCategory = 'ai' | 'web' | 'data';
+
+/**
+ * Snapshot row returned by `marmot providers list`. Covers AI, web, and
+ * data providers in one flat list — the `category` field tells you which
+ * group the row belongs to. The `slug` is the union of the three slug
+ * spaces; consumers that need to narrow can switch on `category`.
+ *
+ * Intentionally does NOT carry per-modality default models. A single
+ * top-level "default model" was misleading for multi-modality AI
+ * providers (text/image/speech/transcription/video each have their own
+ * default) and meaningless for web/data providers. The actual defaults
+ * live in `defaults.<verb>` in `marmot config show --json`.
+ */
 export type ProviderSummary = {
-  slug: ProviderSlug;
+  slug: string;
   name: string;
-  defaultModel: string;
+  category: ProviderCategory;
   requiresApiKey: boolean;
-  cachePath: string;
+  /** Env var names this provider reads. The first entry (when
+   *  `requiresApiKey`) is the primary key; any others are secondary
+   *  credentials (e.g. Tomba secret, Cloudflare account id). Names
+   *  only — values aren't surfaced. Use `--check-keys` for set/unset. */
   env: string[];
+  /** AI providers only — on-disk model cache root for that provider.
+   *  Web/data providers don't have a model cache, so this is omitted. */
+  cachePath?: string;
 };
 
 /* -------------------------------------------------------------------------- */
