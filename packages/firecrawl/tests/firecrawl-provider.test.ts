@@ -38,7 +38,7 @@ describe('firecrawlAdapter shape', () => {
 });
 
 describe('firecrawlAdapter.search', () => {
-  it('POSTs /v2/search with Bearer auth and sources:[web]', async () => {
+  it('POSTs /v2/search with Bearer auth and sources:[{type:"web"}] per spec', async () => {
     let captured: Record<string, unknown> | undefined;
     const result = await firecrawlAdapter.search!({
       apiKey: 'fc-test',
@@ -59,7 +59,11 @@ describe('firecrawlAdapter.search', () => {
         });
       }) as unknown as typeof fetch,
     });
-    expect(captured).toMatchObject({ query: 'next.js', sources: ['web'], limit: 10 });
+    expect(captured).toMatchObject({
+      query: 'next.js',
+      sources: [{ type: 'web' }],
+      limit: 10,
+    });
     expect(result.data.results).toHaveLength(1);
     expect(result.data.results[0]).toMatchObject({
       url: 'https://nextjs.org',
@@ -113,7 +117,7 @@ describe('firecrawlAdapter.search', () => {
         return okJson({ success: true, data: { web: [] } });
       }) as unknown as typeof fetch,
     });
-    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:1/15/2026,cd_max:2/15/2026' });
+    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:01/15/2026,cd_max:02/15/2026' });
   });
 
   it('passes only afterDate as cdr with cd_min', async () => {
@@ -127,7 +131,7 @@ describe('firecrawlAdapter.search', () => {
         return okJson({ success: true, data: { web: [] } });
       }) as unknown as typeof fetch,
     });
-    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:1/15/2026' });
+    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:01/15/2026' });
   });
 
   it('maps relative freshness to qdr quick-date-range', async () => {
@@ -154,7 +158,7 @@ describe('firecrawlAdapter.search', () => {
         return okJson({ success: true, data: { web: [] } });
       }) as unknown as typeof fetch,
     });
-    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:1/15/2026' });
+    expect(captured).toMatchObject({ tbs: 'cdr:1,cd_min:01/15/2026' });
   });
 
   it('omits tbs entirely when no date filter is requested', async () => {

@@ -44,6 +44,32 @@ function freshnessToAfterDate(
   return cutoff.toISOString().slice(0, 10);
 }
 
+/** Pull a one-line summary out of a non-2xx response body for inclusion
+ *  in the error message. Tries Parallel's documented ErrorResponse
+ *  shape first ({type:'error', error:{message, detail?}}); falls back
+ *  to whatever JSON / text the body contains. Truncates to keep the
+ *  error message readable. Returns empty string when the body is
+ *  unreadable. */
+async function readErrorDetail(response: Response): Promise<string> {
+  try {
+    const text = await response.text();
+    if (!text) return '';
+    try {
+      const parsed = JSON.parse(text) as {
+        error?: { message?: string; detail?: unknown };
+        message?: string;
+      };
+      const msg = parsed.error?.message ?? parsed.message ?? '';
+      if (msg) return msg.slice(0, 500);
+    } catch {
+      // Not JSON — fall through to raw-text path.
+    }
+    return text.slice(0, 500);
+  } catch {
+    return '';
+  }
+}
+
 function depthToMode(depth: WebSearchInput['depth'] | undefined): 'basic' | 'advanced' {
   return depth === 'deep' ? 'advanced' : 'basic';
 }
@@ -62,26 +88,35 @@ async function parallelSearch(input: WebSearchInput): Promise<WebSearchResult> {
   const objective = input.objective ?? input.query;
   const queries = input.queries ?? [input.query];
 
+  // Per Parallel's V1SearchRequest spec
+  // (https://docs.parallel.ai/api-reference/search-api/search), domain
+  // and date filters live nested under
+  // `advanced_settings.source_policy`. Result-count caps live under
+  // `advanced_settings.max_results`. They are NOT top-level fields —
+  // sending them at the top level returns 422 Request validation error.
+  const sourcePolicy: Record<string, unknown> = {};
+  if (input.includeDomains?.length) sourcePolicy.include_domains = input.includeDomains;
+  if (input.excludeDomains?.length) sourcePolicy.exclude_domains = input.excludeDomains;
+  if (input.afterDate) {
+    sourcePolicy.after_date = input.afterDate;
+  } else if (input.freshness) {
+    // Parallel has no relative freshness primitive (`day`/`week`/...).
+    // Translate to `after_date` so `--freshness week` still does what
+    // the user expects. Explicit `--after-date` wins.
+    sourcePolicy.after_date = freshnessToAfterDate(input.freshness);
+  }
+
+  const advancedSettings: Record<string, unknown> = {};
+  if (Object.keys(sourcePolicy).length > 0) advancedSettings.source_policy = sourcePolicy;
+  if (typeof input.limit === 'number') advancedSettings.max_results = input.limit;
+
   const body: Record<string, unknown> = {
     objective,
     search_queries: queries,
     mode: depthToMode(input.depth),
   };
-  if (typeof input.limit === 'number') {
-    // Parallel caps via max_chars_total rather than result count;
-    // approximate result count by allowing ~500 chars/result.
-    body.max_chars_total = Math.max(1500, input.limit * 500);
-  }
-  if (input.includeDomains?.length) body.include_domains = input.includeDomains;
-  if (input.excludeDomains?.length) body.exclude_domains = input.excludeDomains;
-  if (input.afterDate) body.after_date = input.afterDate;
-  // Parallel doesn't currently document a relative-freshness primitive
-  // (`day`/`week`/`month`/`year`). The honest mapping is to translate it
-  // into `after_date` here so the user's `--freshness week` still does
-  // what they expect on Parallel. Caller's explicit `--after-date` wins
-  // over the mapped freshness.
-  if (!input.afterDate && input.freshness) {
-    body.after_date = freshnessToAfterDate(input.freshness);
+  if (Object.keys(advancedSettings).length > 0) {
+    body.advanced_settings = advancedSettings;
   }
 
   let response: Response;
@@ -102,9 +137,14 @@ async function parallelSearch(input: WebSearchInput): Promise<WebSearchResult> {
   if (!response.ok) {
     const category =
       response.status === 401 || response.status === 403 ? 'auth' : 'provider';
+    // Surface Parallel's response body alongside the status. Parallel
+    // returns ErrorResponse {type: 'error', error: {ref_id, message,
+    // detail?}} on 4xx — the message names the offending field, which
+    // is what we want when the wire shape drifts from their spec.
+    const detail = await readErrorDetail(response);
     throw new AICliError(
       category,
-      `Parallel search failed with status ${response.status}.`,
+      `Parallel search failed with status ${response.status}${detail ? `: ${detail}` : ''}.`,
     );
   }
 
