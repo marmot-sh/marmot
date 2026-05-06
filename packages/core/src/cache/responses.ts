@@ -46,8 +46,25 @@ export type ResponseCacheEntry = {
 
 /* -- key construction ------------------------------------------------------ */
 
+/** Filter fields whose array contents are order-independent for the API call.
+ *  Sorting these before hashing means `["a.com","b.com"]` and `["b.com","a.com"]`
+ *  produce the same cache key (which is correct — they yield identical API
+ *  results). The user's actual flag value isn't mutated; only the hash input. */
+const ORDER_INDEPENDENT_ARRAY_KEYS = new Set([
+  'includeDomains',
+  'excludeDomains',
+  'includePaths',
+  'excludePaths',
+  'stop',
+]);
+
 function canonicalize(value: unknown): unknown {
   if (value === null || value === undefined) return value;
+  // Trim leading/trailing whitespace on string values for cache identity.
+  // Most user-facing strings (query, prompt, instructions) shouldn't differ
+  // by surrounding whitespace; the API call would receive the trimmed value
+  // anyway in practice.
+  if (typeof value === 'string') return value.trim();
   if (Array.isArray(value)) return value.map(canonicalize);
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
@@ -58,7 +75,17 @@ function canonicalize(value: unknown): unknown {
       if (key === 'fetchFn' || key === 'abortSignal' || key === 'apiKey' || key === 'apiSecret') {
         continue;
       }
-      sorted[key] = canonicalize(obj[key]);
+      const child = obj[key];
+      if (ORDER_INDEPENDENT_ARRAY_KEYS.has(key) && Array.isArray(child)) {
+        // Sort string-array filter fields whose order doesn't change API
+        // semantics. Recursively canonicalize each element first so any
+        // nested whitespace/structure is normalized before sort.
+        sorted[key] = (child.map(canonicalize) as unknown[])
+          .slice()
+          .sort((a, b) => String(a).localeCompare(String(b)));
+        continue;
+      }
+      sorted[key] = canonicalize(child);
     }
     return sorted;
   }

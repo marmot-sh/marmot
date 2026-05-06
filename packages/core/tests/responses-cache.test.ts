@@ -58,6 +58,75 @@ describe('hashCacheKey', () => {
     const b = hashCacheKey({ verb: 'search', input: { query: 'y' } });
     expect(a).not.toBe(b);
   });
+
+  // 0.4.7 normalization
+
+  it('trims leading and trailing whitespace on string values', () => {
+    const a = hashCacheKey({ verb: 'search', input: { query: 'acme' } });
+    const b = hashCacheKey({ verb: 'search', input: { query: '  acme  ' } });
+    const c = hashCacheKey({ verb: 'search', input: { query: '\tacme\n' } });
+    expect(a).toBe(b);
+    expect(a).toBe(c);
+  });
+
+  it('preserves internal whitespace and word order', () => {
+    // Internal whitespace and word ordering DO change semantic meaning for
+    // search engines, so they must remain distinct cache entries.
+    const a = hashCacheKey({ verb: 'search', input: { query: 'John Smith and Acme' } });
+    const b = hashCacheKey({ verb: 'search', input: { query: 'Acme and John Smith' } });
+    const c = hashCacheKey({ verb: 'search', input: { query: 'John Smith  and Acme' } });
+    expect(a).not.toBe(b);
+    expect(a).not.toBe(c);
+  });
+
+  it('preserves case differences in queries', () => {
+    // "Apple" (company) and "apple" (fruit) are different search intents.
+    const a = hashCacheKey({ verb: 'search', input: { query: 'Apple' } });
+    const b = hashCacheKey({ verb: 'search', input: { query: 'apple' } });
+    expect(a).not.toBe(b);
+  });
+
+  it('sorts includeDomains so order does not affect identity', () => {
+    const a = hashCacheKey({
+      verb: 'search',
+      input: { query: 'q', includeDomains: ['linkedin.com', 'github.com'] },
+    });
+    const b = hashCacheKey({
+      verb: 'search',
+      input: { query: 'q', includeDomains: ['github.com', 'linkedin.com'] },
+    });
+    expect(a).toBe(b);
+  });
+
+  it('sorts excludeDomains, includePaths, excludePaths, and stop arrays', () => {
+    const a = hashCacheKey({
+      verb: 'search',
+      input: {
+        excludeDomains: ['b.com', 'a.com'],
+        includePaths: ['/y', '/x'],
+        excludePaths: ['/n', '/m'],
+        stop: ['END', 'STOP'],
+      },
+    });
+    const b = hashCacheKey({
+      verb: 'search',
+      input: {
+        excludeDomains: ['a.com', 'b.com'],
+        includePaths: ['/x', '/y'],
+        excludePaths: ['/m', '/n'],
+        stop: ['STOP', 'END'],
+      },
+    });
+    expect(a).toBe(b);
+  });
+
+  it('does not sort other arrays (non-filter arrays remain order-sensitive)', () => {
+    // Arbitrary array fields should preserve order — only the named filter
+    // arrays sort. This catches regressions if someone broadens the rule.
+    const a = hashCacheKey({ verb: 'run', input: { messages: ['hi', 'bye'] } });
+    const b = hashCacheKey({ verb: 'run', input: { messages: ['bye', 'hi'] } });
+    expect(a).not.toBe(b);
+  });
 });
 
 describe('writeCached + lookupCached', () => {

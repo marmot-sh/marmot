@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/brave",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "@marmot-sh adapter for Brave Search — Web, news, image, video search and summarizer.",
   "type": "module",
   "private": true,
