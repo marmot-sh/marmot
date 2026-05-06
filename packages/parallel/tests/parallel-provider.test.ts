@@ -112,6 +112,82 @@ describe('parallelAdapter.search', () => {
       parallelAdapter.search!({ apiKey: 'bad', query: 'x', fetchFn: errStatus(401) }),
     ).rejects.toThrowError(/status 401/);
   });
+
+  it('passes includeDomains and excludeDomains to the request body (closes 0.4.3 silent-drop bug)', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await parallelAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      includeDomains: ['linkedin.com', 'github.com'],
+      excludeDomains: ['spam.com'],
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({
+      include_domains: ['linkedin.com', 'github.com'],
+      exclude_domains: ['spam.com'],
+    });
+  });
+
+  it('passes afterDate as after_date in YYYY-MM-DD form', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await parallelAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      afterDate: '2026-01-15',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ after_date: '2026-01-15' });
+  });
+
+  it('maps relative freshness to after_date when afterDate is not set', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await parallelAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      freshness: 'week',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect((captured as Record<string, string>).after_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('explicit afterDate wins over freshness mapping', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await parallelAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      afterDate: '2026-01-15',
+      freshness: 'year',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).toMatchObject({ after_date: '2026-01-15' });
+  });
+
+  it('omits date fields entirely when neither afterDate nor freshness is set', async () => {
+    let captured: Record<string, unknown> | undefined;
+    await parallelAdapter.search!({
+      apiKey: 'k',
+      query: 'x',
+      fetchFn: (async (_u: string | URL | Request, init?: RequestInit) => {
+        captured = JSON.parse(String(init?.body));
+        return okJson({ results: [] });
+      }) as unknown as typeof fetch,
+    });
+    expect(captured).not.toHaveProperty('after_date');
+    expect(captured).not.toHaveProperty('include_domains');
+    expect(captured).not.toHaveProperty('exclude_domains');
+  });
 });
 
 describe('parallelAdapter.scrape', () => {

@@ -32,6 +32,18 @@ type ParallelSearchResponse = {
   results?: ParallelSearchItem[];
 };
 
+/** Convert marmot's relative freshness window to an ISO `YYYY-MM-DD`
+ *  for providers that only accept absolute date floors (Parallel
+ *  currently). `now` defaulted for normal use; injectable for tests. */
+function freshnessToAfterDate(
+  freshness: NonNullable<WebSearchInput['freshness']>,
+  now: Date = new Date(),
+): string {
+  const days = { day: 1, week: 7, month: 30, year: 365 }[freshness];
+  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  return cutoff.toISOString().slice(0, 10);
+}
+
 function depthToMode(depth: WebSearchInput['depth'] | undefined): 'basic' | 'advanced' {
   return depth === 'deep' ? 'advanced' : 'basic';
 }
@@ -59,6 +71,17 @@ async function parallelSearch(input: WebSearchInput): Promise<WebSearchResult> {
     // Parallel caps via max_chars_total rather than result count;
     // approximate result count by allowing ~500 chars/result.
     body.max_chars_total = Math.max(1500, input.limit * 500);
+  }
+  if (input.includeDomains?.length) body.include_domains = input.includeDomains;
+  if (input.excludeDomains?.length) body.exclude_domains = input.excludeDomains;
+  if (input.afterDate) body.after_date = input.afterDate;
+  // Parallel doesn't currently document a relative-freshness primitive
+  // (`day`/`week`/`month`/`year`). The honest mapping is to translate it
+  // into `after_date` here so the user's `--freshness week` still does
+  // what they expect on Parallel. Caller's explicit `--after-date` wins
+  // over the mapped freshness.
+  if (!input.afterDate && input.freshness) {
+    body.after_date = freshnessToAfterDate(input.freshness);
   }
 
   let response: Response;

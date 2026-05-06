@@ -40,6 +40,36 @@ type FirecrawlSearchResponse = {
   warning?: string;
 };
 
+/** Convert marmot's date / freshness filters to Firecrawl's `tbs`
+ *  parameter (Google-style time-based search). When explicit
+ *  afterDate or beforeDate is set, emit a custom date range
+ *  (`cdr:1,cd_min:M/D/YYYY,cd_max:M/D/YYYY`). When only freshness is
+ *  set, emit a quick-date-range (`qdr:d|w|m|y`). Returns null when
+ *  no filter is requested. Exported for tests. */
+export function buildFirecrawlTbs(input: WebSearchInput): string | null {
+  if (input.afterDate || input.beforeDate) {
+    const fmt = (d: string): string => {
+      // YYYY-MM-DD → M/D/YYYY (the Google-search format Firecrawl expects).
+      const [y, m, day] = d.split('-');
+      return `${Number(m)}/${Number(day)}/${y}`;
+    };
+    const parts = ['cdr:1'];
+    if (input.afterDate) parts.push(`cd_min:${fmt(input.afterDate)}`);
+    if (input.beforeDate) parts.push(`cd_max:${fmt(input.beforeDate)}`);
+    return parts.join(',');
+  }
+  if (input.freshness) {
+    const map: Record<NonNullable<WebSearchInput['freshness']>, string> = {
+      day: 'qdr:d',
+      week: 'qdr:w',
+      month: 'qdr:m',
+      year: 'qdr:y',
+    };
+    return map[input.freshness];
+  }
+  return null;
+}
+
 async function firecrawlSearch(input: WebSearchInput): Promise<WebSearchResult> {
   if (!input.apiKey) {
     throw new AICliError(
@@ -56,6 +86,12 @@ async function firecrawlSearch(input: WebSearchInput): Promise<WebSearchResult> 
   if (typeof input.limit === 'number') body.limit = input.limit;
   if (input.includeDomains?.length) body.includeDomains = input.includeDomains;
   if (input.excludeDomains?.length) body.excludeDomains = input.excludeDomains;
+  // Firecrawl exposes Google's `tbs` time-based search parameter. We
+  // honor explicit afterDate/beforeDate first (Google `cdr` custom
+  // date range), then fall back to relative freshness (`qdr:d/w/m/y`).
+  // Explicit absolute bounds win over freshness.
+  const tbs = buildFirecrawlTbs(input);
+  if (tbs) body.tbs = tbs;
   if (input.includeContent) {
     body.scrapeOptions = { formats: ['markdown'] };
   }
