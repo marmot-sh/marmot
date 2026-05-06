@@ -107,12 +107,31 @@ const presetNameSchema = z
     'Preset name must be lowercase letters/digits with single - or _ separators (no leading, trailing, or consecutive separators).',
   );
 
+// All preset shapes share: provider / model / retries / timeout. Mode-
+// specific shapes layer on the per-modality flags. Field names are
+// camelCase so they match commander's option keys verbatim — applyPreset
+// merges by key name, so `maxTokens` here directly fills `options.maxTokens`
+// at runtime without per-verb glue.
+
 const presetTextSchema = z
   .object({
     mode: z.literal('text'),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
     system: z.string().optional(),
+    systemFile: z.string().trim().min(1).optional(),
+    schema: z.string().min(1).optional(),
+    schemaFile: z.string().trim().min(1).optional(),
+    schemaModule: z.string().trim().min(1).optional(),
+    temperature: z.number().optional(),
+    maxTokens: z.number().int().positive().optional(),
+    topP: z.number().min(0).max(1).optional(),
+    seed: z.number().int().optional(),
+    stop: z.array(z.string().min(1)).optional(),
+    reasoning: z.enum(['low', 'medium', 'high']).optional(),
+    providerOption: z.array(z.string().min(1)).optional(),
+    stream: z.boolean().optional(),
+    json: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
   })
@@ -126,6 +145,9 @@ const presetImageSchema = z
     size: z.string().trim().min(1).optional(),
     quality: z.string().trim().min(1).optional(),
     style: z.string().trim().min(1).optional(),
+    seed: z.number().int().optional(),
+    negative: z.string().optional(),
+    providerOption: z.array(z.string().min(1)).optional(),
     n: z.number().int().min(1).max(10).optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
@@ -140,6 +162,8 @@ const presetSpeechSchema = z
     voice: z.string().trim().min(1).optional(),
     format: z.string().trim().min(1).optional(),
     speed: z.number().positive().optional(),
+    instructions: z.string().optional(),
+    providerOption: z.array(z.string().min(1)).optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
   })
@@ -152,6 +176,8 @@ const presetTranscriptionSchema = z
     model: z.string().trim().min(1).optional(),
     language: z.string().trim().min(1).optional(),
     format: z.string().trim().min(1).optional(),
+    prompt: z.string().optional(),
+    providerOption: z.array(z.string().min(1)).optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
   })
