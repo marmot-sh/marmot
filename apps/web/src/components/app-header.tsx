@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Github, Menu } from "lucide-react";
+import { XTwitter } from "./logos";
 import {
   Sheet,
   SheetContent,
@@ -57,6 +58,13 @@ export function AppHeader({
               className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Github className="h-[18px] w-[18px]" aria-hidden />
+            </a>
+            <a
+              href="https://x.com/marmot_sh"
+              aria-label="X (formerly Twitter)"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <XTwitter className="h-[15px] w-auto" />
             </a>
             <ThemeToggle />
           </div>
@@ -129,6 +137,12 @@ function DefaultMobileMenu() {
         className="block rounded-md px-3 py-2 font-medium text-foreground hover:bg-muted"
       >
         GitHub
+      </a>
+      <a
+        href="https://x.com/marmot_sh"
+        className="block rounded-md px-3 py-2 font-medium text-foreground hover:bg-muted"
+      >
+        X
       </a>
     </nav>
   );

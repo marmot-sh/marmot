@@ -4,3 +4,4 @@ export { Hermes } from "./hermes";
 export { OpenAI } from "./openai";
 export { OpenClaw } from "./openclaw";
 export { OpenCode } from "./opencode";
+export { XTwitter } from "./x-twitter";
