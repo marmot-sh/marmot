@@ -55,6 +55,7 @@ For cross-cutting flags see [Common flags](/docs/reference/commands/common-flags
 | `--format <fmt>` | Audio format: `mp3` (default), `wav`, `flac`, `aac`, `opus`. |
 | `--speed <n>` | Playback speed multiplier (0.25–4.0). OpenAI only. |
 | `--instructions <text>` | Steering text for steerable voices (e.g. gpt-4o-mini-tts). |
+| `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche TTS params. |
 | `-o, --output <path>` | Output audio path. |
 | `-p, --prompt-file <path>` | Read text from a file. |
 | `--play` | Play through speakers. Default on a TTY. When piped, also emits bytes downstream. |

@@ -53,6 +53,7 @@ For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) se
 | `--style <style>` | Provider-specific (e.g. `vivid`/`natural`). |
 | `--seed <n>` | Reproducibility seed (Cloudflare, some Vercel models). |
 | `--negative <prompt>` | Negative prompt (Cloudflare). |
+| `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche image params (gpt-image-1 `background`, `output_format`, `moderation`, etc.). |
 | `--binary` | Force raw bytes to stdout. Requires `--n 1`. |
 | `--b64` | JSON envelope with inline base64; no file written. |
 | `--json` | Emit JSON envelope on stdout. Default prints just the path. |
