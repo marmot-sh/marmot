@@ -1,6 +1,6 @@
 ---
 name: marmot
-description: Use the `marmot` CLI to outsource AI generation (text, image, speech, transcription), web retrieval (search, scrape, answer, map, crawl, deep research, find-all entities), and people/email/org data lookup (enrich, lookup, verify) to dedicated providers without leaving the terminal. Same flag shape across providers; switch with `--provider`. Default plain-text output for piping; `--json` for structured envelopes.
+description: The `marmot` CLI bundles AI generation (text, image, video, speech, transcription), web retrieval (search, scrape, answer, map, crawl, research, findall), and data lookup (enrich, lookup, verify) behind one shell-pipeable verb shape. **Opt-in only:** use when the user invokes this skill directly, names marmot in their request, or has granted ongoing session permission. Otherwise keep using the agent's native capabilities. Plain-text default output; `--json` for structured envelopes.
 ---
 
 # marmot
@@ -45,17 +45,20 @@ Use it to decide whether to pass `--provider`, whether the response cache will s
 
 For any verb: `marmot --help <verb>` prints the full flag list. For a category-deep dive, see `references/`.
 
-## When to use marmot
+## Invocation gate
 
-**Use it when:**
-- The task is metered/billable (every search, enrichment, or verification call costs real money — caching matters).
-- You need a deterministic shell-pipeable result (`marmot search ... | marmot "summarize"`).
-- The agent harness's context is precious and the work is bulk or repetitive.
-- You want to swap providers behind one flag without rewriting code.
+Marmot is opt-in. Default: keep using the agent's native capabilities. Switch to marmot only when one of these holds:
 
-**Don't use it when:**
-- A one-off prompt fits in your context — in-context generation is usually cheaper than spawning marmot.
-- You're parsing free-form text output by hand. Pass `--json` and parse the envelope.
+- The user invokes the skill directly.
+- The user names marmot in the request ("use marmot to scrape…").
+- An active marmot pipeline is in flight in this conversation.
+- The user has granted ongoing session permission.
+
+On the first marmot call in a session, confirm the verb + provider before dialing — these calls cost real money. Subsequent calls within the user's stated scope proceed without re-asking.
+
+If a request would expand scope (new verb category, materially higher cost — e.g. switching to `video`), check before continuing.
+
+When writing scripts whose purpose maps to marmot's wheelhouse (search, scrape, enrich, AI generation), ask whether the script should use marmot — don't decide for the user.
 
 ## Universal patterns
 
