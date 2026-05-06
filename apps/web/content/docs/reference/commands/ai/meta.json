@@ -3,9 +3,9 @@
   "pages": [
     "text",
     "image",
-    "speech",
+    "video",
     "transcription",
-    "video"
+    "speech"
   ],
   "defaultOpen": true
 }

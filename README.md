@@ -15,6 +15,7 @@
 [![Marmot documentation](https://img.shields.io/badge/Documentation-Marmot-orange.svg)](https://marmot.sh/docs?utm_source=github&utm_medium=main)
 [![npm version](https://img.shields.io/npm/v/@marmot-sh/cli.svg)](https://www.npmjs.com/package/@marmot-sh/cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/marmot-sh/marmot/blob/main/LICENSE)
+[![Follow on Twitter](https://img.shields.io/twitter/follow/marmot_sh?style=social)](https://twitter.com/intent/follow?screen_name=marmot_sh)
 
 </div>
 
@@ -109,8 +110,9 @@ marmot enrich --type person --email tcook@apple.com
 | --- | --- | --- |
 | **AI** | `marmot <prompt>` | Text generation |
 | | `marmot image <prompt>` | Image generation |
-| | `marmot speak <text>` | Text-to-speech |
+| | `marmot video <prompt>` | Video generation |
 | | `marmot transcribe <audio>` | Speech-to-text |
+| | `marmot speak <text>` | Text-to-speech |
 | **Web** | `marmot search <query>` | Web search |
 | | `marmot scrape <url...>` | URL(s) → markdown |
 | | `marmot answer <query>` | Answer with citations |

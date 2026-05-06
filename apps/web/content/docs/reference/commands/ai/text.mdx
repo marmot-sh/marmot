@@ -97,7 +97,25 @@ For cross-cutting flags (`--provider`, `--api-key`, `-o`, `--retries`, `--timeou
 | `--stream` | Stream tokens. Implies text. |
 | `--json` | Emit structured envelope (default is text). |
 | `--text` | Plain text (now the default; flag kept for back-compat). |
+| `--temperature <n>` | Sampling temperature. Provider-specific range, typically 0–2. |
+| `--max-tokens <n>` | Hard cap on completion tokens. |
+| `--top-p <n>` | Top-p / nucleus sampling, 0–1. |
+| `--seed <n>` | Reproducibility seed (provider-specific). |
+| `--stop <text>` | Stop sequence. Repeatable. |
+| `--reasoning <effort>` | Thinking/reasoning effort: `low`, `medium`, or `high`. Maps to Anthropic thinking budget, OpenAI `reasoning_effort`, OpenRouter `reasoning.effort`. |
+| `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche params not covered by a dedicated flag. |
 
 <Callout>
 `--json`, `--text`, and `--stream` are mutually exclusive in spirit (text is default; `--json` overrides; `--stream` forces text).
 </Callout>
+
+## Sampling and reasoning
+
+Sampling controls (`--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop`) and `--reasoning` are forwarded to the provider when supported and silently dropped when not. Use `--provider-option` for anything outside the standard set.
+
+```bash
+marmot --temperature 0.2 --max-tokens 400 'rewrite as a one-paragraph abstract'
+marmot --reasoning high 'plan the migration step by step'
+marmot --stop '###' --stop 'END' 'continue until you hit a delimiter'
+marmot --provider openai --provider-option logprobs=true --json 'classify this'
+```
