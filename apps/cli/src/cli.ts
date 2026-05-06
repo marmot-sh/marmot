@@ -173,19 +173,41 @@ function addRunOptions(command: Command): Command {
 
 function addPresetWriteOptions(command: Command): Command {
   return command
+    // Shared
     .option('--provider <provider>', 'Provider slug.')
     .option('--model <model>', 'Model slug.')
+    .option('--retries <count>', 'Default retry count for this preset.')
+    .option('--timeout <seconds>', 'Default per-attempt timeout for this preset.')
+    // Text
     .option('--system <text>', 'System prompt (text mode).')
-    .option('--voice <voice>', 'Voice id (speech mode).')
-    .option('--format <format>', 'Output format (speech / transcription mode).')
-    .option('--language <code>', 'ISO-639-1 language hint (transcription mode).')
+    .option('--system-file <path>', 'System prompt from a file (text mode).')
+    .option('--schema <json>', 'Inline JSON Schema string for structured output (text mode).')
+    .option('--schema-file <path>', 'JSON Schema from a file (text mode).')
+    .option('--schema-module <path>', 'TS/JS module exporting a Zod schema as default or `schema` (text mode). Trusted-code only.')
+    .option('--temperature <n>', 'Sampling temperature (text mode).')
+    .option('--max-tokens <n>', 'Hard cap on completion tokens (text mode).')
+    .option('--top-p <n>', 'Top-p / nucleus sampling 0–1 (text mode).')
+    .option('--seed <n>', 'Reproducibility seed (text/image mode).')
+    .option('--stop <text>', 'Stop sequence. Repeatable. (text mode).', collectStop, [] as string[])
+    .option('--reasoning <effort>', 'Thinking/reasoning effort: low|medium|high (text mode).')
+    .option('--provider-option <key=value>', 'Generic passthrough. Repeatable. (text/image/speech/transcription mode).', collectProviderOption, [] as string[])
+    .option('--stream', 'Default to streaming text output (text mode).')
+    .option('--json', 'Default to JSON envelope output (text mode).')
+    // Image
     .option('--size <WxH>', 'Image size (image mode).')
     .option('--quality <level>', 'Image quality (image mode).')
     .option('--style <style>', 'Image style (image mode).')
+    .option('--negative <prompt>', 'Negative prompt (image mode).')
     .option('--n <count>', 'Number of images (image mode).')
+    // Speech
+    .option('--voice <voice>', 'Voice id (speech mode).')
     .option('--speed <number>', 'Playback speed multiplier (speech mode).')
-    .option('--retries <count>', 'Default retry count for this preset.')
-    .option('--timeout <seconds>', 'Default per-attempt timeout for this preset.');
+    .option('--instructions <text>', 'Steering text for steerable voices (speech mode).')
+    // Speech / Transcription share --format
+    .option('--format <format>', 'Output format (speech / transcription mode).')
+    // Transcription
+    .option('--language <code>', 'ISO-639-1 language hint (transcription mode).')
+    .option('--prompt <text>', 'Bias prompt to guide transcription (transcription mode).');
 }
 
 function buildPresetCommand(): Command {

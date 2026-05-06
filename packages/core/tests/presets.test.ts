@@ -113,6 +113,72 @@ describe('presetSchema', () => {
     const r = presetSchema.safeParse({ mode: 'text', provider: 'nope' });
     expect(r.success).toBe(false);
   });
+
+  it('accepts a text preset with schema and sampling/reasoning fields', () => {
+    const r = presetSchema.safeParse({
+      mode: 'text',
+      provider: 'openrouter',
+      schema: '{"type":"object"}',
+      schemaFile: '/tmp/schema.json',
+      schemaModule: '/tmp/schema.ts',
+      systemFile: '/tmp/system.txt',
+      temperature: 0.2,
+      maxTokens: 400,
+      topP: 0.9,
+      seed: 42,
+      stop: ['###', 'END'],
+      reasoning: 'high',
+      providerOption: ['logprobs=true'],
+      stream: false,
+      json: true,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects topP outside 0–1', () => {
+    const r = presetSchema.safeParse({ mode: 'text', topP: 1.5 });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects unknown reasoning levels', () => {
+    const r = presetSchema.safeParse({ mode: 'text', reasoning: 'extreme' });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts an image preset with seed, negative, and providerOption', () => {
+    const r = presetSchema.safeParse({
+      mode: 'image',
+      provider: 'cloudflare',
+      seed: 7,
+      negative: 'no text',
+      providerOption: ['background=transparent'],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a speech preset with instructions and providerOption', () => {
+    const r = presetSchema.safeParse({
+      mode: 'speech',
+      voice: 'ash',
+      instructions: 'cheerful, slow',
+      providerOption: ['format_options=mp3-high'],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a transcription preset with prompt and providerOption', () => {
+    const r = presetSchema.safeParse({
+      mode: 'transcription',
+      prompt: 'technical interview, names: Ada, Linus',
+      providerOption: ['timestamp_granularities=word'],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects schema field on a non-text preset (strict)', () => {
+    const r = presetSchema.safeParse({ mode: 'image', schema: '{}' });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('marmotConfigSchema presets key validation', () => {

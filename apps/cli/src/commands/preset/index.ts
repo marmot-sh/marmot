@@ -20,19 +20,40 @@ export type PresetCommandDependencies = {
 
 export type PresetWriteOptions = {
   mode?: string;
+  // shared
   provider?: string;
   model?: string;
+  retries?: string | number;
+  timeout?: string | number;
+  // text
   system?: string;
-  voice?: string;
-  format?: string;
-  language?: string;
+  systemFile?: string;
+  schema?: string;
+  schemaFile?: string;
+  schemaModule?: string;
+  temperature?: string | number;
+  maxTokens?: string | number;
+  topP?: string | number;
+  seed?: string | number;
+  stop?: string[];
+  reasoning?: string;
+  providerOption?: string[];
+  stream?: boolean;
+  json?: boolean;
+  // image
   size?: string;
   quality?: string;
   style?: string;
+  negative?: string;
   n?: string | number;
+  // speech
+  voice?: string;
+  format?: string;
   speed?: string | number;
-  retries?: string | number;
-  timeout?: string | number;
+  instructions?: string;
+  // transcription
+  language?: string;
+  prompt?: string;
 };
 
 function parseIntField(name: string, value: string | number | undefined): number | undefined {
@@ -53,6 +74,14 @@ function parseFloatField(name: string, value: string | number | undefined): numb
   return n;
 }
 
+/** Drop empty arrays from preset payloads — commander gives us `[]` when
+ *  a repeatable flag wasn't passed, but `[]` would store as a meaningful
+ *  empty value that overrides defaults. Treat absence as undefined. */
+function nonEmptyArray(arr: string[] | undefined): string[] | undefined {
+  if (!arr || arr.length === 0) return undefined;
+  return arr;
+}
+
 function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Preset {
   const base = {
     mode,
@@ -65,7 +94,23 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
   let candidate: Record<string, unknown>;
   switch (mode) {
     case 'text':
-      candidate = { ...base, system: opts.system };
+      candidate = {
+        ...base,
+        system: opts.system,
+        systemFile: opts.systemFile,
+        schema: opts.schema,
+        schemaFile: opts.schemaFile,
+        schemaModule: opts.schemaModule,
+        temperature: parseFloatField('temperature', opts.temperature),
+        maxTokens: parseIntField('max-tokens', opts.maxTokens),
+        topP: parseFloatField('top-p', opts.topP),
+        seed: parseIntField('seed', opts.seed),
+        stop: nonEmptyArray(opts.stop),
+        reasoning: opts.reasoning,
+        providerOption: nonEmptyArray(opts.providerOption),
+        stream: opts.stream,
+        json: opts.json,
+      };
       break;
     case 'image':
       candidate = {
@@ -73,6 +118,9 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         size: opts.size,
         quality: opts.quality,
         style: opts.style,
+        seed: parseIntField('seed', opts.seed),
+        negative: opts.negative,
+        providerOption: nonEmptyArray(opts.providerOption),
         n: parseIntField('n', opts.n),
       };
       break;
@@ -82,10 +130,18 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         voice: opts.voice,
         format: opts.format,
         speed: parseFloatField('speed', opts.speed),
+        instructions: opts.instructions,
+        providerOption: nonEmptyArray(opts.providerOption),
       };
       break;
     case 'transcription':
-      candidate = { ...base, language: opts.language, format: opts.format };
+      candidate = {
+        ...base,
+        language: opts.language,
+        format: opts.format,
+        prompt: opts.prompt,
+        providerOption: nonEmptyArray(opts.providerOption),
+      };
       break;
   }
 
