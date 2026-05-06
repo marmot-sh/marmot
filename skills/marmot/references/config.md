@@ -44,20 +44,22 @@ The whole envelope is validated by Zod (`marmotConfigSchema`) on every write. Un
 Agents should always start with `marmot config show --json` to learn what's already there.
 
 ```bash
-marmot config show          # human-readable: AI table, web/data table, cache section
-marmot config show --json   # raw envelope plus cache.totals + cache.providers
+marmot config show          # human-readable: version, AI/Web/Data tables, ready providers, cache
+marmot config show --json   # raw envelope plus runtime fields (marmotVersion, readyProviders, cache)
 ```
 
 Example `--json` output:
 
 ```json
 {
+  "marmotVersion": "0.4.0",
   "version": 1,
   "defaults": {
     "text": { "provider": "anthropic", "model": "claude-opus-4-7" },
     "image": { "provider": "openai", "model": "gpt-image-1" },
-    "speech": { "provider": "openai", "model": "tts-1", "voice": "alloy" },
+    "video": { "provider": "openrouter", "model": "google/veo-3.1-lite" },
     "transcription": { "provider": "openai", "model": "whisper-1" },
+    "speech": { "provider": "openai", "model": "tts-1", "voice": "alloy" },
     "search": { "provider": "tavily" },
     "enrich": { "provider": "pdl" }
   },
@@ -69,6 +71,7 @@ Example `--json` output:
   "presets": {
     "deep-research": { "mode": "text", "provider": "anthropic", "model": "claude-opus-4-7", "system": "Be terse." }
   },
+  "readyProviders": ["anthropic", "openai", "pdl", "tavily"],
   "cache": {
     "totals": { "entries": 42, "bytes": 1258291 },
     "providers": [
@@ -78,6 +81,11 @@ Example `--json` output:
   }
 }
 ```
+
+Two runtime-derived fields are added to the on-disk envelope:
+
+- **`marmotVersion`** — installed CLI version. Different from the schema-version `version: 1` field. Use this for feature detection.
+- **`readyProviders`** — alphabetically sorted slugs of every provider that's callable right now (enabled in config + required credentials resolved). These are valid `--provider <slug>` arguments. If a provider you need isn't in the list, the user is missing a key — surface that to them rather than attempting a call that will 401.
 
 `marmot config init` creates an empty config (`{version:1, defaults:{text:{}, image:{}}}`). Pass `--force` to overwrite an existing file. If the file already exists without `--force`, the command no-ops and returns `{ok: true, alreadyExists: true}`.
 
