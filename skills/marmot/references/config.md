@@ -93,6 +93,8 @@ Three accepted key shapes. Unknown shapes throw `validation`.
 | `text.model` | string | any model id valid for the provider |
 | `image.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
 | `image.model` | string | any image model id |
+| `video.provider` | string | `openrouter`, `vercel` |
+| `video.model` | string | any video model id (e.g. `google/veo-3.1-lite`, `openai/sora-2-pro`) |
 | `speech.provider` | string | `openai`, `openrouter`, `vercel`, `cloudflare` |
 | `speech.model` | string | TTS model id |
 | `speech.voice` | string | provider-specific voice id |
@@ -361,24 +363,9 @@ $MARMOT_HOME/ai/sessions/<name>/
 
 All files mode `0o600`. API keys are never logged; only the source name (env var or `flag-override`). Prompt bodies are not logged unless `--record-prompts` is set on the session at create time. (There is no per-call override yet.)
 
-## 10. `marmot setup` walkthrough
+## 10. `marmot setup`
 
-Interactive. Useful for first-run; agents usually prefer `config set`.
-
-Top-level menu:
-
-| Choice | Effect |
-| --- | --- |
-| Text / Image / Speech / Transcription | Pick provider + model (and voice for speech) for one AI mode. |
-| Reconfigure all four AI modes | Sequential walkthrough. |
-| Configure web verb defaults | `search`, `scrape`, `research`, `answer`, `crawl`, `map`, `findall`. |
-| Configure data verb defaults | `enrich`, `lookup`, `verify`. |
-| Configure provider settings | Per-provider walkthrough: enable/disable, cache, custom env vars. |
-| Done | Exit. |
-
-First run (no AI defaults present) offers to populate all four AI modes with OpenRouter defaults in one shot.
-
-The "Configure provider settings" submenu is detection-driven: only providers with a credential present (or already in config) are listed. Each row shows `✓` (enabled, has key), `⏸` (paused), or `·` (no key). For each picked provider it walks: enable toggle → cache enable + TTL (web/data only) → optional custom env var names.
+Interactive wizard for first-run and reconfiguration. Agents usually prefer `config set` for headless tweaks; reach for `setup` only when walking a human through provider/model defaults, provider toggles, or cache settings. The hub drills into AI defaults (one step per modality), context defaults (web + data verbs), per-provider settings (enable/disable, cache, custom env vars), the global response cache, and the agent skill install. "Exit setup" is reachable from any submenu.
 
 ## 11. Resolution order recap
 
