@@ -12,10 +12,11 @@ import {
 import { AICliError } from '@marmot-sh/core';
 import {
   readPromptFile,
-  readStdin,
   resolveUserPath,
+  warnText,
   type StdinReader,
 } from '@marmot-sh/core';
+import { sniffStdin } from '../lib/stdin-sniff.js';
 import {
   DEFAULT_RETRY_BASE_DELAY_MS,
   isRetryableProviderError,
@@ -126,7 +127,55 @@ export async function handleVideoRunCommand(
   const promptFile = options.promptFile
     ? await readPromptFile(options.promptFile)
     : undefined;
-  const stdinContent = await readStdin(dependencies.stdin);
+
+  // Sniff stdin so a piped image (PNG/JPEG/WebP/GIF) becomes first-frame
+  // conditioning instead of being decoded as UTF-8 and shoved into the
+  // prompt. Mirrors the run-modality pattern from `marmot run`. Audio /
+  // video / PDF stdin is rejected because video models don't accept
+  // those as conditioning. Text stdin still folds into the prompt as
+  // before. Empty pipes warn so an upstream failure isn't silent.
+  const stdinSource = (dependencies.stdin ?? process.stdin) as StdinReader;
+  const sniffed = await sniffStdin(stdinSource);
+  let stdinContent: string | undefined;
+  let stdinImagePayload: { bytes: Uint8Array; mimeType: string } | null = null;
+  switch (sniffed.kind) {
+    case 'tty':
+      break;
+    case 'empty-pipe':
+      if (
+        inlinePrompt.trim().length > 0
+        || promptFile?.content.trim().length
+      ) {
+        stderr.write(
+          `${warnText('[video] stdin was piped but empty (upstream command may have failed). Falling back to other prompt sources.')}\n`,
+        );
+      }
+      break;
+    case 'text':
+      stdinContent = sniffed.text;
+      break;
+    case 'image':
+      stdinImagePayload = { bytes: sniffed.bytes, mimeType: sniffed.mimeType };
+      break;
+    case 'audio':
+    case 'video':
+    case 'file':
+      throw new AICliError(
+        'validation',
+        `marmot video doesn't accept ${sniffed.kind} input via stdin. Pipe an image (PNG/JPEG/WebP/GIF) for first-frame conditioning, or pass text for the prompt.`,
+      );
+  }
+
+  // The two-image cap (first-frame + last-frame) is enforced in the core
+  // schema against imagePaths. Stdin image counts toward the cap but
+  // isn't visible to that validator, so check the combined total here.
+  const explicitImageCount = options.image?.length ?? 0;
+  if (explicitImageCount + (stdinImagePayload ? 1 : 0) > 2) {
+    throw new AICliError(
+      'validation',
+      '--image accepts at most two references (first-frame + last-frame). A piped stdin image counts toward this limit.',
+    );
+  }
 
   // Same auto-config pattern as the other AI verbs: with a --provider
   // override we just read; otherwise we ensure the config has a video
@@ -208,7 +257,13 @@ export async function handleVideoRunCommand(
 
   // Optional image conditioning -- read from disk and hand bytes to the
   // adapter. Position 0 = first-frame / single ref; position 1 = last-frame.
-  const images = await loadImagesFromPaths(input.imagePaths);
+  // A piped stdin image takes position 0, pushing any explicit --image
+  // flags one slot over (so `cat first.png | marmot video --image last.png`
+  // does the natural thing: stdin = first frame, flag = last frame).
+  const fileImages = await loadImagesFromPaths(input.imagePaths);
+  const images: ProviderVideoImageInput[] = stdinImagePayload
+    ? [{ data: stdinImagePayload.bytes, mimeType: stdinImagePayload.mimeType }, ...fileImages]
+    : fileImages;
 
   const result = await withSpinner(
     `Generating ${adapter.name} video…`,

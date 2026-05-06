@@ -63,6 +63,10 @@ marmot video 'a busy market in Tokyo' --audio --resolution 1080p
 # Image-to-video (single reference image)
 marmot video 'gentle camera pan' --image ./still.jpg
 
+# Pipe a generated image straight into the video model (stdin = first frame)
+marmot image 'a marmot waving in a meadow' \
+  | marmot video 'gentle waving, slight breeze' --duration 4
+
 # First-frame + last-frame conditioning (Veo, Kling, Seedance, Wan)
 marmot video 'morph between these' --image ./start.jpg --image ./end.jpg
 
@@ -88,7 +92,7 @@ For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) se
 | `--duration <sec>` | Clip length in seconds. Most models accept 4–15s; check the model docs. |
 | `--fps <n>` | Frames per second. Honored by Wan and Seedance; ignored elsewhere. |
 | `--audio` / `--no-audio` | Toggle synced audio. Default `--no-audio`. Some models (full Veo, Sora, Wan, Seedance-1.5) always emit audio regardless of the flag. |
-| `--image <path>` | Reference image. Repeatable up to 2: position 1 = first-frame conditioning (or single-image-to-video), position 2 = last-frame for models that support it. |
+| `--image <path>` | Reference image. Repeatable up to 2: position 1 = first-frame conditioning (or single-image-to-video), position 2 = last-frame for models that support it. A piped image on stdin is auto-detected and slotted into position 1, pushing explicit `--image` flags one position over (so `cat first.png \| marmot video --image last.png` works). |
 | `--n <count>` | Number of clips. Most models cap at 1 per call; the AI SDK batches when needed. |
 | `--seed <int>` | Reproducibility seed. |
 | `--binary` | Force raw video bytes to stdout. Requires `--n 1`. |
