@@ -26,6 +26,7 @@ import {
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
+import { withUsageLogging } from '../lib/usage-recorder.js';
 
 export type ScrapeCommandOptions = {
   provider?: string;
@@ -101,25 +102,52 @@ export async function handleScrapeCommand(
     fetchFn,
   };
 
-  const { response: result, cached } = await withSpinner(
-    `Scraping ${urls.length} URL${urls.length === 1 ? '' : 's'} with ${provider}…`,
-    () =>
-      withResponseCache({
-        provider,
-        verb: 'scrape',
-        input,
-        query: urls.join(','),
-        config,
-        env,
-        noCache: options.cache === false,
-        refresh: options.refresh,
-        fetcher: () =>
-          runWithRetries(
-            (abortSignal) => adapter.scrape!({ ...input, abortSignal }),
-            { retries, timeoutMs, onRetry },
-          ),
-      }),
-    { stream: stderr, env },
+  const flags: Record<string, string | number | boolean> = { url_count: urls.length };
+  if (options.format) flags.format = options.format;
+
+  const { result, cached } = await withUsageLogging(
+    config,
+    {
+      verb: 'scrape',
+      provider,
+      preset: options.preset,
+      flags,
+      flag_presence: { query: Boolean(options.query) },
+      session: null,
+      sensitive: {
+        urls,
+        ...(options.query ? { flags: { query: options.query } } : {}),
+      },
+    },
+    async () => {
+      const out = await withSpinner(
+        `Scraping ${urls.length} URL${urls.length === 1 ? '' : 's'} with ${provider}…`,
+        () =>
+          withResponseCache({
+            provider,
+            verb: 'scrape',
+            input,
+            query: urls.join(','),
+            config,
+            env,
+            noCache: options.cache === false,
+            refresh: options.refresh,
+            fetcher: () =>
+              runWithRetries(
+                (abortSignal) => adapter.scrape!({ ...input, abortSignal }),
+                { retries, timeoutMs, onRetry },
+              ),
+          }),
+        { stream: stderr, env },
+      );
+      return {
+        result: out.response,
+        cached: out.cached,
+        quantity: { pages: out.response.data?.pages?.length ?? urls.length },
+        cost: null,
+      };
+    },
+    env,
   );
   const envelope = {
     ok: true as const,

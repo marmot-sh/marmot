@@ -5,6 +5,8 @@
     "common-flags",
     "presets",
     "sessions",
+    "usage",
+    "doctor",
     "async-tasks",
     "ai",
     "data"

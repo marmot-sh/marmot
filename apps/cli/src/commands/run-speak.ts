@@ -48,7 +48,7 @@ import type {
   ProviderSpeechResult,
 } from '@marmot-sh/core';
 import { keySource as resolveKeySource } from '@marmot-sh/core';
-import { logCallToSession, resolveSessionBinding } from '../lib/session-binding.js';
+import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
 export type SpeechRunCommandOptions = {
@@ -316,7 +316,12 @@ export async function handleSpeechRunCommand(
     renderSpeechBinaryOutput(result, stdout as unknown as { write: (chunk: Uint8Array) => boolean });
   }
 
-  await logCallToSession(
+  const speakFlags: Record<string, string | number | boolean> = {};
+  if (input.voice) speakFlags.voice = input.voice;
+  if (input.format) speakFlags.format = input.format;
+  if (typeof input.speed === 'number') speakFlags.speed = input.speed;
+
+  await recordCall(
     sessionBinding,
     {
       verb: 'speak',
@@ -334,6 +339,16 @@ export async function handleSpeechRunCommand(
       prompt: input.text,
       exit: 'ok',
     },
+    {
+      flags: speakFlags,
+      flag_presence: { text: true, instructions: Boolean(input.instructions) },
+      cost: null,
+      sensitive: {
+        prompt: input.text,
+        ...(input.instructions ? { flags: { instructions: input.instructions } } : {}),
+      },
+    },
+    config,
     env,
   );
 

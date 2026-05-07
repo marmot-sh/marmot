@@ -30,6 +30,7 @@ import {
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
+import { categorizeError, finishCall } from '../lib/usage-recorder.js';
 
 export type ResearchCommandOptions = {
   provider?: string;
@@ -160,15 +161,40 @@ export async function handleResearchCommand(
     fetchFn,
   };
 
-  const submission = await withSpinner(
-    `Submitting research to ${provider}…`,
-    () =>
-      runWithRetries(
-        (abortSignal) => adapter.research!({ ...input, abortSignal }),
-        { retries, timeoutMs, onRetry },
-      ),
-    { stream: stderr, env },
-  );
+  const usageFlags: Record<string, string | number | boolean> = {};
+  if (options.depth) usageFlags.depth = options.depth;
+  const usagePresence = {
+    query: true,
+    schema: Boolean(schema),
+    instructions: Boolean(options.instructions),
+  };
+  const usageSensitive = {
+    query,
+    ...(schema ? { schema: typeof schema === 'string' ? schema : JSON.stringify(schema) } : {}),
+    ...(options.instructions ? { flags: { instructions: options.instructions } } : {}),
+  };
+
+  const startedAtMs = Date.now();
+  let submission: Awaited<ReturnType<NonNullable<typeof adapter.research>>>;
+  try {
+    submission = await withSpinner(
+      `Submitting research to ${provider}…`,
+      () =>
+        runWithRetries(
+          (abortSignal) => adapter.research!({ ...input, abortSignal }),
+          { retries, timeoutMs, onRetry },
+        ),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await finishCall(config, {
+      verb: 'research', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      startedAtMs, cached: false, exit: 'error',
+      error_category: categorizeError(error),
+    }, env);
+    throw error;
+  }
   await appendTaskRecord(
     {
       taskId: submission.taskId,
@@ -182,6 +208,14 @@ export async function handleResearchCommand(
 
   // --async: return immediately.
   if (options.async) {
+    await finishCall(config, {
+      verb: 'research', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      call_id: submission.taskId,
+      startedAtMs, cached: false,
+      quantity: { tasks: 1 },
+      cost: null,
+    }, env);
     const envelope = {
       ok: true as const,
       provider,
@@ -202,35 +236,57 @@ export async function handleResearchCommand(
   const maxWaitMs = options.maxWait
     ? parsePositiveSeconds(options.maxWait, 'max-wait') * 1_000
     : undefined;
-  const finalStatus = await withSpinner(
-    `Researching via ${provider} (${submission.taskId})…`,
-    () =>
-      runWithPolling<WebTaskStatus>({
-        schedule: pollSchedule,
-        maxWaitMs,
-        poll: async () => {
-          const status = await adapter.getTask!({
-            taskId: submission.taskId,
-            verb: 'research',
-            apiKey,
-            fetchFn,
-          });
-          await updateTaskRecord(
-            {
+  let finalStatus: WebTaskStatus;
+  try {
+    finalStatus = await withSpinner(
+      `Researching via ${provider} (${submission.taskId})…`,
+      () =>
+        runWithPolling<WebTaskStatus>({
+          schedule: pollSchedule,
+          maxWaitMs,
+          poll: async () => {
+            const status = await adapter.getTask!({
               taskId: submission.taskId,
-              provider: provider as WebProviderSlug,
-              status: status.status,
-            },
-            env,
-          );
-          if (status.status === 'done' || status.status === 'failed' || status.status === 'cancelled') {
-            return { done: true, value: status };
-          }
-          return { done: false };
-        },
-      }),
-    { stream: stderr, env },
-  );
+              verb: 'research',
+              apiKey,
+              fetchFn,
+            });
+            await updateTaskRecord(
+              {
+                taskId: submission.taskId,
+                provider: provider as WebProviderSlug,
+                status: status.status,
+              },
+              env,
+            );
+            if (status.status === 'done' || status.status === 'failed' || status.status === 'cancelled') {
+              return { done: true, value: status };
+            }
+            return { done: false };
+          },
+        }),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await finishCall(config, {
+      verb: 'research', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      call_id: submission.taskId,
+      startedAtMs, cached: false, exit: 'error',
+      error_category: categorizeError(error),
+    }, env);
+    throw error;
+  }
+  await finishCall(config, {
+    verb: 'research', provider, preset: options.preset,
+    flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+    call_id: submission.taskId,
+    startedAtMs, cached: false,
+    quantity: { tasks: 1 },
+    cost: null,
+    exit: finalStatus.status === 'done' ? 'ok' : 'error',
+    error_category: finalStatus.status === 'done' ? undefined : 'provider',
+  }, env);
 
   const envelope = {
     ok: finalStatus.status === 'done',

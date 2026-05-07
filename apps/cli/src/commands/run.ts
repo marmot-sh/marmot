@@ -54,7 +54,7 @@ import {
   readChatMessages,
   type ChatHistoryEntry,
 } from '@marmot-sh/core';
-import { logCallToSession, resolveSessionBinding, type SessionBinding } from '../lib/session-binding.js';
+import { recordCall, resolveSessionBinding, type SessionBinding } from '../lib/session-binding.js';
 import { assertNoCommandConfusion } from '../lib/command-typo.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
@@ -90,6 +90,54 @@ async function appendChatTurn(
   if (!binding || binding.meta.mode !== 'chat') return;
   await appendChatMessage(binding.name, { role: 'user', content: prompt }, env);
   await appendChatMessage(binding.name, { role: 'assistant', content: reply }, env);
+}
+
+/** Build privacy-safe usage extras for a run-verb call. Non-sensitive
+ *  sampling controls go in `flags`; prompt/system/schema bodies are
+ *  recorded as boolean presence only. Cost is read from OpenRouter's
+ *  per-call cost when reported (NormalizedUsageSummary.costCredits). */
+function buildRunUsageExtras(
+  execution: { input: { temperature?: number; maxOutputTokens?: number; topP?: number; seed?: number; reasoning?: string; stream?: boolean; system?: string; schema?: unknown }; images?: unknown[]; files?: unknown[] },
+  usage: { costCredits?: number | null } | null | undefined,
+  prompt?: string,
+  system?: string,
+): {
+  flags?: Record<string, string | number | boolean>;
+  flag_presence?: Record<string, boolean>;
+  cost: number | null;
+  sensitive?: { prompt?: string; system?: string; schema?: string };
+} {
+  const flags: Record<string, string | number | boolean> = {};
+  if (typeof execution.input.temperature === 'number') flags.temperature = execution.input.temperature;
+  if (typeof execution.input.maxOutputTokens === 'number') flags.max_tokens = execution.input.maxOutputTokens;
+  if (typeof execution.input.topP === 'number') flags.top_p = execution.input.topP;
+  if (typeof execution.input.seed === 'number') flags.seed = execution.input.seed;
+  if (execution.input.reasoning) flags.reasoning = execution.input.reasoning;
+  if (execution.input.stream) flags.stream = true;
+  const sensitive: { prompt?: string; system?: string; schema?: string } = {};
+  if (typeof prompt === 'string') sensitive.prompt = prompt;
+  if (typeof system === 'string') sensitive.system = system;
+  if (execution.input.schema && typeof execution.input.schema === 'object') {
+    try {
+      sensitive.schema = JSON.stringify(execution.input.schema);
+    } catch {
+      /* skip non-serializable schema */
+    }
+  } else if (typeof execution.input.schema === 'string') {
+    sensitive.schema = execution.input.schema;
+  }
+  return {
+    flags: Object.keys(flags).length > 0 ? flags : undefined,
+    flag_presence: {
+      prompt: true,
+      system: Boolean(execution.input.system),
+      schema: Boolean(execution.input.schema),
+      images: (execution.images?.length ?? 0) > 0,
+      files: (execution.files?.length ?? 0) > 0,
+    },
+    cost: typeof usage?.costCredits === 'number' ? usage.costCredits : null,
+    sensitive: Object.keys(sensitive).length > 0 ? sensitive : undefined,
+  };
 }
 
 export type RunCommandOptions = {
@@ -237,7 +285,7 @@ export async function handleRunCommand(
 
     writeLine(execution.stdout, renderedOutput);
 
-    await logCallToSession(
+    await recordCall(
       sessionBinding,
       {
         verb: 'run',
@@ -266,6 +314,8 @@ export async function handleRunCommand(
         system: execution.input.system,
         exit: 'ok',
       },
+      buildRunUsageExtras(execution, result.usage, execution.input.prompt, execution.input.system),
+      execution.config,
       env,
     );
 
@@ -334,7 +384,7 @@ export async function handleRunCommand(
 
   writeLine(execution.stdout, renderedOutput);
 
-  await logCallToSession(
+  await recordCall(
     sessionBinding,
     {
       verb: 'run',
@@ -363,6 +413,8 @@ export async function handleRunCommand(
       system: execution.input.system,
       exit: 'ok',
     },
+    buildRunUsageExtras(execution, result.usage, execution.input.prompt, execution.input.system),
+    execution.config,
     env,
   );
 
@@ -472,7 +524,7 @@ export async function handleStreamRunCommand(
     timestamp: execution.timestamp,
   };
 
-  await logCallToSession(
+  await recordCall(
     sessionBinding,
     {
       verb: 'run',
@@ -501,6 +553,8 @@ export async function handleStreamRunCommand(
       system: execution.input.system,
       exit: 'ok',
     },
+    buildRunUsageExtras(execution, result.usage, execution.input.prompt, execution.input.system),
+    execution.config,
     env,
   );
 

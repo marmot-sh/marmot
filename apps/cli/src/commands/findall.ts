@@ -31,6 +31,7 @@ import {
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { parseIntFlag } from '../lib/parse-numeric.js';
+import { categorizeError, finishCall } from '../lib/usage-recorder.js';
 
 export type FindallCommandOptions = {
   provider?: string;
@@ -132,15 +133,41 @@ export async function handleFindallCommand(
     fetchFn,
   };
 
-  const submission = await withSpinner(
-    `Submitting findall to ${provider}…`,
-    () =>
-      runWithRetries(
-        (abortSignal) => adapter.findall!({ ...input, abortSignal }),
-        { retries, timeoutMs, onRetry },
-      ),
-    { stream: stderr, env },
-  );
+  const usageFlags: Record<string, string | number | boolean> = {};
+  if (limit !== undefined) usageFlags.limit = limit;
+  if (options.entityType) usageFlags.entity_type = options.entityType;
+  const usagePresence = {
+    objective: true,
+    schema: Boolean(schema),
+    matchConditions: Boolean(matchConditions),
+  };
+  const usageSensitive = {
+    query: objective,
+    ...(schema ? { schema: JSON.stringify(schema) } : {}),
+    ...(options.matchConditions ? { flags: { matchConditions: options.matchConditions } } : {}),
+  };
+
+  const startedAtMs = Date.now();
+  let submission: Awaited<ReturnType<NonNullable<typeof adapter.findall>>>;
+  try {
+    submission = await withSpinner(
+      `Submitting findall to ${provider}…`,
+      () =>
+        runWithRetries(
+          (abortSignal) => adapter.findall!({ ...input, abortSignal }),
+          { retries, timeoutMs, onRetry },
+        ),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await finishCall(config, {
+      verb: 'findall', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      startedAtMs, cached: false, exit: 'error',
+      error_category: categorizeError(error),
+    }, env);
+    throw error;
+  }
   await appendTaskRecord(
     {
       taskId: submission.taskId,
@@ -153,6 +180,14 @@ export async function handleFindallCommand(
   );
 
   if (options.async) {
+    await finishCall(config, {
+      verb: 'findall', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      call_id: submission.taskId,
+      startedAtMs, cached: false,
+      quantity: { tasks: 1 },
+      cost: null,
+    }, env);
     const envelope = {
       ok: true,
       provider,
@@ -166,33 +201,55 @@ export async function handleFindallCommand(
     return;
   }
 
-  const finalStatus = await withSpinner(
-    `Building list via ${provider} (${submission.taskId})…`,
-    () =>
-      runWithPolling<WebTaskStatus>({
-        poll: async () => {
-          const status = await adapter.getTask!({
-            taskId: submission.taskId,
-            verb: 'findall',
-            apiKey,
-            fetchFn,
-          });
-          await updateTaskRecord(
-            {
+  let finalStatus: WebTaskStatus;
+  try {
+    finalStatus = await withSpinner(
+      `Building list via ${provider} (${submission.taskId})…`,
+      () =>
+        runWithPolling<WebTaskStatus>({
+          poll: async () => {
+            const status = await adapter.getTask!({
               taskId: submission.taskId,
-              provider: provider as WebProviderSlug,
-              status: status.status,
-            },
-            env,
-          );
-          if (status.status === 'done' || status.status === 'failed' || status.status === 'cancelled') {
-            return { done: true, value: status };
-          }
-          return { done: false };
-        },
-      }),
-    { stream: stderr, env },
-  );
+              verb: 'findall',
+              apiKey,
+              fetchFn,
+            });
+            await updateTaskRecord(
+              {
+                taskId: submission.taskId,
+                provider: provider as WebProviderSlug,
+                status: status.status,
+              },
+              env,
+            );
+            if (status.status === 'done' || status.status === 'failed' || status.status === 'cancelled') {
+              return { done: true, value: status };
+            }
+            return { done: false };
+          },
+        }),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await finishCall(config, {
+      verb: 'findall', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      call_id: submission.taskId,
+      startedAtMs, cached: false, exit: 'error',
+      error_category: categorizeError(error),
+    }, env);
+    throw error;
+  }
+  await finishCall(config, {
+    verb: 'findall', provider, preset: options.preset,
+    flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+    call_id: submission.taskId,
+    startedAtMs, cached: false,
+    quantity: { tasks: 1, entities: (finalStatus.data as { items?: unknown[] } | undefined)?.items?.length ?? 0 },
+    cost: null,
+    exit: finalStatus.status === 'done' ? 'ok' : 'error',
+    error_category: finalStatus.status === 'done' ? undefined : 'provider',
+  }, env);
 
   const envelope = {
     ok: finalStatus.status === 'done',

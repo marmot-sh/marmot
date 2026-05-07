@@ -56,6 +56,11 @@ export * from './cache/store.js';
 export * from './cache/responses.js';
 export * from './cache/validate.js';
 
+// usage (privacy-safe per-call log + reader/pruner used by `marmot usage`)
+export * from './usage/record.js';
+export * from './usage/read.js';
+export * from './usage/duration.js';
+
 // schemas (zod schemas + types used across the workspace)
 export * from './schemas/cache.js';
 export * from './schemas/cli.js';

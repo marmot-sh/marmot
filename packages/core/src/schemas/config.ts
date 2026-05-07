@@ -413,6 +413,23 @@ export const marmotConfigSchema = z
       .strict()
       .optional(),
     presets: z.record(presetNameSchema, presetSchema).optional(),
+    /** Usage log settings.
+     *  - `enabled` (default true): write a record per metered call to
+     *    ~/.marmot/usage/<UTC-DATE>.jsonl. Disable globally here or per-call
+     *    via env var `MARMOT_NO_LOG=1`.
+     *  - `recordSensitive` (default false): when true, also include the
+     *    user's prompt, query, target URLs, and identifier values
+     *    (`--email`, `--include-domains`, etc.) under the record's
+     *    `sensitive` field. Off by default — keep it off unless you
+     *    explicitly want a full audit trail and accept that the log file
+     *    contains everything you searched for or wrote. */
+    logging: z
+      .object({
+        enabled: z.boolean().optional(),
+        recordSensitive: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     /** Per-provider settings (enable toggle, custom env var names, response
      *  cache). Keyed by provider slug across AI, web, and data categories. */
     providers: z.partialRecord(anyProviderSlugSchema, providerSettingsSchema).optional(),

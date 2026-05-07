@@ -42,7 +42,7 @@ import type {
   ProviderTranscribeResult,
 } from '@marmot-sh/core';
 import { keySource as resolveKeySource } from '@marmot-sh/core';
-import { logCallToSession, resolveSessionBinding } from '../lib/session-binding.js';
+import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
 const TRANSCRIBE_CAPABLE_HINT =
@@ -286,7 +286,11 @@ export async function handleTranscribeRunCommand(
 
   writeLine(stdout, stdoutBody);
 
-  await logCallToSession(
+  const stTflags: Record<string, string | number | boolean> = {};
+  if (input.language) stTflags.language = input.language;
+  if (input.format) stTflags.format = input.format;
+
+  await recordCall(
     sessionBinding,
     {
       verb: 'transcribe',
@@ -303,6 +307,16 @@ export async function handleTranscribeRunCommand(
       ),
       exit: 'ok',
     },
+    {
+      flags: stTflags,
+      flag_presence: { audio: true, prompt: Boolean(input.prompt) },
+      cost: null,
+      sensitive: {
+        ...(input.audioPath ? { urls: [input.audioPath] } : {}),
+        ...(input.prompt ? { flags: { prompt: input.prompt } } : {}),
+      },
+    },
+    config,
     env,
   );
 

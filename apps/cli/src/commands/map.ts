@@ -21,6 +21,7 @@ import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
+import { withUsageLogging } from '../lib/usage-recorder.js';
 
 export type MapCommandOptions = {
   provider?: string;
@@ -93,25 +94,52 @@ export async function handleMapCommand(
     fetchFn,
   };
 
-  const { response: result, cached } = await withSpinner(
-    `Mapping ${url} with ${provider}…`,
-    () =>
-      withResponseCache({
-        provider,
-        verb: 'map',
-        input,
-        query: url,
-        config,
-        env,
-        noCache: options.cache === false,
-        refresh: options.refresh,
-        fetcher: () =>
-          runWithRetries(
-            (abortSignal) => adapter.map!({ ...input, abortSignal }),
-            { retries, timeoutMs, onRetry },
-          ),
-      }),
-    { stream: stderr, env },
+  const flags: Record<string, string | number | boolean> = {};
+  if (limit !== undefined) flags.limit = limit;
+
+  const { result, cached } = await withUsageLogging(
+    config,
+    {
+      verb: 'map',
+      provider,
+      preset: options.preset,
+      flags,
+      flag_presence: { search: Boolean(options.search) },
+      session: null,
+      sensitive: {
+        urls: [url],
+        ...(options.search ? { flags: { search: options.search } } : {}),
+      },
+    },
+    async () => {
+      const out = await withSpinner(
+        `Mapping ${url} with ${provider}…`,
+        () =>
+          withResponseCache({
+            provider,
+            verb: 'map',
+            input,
+            query: url,
+            config,
+            env,
+            noCache: options.cache === false,
+            refresh: options.refresh,
+            fetcher: () =>
+              runWithRetries(
+                (abortSignal) => adapter.map!({ ...input, abortSignal }),
+                { retries, timeoutMs, onRetry },
+              ),
+          }),
+        { stream: stderr, env },
+      );
+      return {
+        result: out.response,
+        cached: out.cached,
+        quantity: { urls: out.response.data?.urls?.length ?? 0 },
+        cost: null,
+      };
+    },
+    env,
   );
   const envelope = {
     ok: true as const,

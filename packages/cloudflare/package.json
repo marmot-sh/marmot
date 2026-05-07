@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/cloudflare",
-  "version": "0.4.7",
+  "version": "0.5.0",
   "description": "@marmot-sh adapter for Cloudflare Workers AI — text/image/speech/transcribe (where supported).",
   "type": "module",
   "private": true,

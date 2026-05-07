@@ -1,0 +1,61 @@
+---
+title: Doctor
+description: marmot doctor — health check covering CLI version, config, providers, usage logging, and disk usage.
+---
+
+`marmot doctor` runs a battery of diagnostic checks so you can answer "is my install healthy?" before debugging a failing call.
+
+```bash
+marmot doctor
+marmot doctor --json
+```
+
+## What it checks
+
+| Check | Levels |
+| --- | --- |
+| `marmot version` | informational |
+| `node version` | ✓ when ≥ 20, ⚠ otherwise |
+| `config readable` | ✓ when `~/.marmot/config.json` parses, ✗ on schema or read error |
+| `providers` | ✓ when ≥ 1 provider is ready (enabled + credentials resolved); ⚠ otherwise. Reports `N ready · N enabled · N total`. |
+| `usage logging` | ✓ when enabled (with file count + size). ⚠ when usage dir exceeds 100 MB (suggests `marmot usage prune`). Informational when disabled. |
+| `marmot home` | informational. Total bytes used by `~/.marmot`. |
+
+## Output
+
+Default: human-readable, one check per line:
+
+```
+· marmot version       0.5.0
+✓ node version         v25.9.0
+✓ config readable      /Users/amuaddi/.marmot/config.json
+✓ providers            16 ready · 19 enabled · 19 total
+✓ usage logging        enabled · 7 day-files · 0.42 MB
+· marmot home          /Users/amuaddi/.marmot · 1.84 MB
+```
+
+`--json` returns a structured envelope:
+
+```json
+{
+  "ok": true,
+  "checks": [
+    { "name": "marmot version", "level": "info", "detail": "0.5.0" },
+    { "name": "node version", "level": "ok", "detail": "v25.9.0" }
+  ]
+}
+```
+
+`ok` is `true` when no check returned `error`.
+
+## When to run it
+
+- Before a real workload, to confirm credentials and config are set.
+- After upgrading marmot, to surface schema-validation failures in your config file.
+- When usage tracking feels off (`marmot doctor` reports whether logging is enabled).
+- Periodically — the disk usage check warns if `~/.marmot` is growing past 100 MB so you can prune.
+
+## What it does NOT do
+
+- Make a live API call to any provider — that would burn credits. Use `marmot providers list --check-keys` to verify provider readiness without round-tripping the network.
+- Modify any config or files. Doctor is read-only.

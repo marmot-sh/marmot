@@ -21,6 +21,7 @@ import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
+import { withUsageLogging } from '../lib/usage-recorder.js';
 
 export type VerifyCommandOptions = {
   email?: string;
@@ -85,25 +86,45 @@ export async function handleVerifyCommand(
   const onRetry = makeRetryNotifier(stderr, provider, 'verify', retries);
   const input: DataVerifyEmailInput = { email, apiKey, apiSecret, fetchFn };
 
-  const { response: result, cached } = await withSpinner(
-    `Verifying email via ${provider}…`,
-    () =>
-      withResponseCache({
-        provider,
-        verb: 'verify.email',
-        input: { email },
-        query: email,
-        config,
-        env,
-        noCache: options.cache === false,
-        refresh: options.refresh,
-        fetcher: () =>
-          runWithRetries(
-            (abortSignal) => adapter.verifyEmail!({ ...input, abortSignal }),
-            { retries, timeoutMs, onRetry },
-          ),
-      }),
-    { stream: stderr, env },
+  const { result, cached } = await withUsageLogging(
+    config,
+    {
+      verb: 'verify',
+      provider,
+      preset: options.preset,
+      flag_presence: { email: true },
+      session: null,
+      sensitive: { flags: { email } },
+    },
+    async () => {
+      const out = await withSpinner(
+        `Verifying email via ${provider}…`,
+        () =>
+          withResponseCache({
+            provider,
+            verb: 'verify.email',
+            input: { email },
+            query: email,
+            config,
+            env,
+            noCache: options.cache === false,
+            refresh: options.refresh,
+            fetcher: () =>
+              runWithRetries(
+                (abortSignal) => adapter.verifyEmail!({ ...input, abortSignal }),
+                { retries, timeoutMs, onRetry },
+              ),
+          }),
+        { stream: stderr, env },
+      );
+      return {
+        result: out.response,
+        cached: out.cached,
+        quantity: { calls: 1 },
+        cost: null,
+      };
+    },
+    env,
   );
 
   const envelope = {

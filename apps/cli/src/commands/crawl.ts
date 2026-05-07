@@ -26,6 +26,11 @@ import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { parseIntFlag } from '../lib/parse-numeric.js';
+import {
+  categorizeError,
+  finishCall,
+} from '../lib/usage-recorder.js';
+import { newCallId } from '@marmot-sh/core';
 
 export type CrawlCommandOptions = {
   provider?: string;
@@ -101,17 +106,56 @@ export async function handleCrawlCommand(
     fetchFn,
   };
 
+  const usageFlags: Record<string, string | number | boolean> = {};
+  if (input.maxPages !== undefined) usageFlags.max_pages = input.maxPages;
+  if (input.maxDepth !== undefined) usageFlags.max_depth = input.maxDepth;
+  if (input.allowExternal) usageFlags.allow_external = true;
+  const usagePresence = {
+    instructions: Boolean(options.instructions),
+    includePaths: Boolean(options.includePaths),
+    excludePaths: Boolean(options.excludePaths),
+  };
+  const usageSensitive = {
+    urls: [url],
+    flags: {
+      ...(options.instructions ? { instructions: options.instructions } : {}),
+      ...(options.includePaths ? { includePaths: options.includePaths } : {}),
+      ...(options.excludePaths ? { excludePaths: options.excludePaths } : {}),
+    },
+  };
+
   // Tavily is sync; Firecrawl is async.
   if (adapter.crawl) {
-    const result = await withSpinner(
-      `Crawling ${url} with ${provider}…`,
-      () =>
-        runWithRetries(
-          (abortSignal) => adapter.crawl!({ ...input, abortSignal }),
-          { retries, timeoutMs, onRetry },
-        ),
-      { stream: stderr, env },
-    );
+    const startedAtMs = Date.now();
+    let result: Awaited<ReturnType<NonNullable<typeof adapter.crawl>>>;
+    try {
+      result = await withSpinner(
+        `Crawling ${url} with ${provider}…`,
+        () =>
+          runWithRetries(
+            (abortSignal) => adapter.crawl!({ ...input, abortSignal }),
+            { retries, timeoutMs, onRetry },
+          ),
+        { stream: stderr, env },
+      );
+    } catch (error) {
+      await finishCall(config, {
+        verb: 'crawl', provider, preset: options.preset,
+        flags: usageFlags, flag_presence: usagePresence,
+        sensitive: usageSensitive,
+        startedAtMs, cached: false, exit: 'error',
+        error_category: categorizeError(error),
+      }, env);
+      throw error;
+    }
+    await finishCall(config, {
+      verb: 'crawl', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence,
+      sensitive: usageSensitive,
+      startedAtMs, cached: false,
+      quantity: { pages: result.data?.pages?.length ?? 0 },
+      cost: null,
+    }, env);
     const envelope = {
       ok: true,
       provider: result.provider,
@@ -130,15 +174,29 @@ export async function handleCrawlCommand(
       `Adapter for "${provider}" lacks crawlSubmit or getTask method.`,
     );
   }
-  const submission = await withSpinner(
-    `Submitting crawl to ${provider}…`,
-    () =>
-      runWithRetries(
-        (abortSignal) => adapter.crawlSubmit!({ ...input, abortSignal }),
-        { retries, timeoutMs, onRetry },
-      ),
-    { stream: stderr, env },
-  );
+  const startedAtMs = Date.now();
+  let submission: Awaited<ReturnType<NonNullable<typeof adapter.crawlSubmit>>>;
+  try {
+    submission = await withSpinner(
+      `Submitting crawl to ${provider}…`,
+      () =>
+        runWithRetries(
+          (abortSignal) => adapter.crawlSubmit!({ ...input, abortSignal }),
+          { retries, timeoutMs, onRetry },
+        ),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await finishCall(config, {
+      verb: 'crawl', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence,
+      sensitive: usageSensitive,
+      call_id: newCallId(),
+      startedAtMs, cached: false, exit: 'error',
+      error_category: categorizeError(error),
+    }, env);
+    throw error;
+  }
   await appendTaskRecord(
     {
       taskId: submission.taskId,
@@ -151,6 +209,17 @@ export async function handleCrawlCommand(
   );
 
   if (options.async) {
+    // --async: log the submit only. Record uses task_id as call_id so a
+    // later `marmot get` can append a completion record sharing the id.
+    await finishCall(config, {
+      verb: 'crawl', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence,
+      sensitive: usageSensitive,
+      call_id: submission.taskId,
+      startedAtMs, cached: false,
+      quantity: { tasks: 1 },
+      cost: null,
+    }, env);
     const envelope = {
       ok: true,
       provider,
@@ -164,33 +233,60 @@ export async function handleCrawlCommand(
     return;
   }
 
-  const finalStatus = await withSpinner(
-    `Crawling ${url} via ${provider} (${submission.taskId})…`,
-    () =>
-      runWithPolling<WebTaskStatus>({
-        poll: async () => {
-          const status = await adapter.getTask!({
-            taskId: submission.taskId,
-            verb: 'crawl',
-            apiKey,
-            fetchFn,
-          });
-          await updateTaskRecord(
-            {
+  let finalStatus: WebTaskStatus;
+  try {
+    finalStatus = await withSpinner(
+      `Crawling ${url} via ${provider} (${submission.taskId})…`,
+      () =>
+        runWithPolling<WebTaskStatus>({
+          poll: async () => {
+            const status = await adapter.getTask!({
               taskId: submission.taskId,
-              provider: provider as WebProviderSlug,
-              status: status.status,
-            },
-            env,
-          );
-          if (status.status === 'done' || status.status === 'failed' || status.status === 'cancelled') {
-            return { done: true, value: status };
-          }
-          return { done: false };
-        },
-      }),
-    { stream: stderr, env },
-  );
+              verb: 'crawl',
+              apiKey,
+              fetchFn,
+            });
+            await updateTaskRecord(
+              {
+                taskId: submission.taskId,
+                provider: provider as WebProviderSlug,
+                status: status.status,
+              },
+              env,
+            );
+            if (status.status === 'done' || status.status === 'failed' || status.status === 'cancelled') {
+              return { done: true, value: status };
+            }
+            return { done: false };
+          },
+        }),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await finishCall(config, {
+      verb: 'crawl', provider, preset: options.preset,
+      flags: usageFlags, flag_presence: usagePresence,
+      sensitive: usageSensitive,
+      call_id: submission.taskId,
+      startedAtMs, cached: false, exit: 'error',
+      error_category: categorizeError(error),
+    }, env);
+    throw error;
+  }
+  // --wait completion: log full elapsed wall-clock from submit through
+  // final poll. call_id = task_id so this row joins to any prior submit
+  // record under the same id.
+  await finishCall(config, {
+    verb: 'crawl', provider, preset: options.preset,
+    flags: usageFlags, flag_presence: usagePresence,
+    sensitive: usageSensitive,
+    call_id: submission.taskId,
+    startedAtMs, cached: false,
+    quantity: { tasks: 1, pages: (finalStatus.data as { pages?: unknown[] } | undefined)?.pages?.length ?? 0 },
+    cost: null,
+    exit: finalStatus.status === 'done' ? 'ok' : 'error',
+    error_category: finalStatus.status === 'done' ? undefined : 'provider',
+  }, env);
   const envelope = {
     ok: finalStatus.status === 'done',
     provider,
