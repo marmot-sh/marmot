@@ -46,6 +46,7 @@ import {
   type ProviderAdapter,
 } from '../providers/index.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
+import { withUsageLogging } from '../lib/usage-recorder.js';
 
 const VIDEO_CAPABLE_HINT =
   'Try --provider openrouter or --provider vercel (only those route video generation today).';
@@ -267,36 +268,66 @@ export async function handleVideoRunCommand(
     ? [{ data: stdinImagePayload.bytes, mimeType: stdinImagePayload.mimeType }, ...fileImages]
     : fileImages;
 
-  const result = await withSpinner(
-    `Generating ${adapter.name} video…`,
-    () =>
-      runWithRetries(
-        (abortSignal) =>
-          adapter.generateVideo!({
-            model,
-            prompt: input.prompt,
-            aspectRatio: input.aspect,
-            resolution: input.resolution,
-            duration: input.duration,
-            fps: input.fps,
-            n: input.n,
-            seed: input.seed,
-            audio: input.audio,
-            images,
-            providerOptions: parseProviderOptions(options.providerOption),
-            apiKey,
-            fetchFn: dependencies.fetchFn,
-            abortSignal,
-          }),
-        {
-          retries: input.retries,
-          timeoutMs: input.timeoutMs,
-          baseDelayMs: dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
-          shouldRetry: isRetryableProviderError,
-          sleep: dependencies.sleep,
-        },
-      ),
-    { stream: stderr, env },
+  const videoFlags: Record<string, string | number | boolean> = {};
+  if (input.aspect) videoFlags.aspect = input.aspect;
+  if (input.resolution) videoFlags.resolution = input.resolution;
+  if (typeof input.duration === 'number') videoFlags.duration = input.duration;
+  if (typeof input.fps === 'number') videoFlags.fps = input.fps;
+  if (typeof input.n === 'number') videoFlags.n = input.n;
+  if (typeof input.seed === 'number') videoFlags.seed = input.seed;
+  if (typeof input.audio === 'boolean') videoFlags.audio = input.audio;
+
+  const { result } = await withUsageLogging(
+    config,
+    {
+      verb: 'video',
+      provider: input.provider,
+      model,
+      flags: videoFlags,
+      flag_presence: { prompt: true, images: images.length > 0 },
+      session: null,
+      sensitive: { prompt: input.prompt },
+    },
+    async () => {
+      const out = await withSpinner(
+        `Generating ${adapter.name} video…`,
+        () =>
+          runWithRetries(
+            (abortSignal) =>
+              adapter.generateVideo!({
+                model,
+                prompt: input.prompt,
+                aspectRatio: input.aspect,
+                resolution: input.resolution,
+                duration: input.duration,
+                fps: input.fps,
+                n: input.n,
+                seed: input.seed,
+                audio: input.audio,
+                images,
+                providerOptions: parseProviderOptions(options.providerOption),
+                apiKey,
+                fetchFn: dependencies.fetchFn,
+                abortSignal,
+              }),
+            {
+              retries: input.retries,
+              timeoutMs: input.timeoutMs,
+              baseDelayMs: dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
+              shouldRetry: isRetryableProviderError,
+              sleep: dependencies.sleep,
+            },
+          ),
+        { stream: stderr, env },
+      );
+      return {
+        result: out,
+        cached: false,
+        quantity: { videos: out.videos.length },
+        cost: null,
+      };
+    },
+    env,
   );
 
   const stdout = dependencies.stdout ?? process.stdout;

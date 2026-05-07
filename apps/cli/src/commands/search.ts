@@ -27,6 +27,7 @@ import {
   type DataVerbDependencies,
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
+import { withUsageLogging } from '../lib/usage-recorder.js';
 import type { StdinReader } from '@marmot-sh/core';
 
 export type SearchCommandOptions = {
@@ -217,25 +218,69 @@ export async function handleSearchCommand(
     fetchFn,
   };
 
-  const { response: result, cached } = await withSpinner(
-    `Searching with ${provider}…`,
-    () =>
-      withResponseCache({
-        provider,
-        verb: 'search',
-        input,
+  // Privacy-safe usage metadata. Sensitive flags (queries, domain lists)
+  // are recorded as boolean presence; non-sensitive ones (limit, depth,
+  // freshness) by value. See ~/.marmot/usage/<UTC-DATE>.jsonl.
+  const flags: Record<string, string | number | boolean> = {};
+  if (input.limit !== undefined) flags.limit = input.limit;
+  if (options.depth) flags.depth = options.depth;
+  if (options.freshness) flags.freshness = options.freshness;
+  if (options.includeContent) flags.include_content = true;
+
+  const { result, cached } = await withUsageLogging(
+    config,
+    {
+      verb: 'search',
+      provider,
+      preset: options.preset,
+      flags,
+      flag_presence: {
+        includeDomains: Boolean(options.includeDomains),
+        excludeDomains: Boolean(options.excludeDomains),
+        afterDate: Boolean(options.afterDate),
+        beforeDate: Boolean(options.beforeDate),
+      },
+      session: null,
+      sensitive: {
         query,
-        config,
-        env,
-        noCache: options.cache === false,
-        refresh: options.refresh,
-        fetcher: () =>
-          runWithRetries(
-            (abortSignal) => adapter.search!({ ...input, abortSignal }),
-            { retries, timeoutMs, onRetry },
-          ),
-      }),
-    { stream: stderr, env },
+        flags: {
+          ...(options.includeDomains ? { includeDomains: options.includeDomains } : {}),
+          ...(options.excludeDomains ? { excludeDomains: options.excludeDomains } : {}),
+          ...(options.afterDate ? { afterDate: options.afterDate } : {}),
+          ...(options.beforeDate ? { beforeDate: options.beforeDate } : {}),
+        },
+      },
+    },
+    async () => {
+      const out = await withSpinner(
+        `Searching with ${provider}…`,
+        () =>
+          withResponseCache({
+            provider,
+            verb: 'search',
+            input,
+            query,
+            config,
+            env,
+            noCache: options.cache === false,
+            refresh: options.refresh,
+            fetcher: () =>
+              runWithRetries(
+                (abortSignal) => adapter.search!({ ...input, abortSignal }),
+                { retries, timeoutMs, onRetry },
+              ),
+          }),
+        { stream: stderr, env },
+      );
+      return {
+        result: out.response,
+        cached: out.cached,
+        quantity: { results: out.response.data?.results?.length ?? 0 },
+        // Search providers don't currently report cost; leave null.
+        cost: null,
+      };
+    },
+    env,
   );
 
   const envelope = {

@@ -17,7 +17,9 @@ import { buildLookupCommand } from './commands/lookup.js';
 import { buildMapCommand } from './commands/map.js';
 import { buildResearchCommand } from './commands/research.js';
 import { buildScrapeCommand } from './commands/scrape.js';
+import { buildDoctorCommand } from './commands/doctor.js';
 import { buildSearchCommand } from './commands/search.js';
+import { buildUsageCommand } from './commands/usage.js';
 import { buildTasksCommand } from './commands/tasks/index.js';
 import { buildVerifyCommand } from './commands/verify.js';
 import { buildApiCommand } from './commands/api.js';
@@ -726,6 +728,8 @@ export function createProgram(): Command {
   program.addCommand(configCommand.helpGroup('Other'));
   program.addCommand(providersCommand.helpGroup('Other'));
   program.addCommand(modelsCommand.helpGroup('Other'));
+  program.addCommand(buildUsageCommand().helpGroup('Other'));
+  program.addCommand(buildDoctorCommand().helpGroup('Other'));
   program.addCommand(completionsCommand.helpGroup('Other'));
   program.addCommand(aboutCommand.helpGroup('Other'));
 
@@ -786,6 +790,39 @@ function readPresetModeSync(name: string): PresetMode | null {
 }
 
 /**
+ * Strip `--no-log` and `--redact` from argv and set the matching env vars
+ * so the existing `isUsageLoggingEnabled` / `shouldRecordSensitive`
+ * helpers honor them. These work on every verb without per-command wiring
+ * because commander never sees them — they're consumed at argv level
+ * before parsing.
+ *
+ * - `--no-log` → `MARMOT_NO_LOG=1` (no record at all this call).
+ * - `--redact` → `MARMOT_REDACT=1` (record metadata, omit sensitive
+ *   payload even if `logging.recordSensitive` is on globally).
+ *
+ * Returns the filtered argv. Mutates `process.env` so the rest of the
+ * call honors the override.
+ */
+export function applyGlobalLoggingFlags(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const out: string[] = [];
+  for (const tok of argv) {
+    if (tok === '--no-log') {
+      env.MARMOT_NO_LOG = '1';
+      continue;
+    }
+    if (tok === '--redact') {
+      env.MARMOT_REDACT = '1';
+      continue;
+    }
+    out.push(tok);
+  }
+  return out;
+}
+
+/**
  * Rewrites a single `@preset-name` token (anywhere after argv[1]) into an
  * explicit `--preset <name>` pair. When the user hasn't specified a verb,
  * peek at the saved preset's mode and inject the matching verb so
@@ -838,7 +875,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  await program.parseAsync(expandPresetSigil(process.argv));
+  await program.parseAsync(expandPresetSigil(applyGlobalLoggingFlags(process.argv)));
 }
 
 // Restore the cursor (which spinners hide) on SIGINT so users don't need to

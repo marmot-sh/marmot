@@ -27,6 +27,7 @@ import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
+import { withUsageLogging } from '../lib/usage-recorder.js';
 
 export type EnrichCommandOptions = {
   type?: string;
@@ -183,6 +184,48 @@ export async function handleEnrichCommand(
   const onRetry = makeRetryNotifier(stderr, provider, 'enrich', retries);
   const controls = buildMatchControls(options);
 
+  // Privacy-safe usage metadata. Identifiers (email/linkedin/phone/name)
+  // are NEVER recorded by value — only as boolean presence.
+  const usageFlags: Record<string, string | number | boolean> = { type };
+  if (controls?.minLikelihood !== undefined) usageFlags.min_likelihood = controls.minLikelihood;
+  const usagePresence: Record<string, boolean> = {
+    email: Boolean(options.email),
+    emailHash: Boolean(options.emailHash),
+    linkedin: Boolean(options.linkedin),
+    phone: Boolean(options.phone),
+    name: Boolean(options.name),
+    firstName: Boolean(options.firstName),
+    lastName: Boolean(options.lastName),
+    domain: Boolean(options.domain),
+    company: Boolean(options.company),
+    website: Boolean(options.website),
+    ticker: Boolean(options.ticker),
+    providerId: Boolean(options.providerId),
+    require: Boolean(options.require),
+    fields: Boolean(options.fields),
+  };
+  // Build the opt-in audit payload — only persisted when
+  // logging.recordSensitive is true. Cheap to assemble eagerly; gated by
+  // the recorder.
+  const sensitiveFlags: Record<string, string> = {};
+  for (const k of [
+    'email', 'emailHash', 'linkedin', 'phone', 'name', 'firstName', 'lastName',
+    'middleName', 'domain', 'company', 'providerId', 'website', 'ticker',
+    'require', 'fields',
+  ] as const) {
+    const v = (options as Record<string, unknown>)[k];
+    if (typeof v === 'string' && v.length > 0) sensitiveFlags[k] = v;
+  }
+  const usageMeta = {
+    verb: 'enrich' as const,
+    provider,
+    preset: options.preset,
+    flags: usageFlags,
+    flag_presence: usagePresence,
+    session: null,
+    sensitive: Object.keys(sensitiveFlags).length > 0 ? { flags: sensitiveFlags } : undefined,
+  };
+
   if (type === 'person') {
     if (!adapter.enrichPerson) {
       throw new AICliError(
@@ -197,25 +240,38 @@ export async function handleEnrichCommand(
       apiSecret,
       fetchFn,
     };
-    const { response: result, cached } = await withSpinner(
-      `Enriching person via ${provider}…`,
-      () =>
-        withResponseCache({
-          provider,
-          verb: 'enrich.person',
-          input: { identifiers: input.identifiers, controls: input.controls },
-          query: input.identifiers.email ?? input.identifiers.linkedin ?? input.identifiers.name,
-          config,
-          env,
-          noCache: options.cache === false,
-          refresh: options.refresh,
-          fetcher: () =>
-            runWithRetries(
-              (abortSignal) => adapter.enrichPerson!({ ...input, abortSignal }),
-              { retries, timeoutMs, onRetry },
-            ),
-        }),
-      { stream: stderr, env },
+    const { result, cached } = await withUsageLogging(
+      config,
+      usageMeta,
+      async () => {
+        const out = await withSpinner(
+          `Enriching person via ${provider}…`,
+          () =>
+            withResponseCache({
+              provider,
+              verb: 'enrich.person',
+              input: { identifiers: input.identifiers, controls: input.controls },
+              query: input.identifiers.email ?? input.identifiers.linkedin ?? input.identifiers.name,
+              config,
+              env,
+              noCache: options.cache === false,
+              refresh: options.refresh,
+              fetcher: () =>
+                runWithRetries(
+                  (abortSignal) => adapter.enrichPerson!({ ...input, abortSignal }),
+                  { retries, timeoutMs, onRetry },
+                ),
+            }),
+          { stream: stderr, env },
+        );
+        return {
+          result: out.response,
+          cached: out.cached,
+          quantity: { calls: 1 },
+          cost: null,
+        };
+      },
+      env,
     );
     const envelope = {
       ok: true as const,
@@ -246,25 +302,38 @@ export async function handleEnrichCommand(
     apiSecret,
     fetchFn,
   };
-  const { response: result, cached } = await withSpinner(
-    `Enriching org via ${provider}…`,
-    () =>
-      withResponseCache({
-        provider,
-        verb: 'enrich.org',
-        input: { identifiers: input.identifiers, controls: input.controls },
-        query: input.identifiers.domain ?? input.identifiers.name ?? input.identifiers.website,
-        config,
-        env,
-        noCache: options.cache === false,
-        refresh: options.refresh,
-        fetcher: () =>
-          runWithRetries(
-            (abortSignal) => adapter.enrichOrg!({ ...input, abortSignal }),
-            { retries, timeoutMs, onRetry },
-          ),
-      }),
-    { stream: stderr, env },
+  const { result, cached } = await withUsageLogging(
+    config,
+    usageMeta,
+    async () => {
+      const out = await withSpinner(
+        `Enriching org via ${provider}…`,
+        () =>
+          withResponseCache({
+            provider,
+            verb: 'enrich.org',
+            input: { identifiers: input.identifiers, controls: input.controls },
+            query: input.identifiers.domain ?? input.identifiers.name ?? input.identifiers.website,
+            config,
+            env,
+            noCache: options.cache === false,
+            refresh: options.refresh,
+            fetcher: () =>
+              runWithRetries(
+                (abortSignal) => adapter.enrichOrg!({ ...input, abortSignal }),
+                { retries, timeoutMs, onRetry },
+              ),
+          }),
+        { stream: stderr, env },
+      );
+      return {
+        result: out.response,
+        cached: out.cached,
+        quantity: { calls: 1 },
+        cost: null,
+      };
+    },
+    env,
   );
   const envelope = {
     ok: true as const,

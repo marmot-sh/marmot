@@ -126,3 +126,23 @@ export function getCurrentSessionPath(env: NodeJS.ProcessEnv = process.env): str
 export function getWebTasksPath(env: NodeJS.ProcessEnv = process.env): string {
   return join(getMarmotHome(env), 'tasks.json');
 }
+
+/** Root directory for the usage log. One JSONL file per UTC day, named
+ *  `YYYY-MM-DD.jsonl`. Privacy-safe metadata only — no prompt/query bodies
+ *  or person/email identifiers. Default-on; disable via config or
+ *  MARMOT_NO_LOG=1. */
+export function getUsageDir(env: NodeJS.ProcessEnv = process.env): string {
+  return join(getMarmotHome(env), 'usage');
+}
+
+/** Path to the usage file for a specific UTC day. The day is formatted as
+ *  `YYYY-MM-DD` from the supplied date's UTC components. */
+export function getUsageFilePath(
+  date: Date = new Date(),
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return join(getUsageDir(env), `${yyyy}-${mm}-${dd}.jsonl`);
+}

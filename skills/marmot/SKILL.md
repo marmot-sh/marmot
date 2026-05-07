@@ -26,7 +26,7 @@ The envelope returns:
 
 Use this to decide whether to pass `--provider`, whether the response cache will short-circuit your call, and which presets are pre-tuned for the task. If sessions matter for the task, also run `marmot session list`.
 
-Verbs and flags this skill describes target marmot 0.4.7 and later. Earlier versions may not have `marmot video`, sampling controls (`--temperature`, `--reasoning`, `--provider-option`), stdin image sniffing on `marmot run` and `marmot video`, the `readyProviders` envelope field, presets for web/data verbs, sigil verb-routing (`marmot @<name>` auto-dispatches to the matching verb), or `marmot models --search`. Suggest an upgrade if `marmotVersion` is below 0.4.7.
+Verbs and flags this skill describes target marmot 0.5.0 and later. Earlier versions may not have `marmot video`, sampling controls (`--temperature`, `--reasoning`, `--provider-option`), stdin image sniffing on `marmot run` and `marmot video`, the `readyProviders` envelope field, presets for web/data verbs, sigil verb-routing (`marmot @<name>` auto-dispatches to the matching verb), `marmot models --search`, the privacy-safe usage log (`~/.marmot/usage/<UTC-DATE>.jsonl`), `marmot usage`, or `marmot doctor`. Suggest an upgrade if `marmotVersion` is below 0.5.0.
 
 ## Verb surface
 
@@ -48,6 +48,8 @@ Verbs and flags this skill describes target marmot 0.4.7 and later. Earlier vers
 | Data | `enrich` | Identifier → full person or org record. |
 | Data | `lookup` | Filters → list of people, orgs, or emails. |
 | Data | `verify` | Email deliverability check. |
+| Ops | `usage` | Summarize call log: totals, breakdowns, cost per provider, errors. |
+| Ops | `doctor` | Health check: CLI version, config, providers, logging state, disk usage. |
 
 For any verb: `marmot --help <verb>` prints the full flag list. For a category-deep dive, see `references/`.
 

@@ -48,7 +48,7 @@ import type {
   ProviderImageGenerateResult,
 } from '@marmot-sh/core';
 import { keySource as resolveKeySource } from '@marmot-sh/core';
-import { logCallToSession, resolveSessionBinding } from '../lib/session-binding.js';
+import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
 export type ImageRunCommandOptions = {
@@ -281,7 +281,16 @@ export async function handleImageRunCommand(
     }
   }
 
-  await logCallToSession(
+  // Privacy-safe usage extras. Image flags are non-sensitive; prompt body
+  // and negative prompt are recorded as boolean presence only.
+  const imageFlags: Record<string, string | number | boolean> = {};
+  if (typeof input.n === 'number') imageFlags.n = input.n;
+  if (input.size) imageFlags.size = input.size;
+  if (input.quality) imageFlags.quality = input.quality;
+  if (input.style) imageFlags.style = input.style;
+  if (typeof input.seed === 'number') imageFlags.seed = input.seed;
+
+  await recordCall(
     sessionBinding,
     {
       verb: 'image',
@@ -299,6 +308,16 @@ export async function handleImageRunCommand(
       prompt: input.prompt,
       exit: 'ok',
     },
+    {
+      flags: imageFlags,
+      flag_presence: { prompt: true, negative: Boolean(input.negative) },
+      cost: null,
+      sensitive: {
+        prompt: input.prompt,
+        ...(input.negative ? { flags: { negative: input.negative } } : {}),
+      },
+    },
+    config,
     env,
   );
 

@@ -72,9 +72,12 @@ const PROVIDER_SETTINGS_SUFFIXES = [
 
 const PRICING_FIELDS = ['prompt', 'completion', 'request', 'image'] as const;
 
+const LOGGING_KEYS = ['logging.enabled', 'logging.recordSensitive'] as const;
+
 type ParsedKey =
   | { kind: 'verb-default'; segments: string[] }
   | { kind: 'provider-setting'; segments: string[] }
+  | { kind: 'logging'; segments: string[] }
   | {
       kind: 'provider-pricing';
       slug: string;
@@ -103,6 +106,10 @@ function parseKey(key: string): ParsedKey {
   }
   if ((DATA_VERB_KEYS as readonly string[]).includes(key)) {
     return { kind: 'verb-default', segments: ['defaults', ...key.split('.')] };
+  }
+
+  if ((LOGGING_KEYS as readonly string[]).includes(key)) {
+    return { kind: 'logging', segments: key.split('.') };
   }
 
   if (key.startsWith('providers.')) {
@@ -167,7 +174,7 @@ function parseKey(key: string): ParsedKey {
 
   throw new AICliError(
     'validation',
-    `Unknown config key "${key}". Valid shapes: <verb>.<field> (e.g. text.model, search.provider), providers.<slug>.<setting> (e.g. providers.tavily.cache.enabled), or providers.<slug>.pricing.<modelId>.<${PRICING_FIELDS.join('|')}>.`,
+    `Unknown config key "${key}". Valid shapes: <verb>.<field> (e.g. text.model, search.provider), providers.<slug>.<setting> (e.g. providers.tavily.cache.enabled), providers.<slug>.pricing.<modelId>.<${PRICING_FIELDS.join('|')}>, or one of: ${LOGGING_KEYS.join(', ')}.`,
   );
 }
 
@@ -177,7 +184,7 @@ function parseKey(key: string): ParsedKey {
  * Booleans for `enabled` flags, integers for `ttlDays`, strings otherwise.
  */
 function coerceValue(key: string, value: string): unknown {
-  if (key.endsWith('.enabled')) {
+  if (key.endsWith('.enabled') || key === 'logging.recordSensitive') {
     if (value === 'true') return true;
     if (value === 'false') return false;
     throw new AICliError(

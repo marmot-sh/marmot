@@ -4,6 +4,48 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.5.0] — 2026-05-06
+
+### Added
+
+- **Privacy-safe usage log.** Every metered call now writes a record to `~/.marmot/usage/<UTC-DATE>.jsonl` so users can answer "what did I run this week and how much did it cost?" without enabling the response cache or binding sessions. Wired into all 15 verbs: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`), data (`enrich`, `lookup`, `verify`). One file per UTC day, append-only, mode 0600.
+- **Default-on, but only metadata.** Records carry verb, provider, model, preset name, non-sensitive flag values, boolean presence of sensitive flags, cached, duration, exit, error category, quantity (`results`, `pages`, `tokens_input`, `tokens_output`, `entities`, etc.), cost when the provider returns it (OpenRouter, AI Gateway), `call_id` (UUID; equals provider task id for async work so submit/poll/completion records can be joined), and `session` when bound. Never records prompts, queries, target URLs, or person identifiers by default.
+- **`marmot usage` verb.** Summarize the log: totals, error rate, latency p50/p95, cost coverage, per-grouping breakdowns (provider/verb/day/model). Composable with `--since 1h|24h|7d|30d|4w`, `--from/--to`, `--by`, `--provider`, `--verb`, `--failed-only`, `--json`. Plus `marmot usage prune --older-than Nd` for cleanup.
+- **`marmot doctor` verb.** Diagnostic health check: marmot version, Node version, config readability, provider readiness count, usage logging state with size warning, total `~/.marmot` size. Read-only, makes no API calls. `--json` for an envelope.
+- **Opt-in sensitive recording.** `marmot config set logging.recordSensitive true` populates a new `sensitive` field on every record with the verb's actual prompt/query/URLs/identifier values. Off by default. The schema is verb-shaped so `marmot usage --json | jq '.. | .sensitive?'` gives an audit trail when the user wants one.
+- **Per-call overrides.** Two global flags work on every verb: `--no-log` skips the record entirely; `--redact` writes the record but omits the `sensitive` payload (so a single private call doesn't land in an audit log even when sensitive recording is otherwise on). Env-var equivalents: `MARMOT_NO_LOG=1`, `MARMOT_REDACT=1`, `MARMOT_RECORD_SENSITIVE=1`.
+- **`logging.enabled` and `logging.recordSensitive` config keys.** Both settable via `marmot config set` and surfaced in `marmot doctor`.
+
+### Examples
+
+```bash
+# Default privacy posture — metadata only
+marmot search "anything" --provider parallel --include-domains linkedin.com
+marmot usage --by verb --since 7d
+
+# Full audit trail, including queries and identifiers
+marmot config set logging.recordSensitive true
+
+# Redact one specific call even when sensitive recording is on
+marmot search "private query" --redact
+
+# Run a call without writing any record at all
+marmot search "ephemeral" --no-log
+
+# Cost rollup across a week
+marmot usage --since 7d --json | jq '.totals.cost_usd_total'
+
+# Health check
+marmot doctor
+```
+
+### Notes
+
+- Default-on logging is a behavior change from prior releases (which logged nothing unless a session was bound). It's privacy-safe by construction: only metadata, with sensitive payloads gated behind opt-in. Disable globally with `marmot config set logging.enabled false` or per call with `--no-log`.
+- Async verbs use the provider's `task_id` as the `call_id` so a submit (with `--async`) and a later `marmot get` write records that join under one identifier.
+- Per-day file rotation keeps individual files small for typical workloads. `marmot doctor` warns above 100 MB; users can prune with `marmot usage prune --older-than 90d`.
+- The `--explain` / `--dry-run` flag floated alongside this work is deferred to a follow-up release; this release focuses on observability (logging, summarization, diagnostics).
+
 ## [0.4.7] — 2026-05-06
 
 ### Added

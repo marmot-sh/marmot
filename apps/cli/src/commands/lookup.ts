@@ -27,6 +27,7 @@ import { withResponseCache } from '../providers/cache-wrap.js';
 import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
+import { withUsageLogging } from '../lib/usage-recorder.js';
 
 export type LookupCommandOptions = {
   type?: string;
@@ -140,6 +141,42 @@ export async function handleLookupCommand(
     timestamp: new Date().toISOString(),
   };
 
+  // Privacy-safe usage metadata. Filter values (q/title/domain/etc.) are
+  // recorded as boolean presence only — they often reveal target identity.
+  const usageFlags: Record<string, string | number | boolean> = { type };
+  if (limit !== undefined) usageFlags.limit = limit;
+  const usagePresence: Record<string, boolean> = {
+    q: Boolean(options.q),
+    cursor: Boolean(options.cursor),
+    title: Boolean(options.title),
+    seniority: Boolean(options.seniority),
+    location: Boolean(options.location),
+    domain: Boolean(options.domain),
+    industry: Boolean(options.industry),
+    employees: Boolean(options.employees),
+    tech: Boolean(options.tech),
+    emailType: Boolean(options.emailType),
+    department: Boolean(options.department),
+    company: Boolean(options.company),
+  };
+  const sensitiveFlags: Record<string, string> = {};
+  for (const k of [
+    'q', 'cursor', 'title', 'seniority', 'location', 'domain', 'industry',
+    'employees', 'tech', 'emailType', 'department', 'company',
+  ] as const) {
+    const v = (options as Record<string, unknown>)[k];
+    if (typeof v === 'string' && v.length > 0) sensitiveFlags[k] = v;
+  }
+  const usageMeta = {
+    verb: 'lookup' as const,
+    provider,
+    preset: options.preset,
+    flags: usageFlags,
+    flag_presence: usagePresence,
+    session: null,
+    sensitive: Object.keys(sensitiveFlags).length > 0 ? { flags: sensitiveFlags } : undefined,
+  };
+
   if (type === 'person') {
     if (!adapter.lookupPerson) {
       throw new AICliError(
@@ -157,25 +194,38 @@ export async function handleLookupCommand(
       q: options.q,
     };
     const input: DataLookupPersonInput = { filters, limit, cursor, apiKey, apiSecret, fetchFn };
-    const { response: result, cached } = await withSpinner(
-      `Looking up people via ${provider}…`,
-      () =>
-        withResponseCache({
-          provider,
-          verb: 'lookup.person',
-          input: { filters, limit, cursor },
-          query: filters.q ?? filters.title ?? filters.location,
-          config,
-          env,
-          noCache: options.cache === false,
-          refresh: options.refresh,
-          fetcher: () =>
-            runWithRetries(
-              (abortSignal) => adapter.lookupPerson!({ ...input, abortSignal }),
-              { retries, timeoutMs, onRetry },
-            ),
-        }),
-      { stream: stderr, env },
+    const { result, cached } = await withUsageLogging(
+      config,
+      usageMeta,
+      async () => {
+        const out = await withSpinner(
+          `Looking up people via ${provider}…`,
+          () =>
+            withResponseCache({
+              provider,
+              verb: 'lookup.person',
+              input: { filters, limit, cursor },
+              query: filters.q ?? filters.title ?? filters.location,
+              config,
+              env,
+              noCache: options.cache === false,
+              refresh: options.refresh,
+              fetcher: () =>
+                runWithRetries(
+                  (abortSignal) => adapter.lookupPerson!({ ...input, abortSignal }),
+                  { retries, timeoutMs, onRetry },
+                ),
+            }),
+          { stream: stderr, env },
+        );
+        return {
+          result: out.response,
+          cached: out.cached,
+          quantity: { results: out.response.data?.results?.length ?? 0 },
+          cost: null,
+        };
+      },
+      env,
     );
     await writeEnvelope(stdout, options.output, {
       ...baseEnvelope,
@@ -203,25 +253,38 @@ export async function handleLookupCommand(
       q: options.q,
     };
     const input: DataLookupOrgInput = { filters, limit, cursor, apiKey, apiSecret, fetchFn };
-    const { response: result, cached } = await withSpinner(
-      `Looking up orgs via ${provider}…`,
-      () =>
-        withResponseCache({
-          provider,
-          verb: 'lookup.org',
-          input: { filters, limit, cursor },
-          query: filters.q ?? filters.industry ?? filters.location,
-          config,
-          env,
-          noCache: options.cache === false,
-          refresh: options.refresh,
-          fetcher: () =>
-            runWithRetries(
-              (abortSignal) => adapter.lookupOrg!({ ...input, abortSignal }),
-              { retries, timeoutMs, onRetry },
-            ),
-        }),
-      { stream: stderr, env },
+    const { result, cached } = await withUsageLogging(
+      config,
+      usageMeta,
+      async () => {
+        const out = await withSpinner(
+          `Looking up orgs via ${provider}…`,
+          () =>
+            withResponseCache({
+              provider,
+              verb: 'lookup.org',
+              input: { filters, limit, cursor },
+              query: filters.q ?? filters.industry ?? filters.location,
+              config,
+              env,
+              noCache: options.cache === false,
+              refresh: options.refresh,
+              fetcher: () =>
+                runWithRetries(
+                  (abortSignal) => adapter.lookupOrg!({ ...input, abortSignal }),
+                  { retries, timeoutMs, onRetry },
+                ),
+            }),
+          { stream: stderr, env },
+        );
+        return {
+          result: out.response,
+          cached: out.cached,
+          quantity: { results: out.response.data?.results?.length ?? 0 },
+          cost: null,
+        };
+      },
+      env,
     );
     await writeEnvelope(stdout, options.output, {
       ...baseEnvelope,
@@ -260,25 +323,38 @@ export async function handleLookupCommand(
     apiSecret,
     fetchFn,
   };
-  const { response: result, cached } = await withSpinner(
-    `Looking up emails via ${provider}…`,
-    () =>
-      withResponseCache({
-        provider,
-        verb: 'lookup.email',
-        input: { filters: input.filters, limit, cursor },
-        query: input.filters.domain ?? input.filters.company,
-        config,
-        env,
-        noCache: options.cache === false,
-        refresh: options.refresh,
-        fetcher: () =>
-          runWithRetries(
-            (abortSignal) => adapter.lookupEmail!({ ...input, abortSignal }),
-            { retries, timeoutMs, onRetry },
-          ),
-      }),
-    { stream: stderr, env },
+  const { result, cached } = await withUsageLogging(
+    config,
+    usageMeta,
+    async () => {
+      const out = await withSpinner(
+        `Looking up emails via ${provider}…`,
+        () =>
+          withResponseCache({
+            provider,
+            verb: 'lookup.email',
+            input: { filters: input.filters, limit, cursor },
+            query: input.filters.domain ?? input.filters.company,
+            config,
+            env,
+            noCache: options.cache === false,
+            refresh: options.refresh,
+            fetcher: () =>
+              runWithRetries(
+                (abortSignal) => adapter.lookupEmail!({ ...input, abortSignal }),
+                { retries, timeoutMs, onRetry },
+              ),
+          }),
+        { stream: stderr, env },
+      );
+      return {
+        result: out.response,
+        cached: out.cached,
+        quantity: { results: out.response.data?.results?.length ?? 0 },
+        cost: null,
+      };
+    },
+    env,
   );
   await writeEnvelope(stdout, options.output, {
     ...baseEnvelope,

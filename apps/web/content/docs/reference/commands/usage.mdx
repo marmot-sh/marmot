@@ -1,0 +1,144 @@
+---
+title: Usage
+description: marmot usage — privacy-safe call log for tracking spend and audit trails. Default-on; disable any time.
+---
+
+Marmot keeps a privacy-safe log of every metered call so you can answer "what did I run this week and how much did it cost?" without enabling any per-provider response cache or binding sessions. The log records call shape and outcome but never prompt text, query strings, or person identifiers.
+
+```bash
+marmot usage                    # last 7 days, grouped by provider
+marmot usage --since 24h        # last 24h
+marmot usage --by verb          # grouped by verb
+marmot usage --provider parallel
+marmot usage --failed-only
+marmot usage --json
+marmot usage prune --older-than 90d
+```
+
+## What's recorded
+
+One JSON record per call, written to `~/.marmot/usage/<UTC-DATE>.jsonl`. Schema:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `call_id` | string (UUID) | Unique per call. For async work, equals the provider's task id so submit/poll/completion records can be joined. |
+| `ts` | ISO 8601 | Wall-clock when the call returned. |
+| `verb` | string | `search`, `scrape`, `run`, `enrich`, etc. |
+| `provider` | string | Provider slug. |
+| `model` | string \| undefined | Present for AI verbs. |
+| `preset` | string \| undefined | Preset NAME (never contents). |
+| `flags` | object \| undefined | Non-sensitive flag values: `limit`, `depth`, `freshness`, `format`, `type`, etc. |
+| `flag_presence` | object \| undefined | Sensitive flags as boolean presence only: `includeDomains`, `email`, `linkedin`, `schema`, etc. |
+| `cached` | boolean | True when served from local response cache. |
+| `duration_ms` | integer | Wall-clock duration. |
+| `quantity` | object \| undefined | Verb-shaped counts. AI: `tokens_input`, `tokens_output`, `tokens_cache_read`, `tokens_cache_write`. Web: `results`, `pages`, `urls`, `entities`, `citations`. |
+| `cost` | number \| null \| undefined | USD cost when the provider reports it (OpenRouter, AI Gateway). `null` otherwise. |
+| `exit` | `'ok' \| 'error'` | Call outcome. |
+| `error_category` | string \| undefined | Present on error: `validation`, `provider`, `auth`, `cache`, `io`. |
+| `session` | string \| null | Session name when bound. |
+| `sensitive` | object \| undefined | **Opt-in audit payload.** Populated only when `logging.recordSensitive: true` is configured (or `MARMOT_RECORD_SENSITIVE=1` is set). Contains the actual prompt, query, target URLs, and identifier values that `flag_presence` flags as present. NEVER recorded by default. See [Sensitive recording](#sensitive-recording-opt-in) below. |
+
+## What's NOT recorded by default
+
+Never written unless you explicitly opt in: prompt text, query text, system prompt, schema bodies, `--include-domains` and `--exclude-domains` values, all enrich/lookup/verify identifiers (`--email`, `--linkedin`, `--phone`, `--first-name`, etc.), API keys.
+
+## Reading the log
+
+```bash
+marmot usage                                # default 7 days, by provider
+marmot usage --since 1h                     # last hour
+marmot usage --since 24h                    # last 24h
+marmot usage --since 30d                    # last 30 days
+marmot usage --from 2026-05-01 --to 2026-05-06   # custom range
+marmot usage --by verb                      # group by verb
+marmot usage --by day                       # per-day breakdown
+marmot usage --by model                     # per-model (AI verbs)
+marmot usage --provider parallel            # filter to one
+marmot usage --verb search                  # filter to one
+marmot usage --failed-only                  # only error rows
+marmot usage --json                         # structured envelope
+```
+
+`--since` accepts a positive integer plus `h`, `d`, or `w`: `1h`, `24h`, `7d`, `4w`. Composable: `marmot usage --since 30d --by verb --provider openrouter --json` returns 30 days of OpenRouter calls grouped by verb as JSON.
+
+## What you get
+
+Every grouping (by provider / verb / day / model) reports:
+
+- `calls`, `errors`, `error_rate`, `cached`, `cache_hit_rate`
+- `duration_ms_avg`, `duration_ms_p50`, `duration_ms_p95`
+- `cost_usd_total`, `cost_usd_avg` (over `calls_with_cost`), `calls_without_cost`
+- `quantity_totals` — sum of every numeric child key
+
+Cost is only summed where the provider reports it. The summary always discloses how many calls had cost data so you know your coverage.
+
+## Pruning
+
+```bash
+marmot usage prune --older-than 90d
+```
+
+Deletes day files older than the cutoff. Returns the number of files deleted and bytes freed.
+
+## Disabling
+
+Default: ON. Three precedence levels (highest first):
+
+1. **Per call:** `marmot search "..." --no-log` skips the record for this invocation only.
+2. **Env var:** `MARMOT_NO_LOG=1 marmot search "..."` does the same — useful for scripts.
+3. **Globally:** `marmot config set logging.enabled false`.
+
+`marmot doctor` reports the current state.
+
+## Sensitive recording (opt-in)
+
+The default log captures call shape and outcome but never the actual content (prompt, query, URLs, identifiers). For a full audit trail — the kind you'd want when reconstructing exactly what was asked of which provider — opt in:
+
+```bash
+marmot config set logging.recordSensitive true
+```
+
+Or per-call: `MARMOT_RECORD_SENSITIVE=1 marmot search "..."`.
+
+When opted in, every record gains a `sensitive` field with verb-appropriate contents:
+
+| Verb | Sensitive payload |
+| --- | --- |
+| `run` | `{ prompt, system?, schema? }` |
+| `image` / `speak` / `video` | `{ prompt, flags?: { negative \| instructions } }` |
+| `transcribe` | `{ urls: [audioPath], flags?: { prompt } }` |
+| `search` / `answer` | `{ query, flags?: { includeDomains, excludeDomains, afterDate, beforeDate } }` |
+| `scrape` / `map` | `{ urls, flags?: { query \| search } }` |
+| `crawl` | `{ urls: [url], flags?: { instructions, includePaths, excludePaths } }` |
+| `research` / `findall` | `{ query, schema?, flags?: { instructions \| matchConditions } }` |
+| `enrich` / `lookup` / `verify` | `{ flags?: { email, linkedin, phone, name, firstName, lastName, q, title, ... } }` |
+
+### Per-call override: `--redact`
+
+Even with `recordSensitive` on globally, you can redact a single call:
+
+```bash
+marmot search "this query is private" --redact
+```
+
+The record is still written (with metadata + `flag_presence`), but the `sensitive` field is omitted. Same effect: `MARMOT_REDACT=1 marmot search "..."`.
+
+Precedence (highest first):
+
+1. `--redact` flag or `MARMOT_REDACT=1` — force OFF.
+2. `MARMOT_RECORD_SENSITIVE=1` — force ON for this call.
+3. `config.logging.recordSensitive` — global default (false unless set).
+
+## Verb coverage
+
+As of 0.5.0, usage logging is wired into all 15 verbs: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`), and data (`enrich`, `lookup`, `verify`). Async verbs (`crawl`, `research`, `findall`) use the provider's task id as `call_id` so submit / poll / completion records can be joined.
+
+## File format on disk
+
+```
+~/.marmot/usage/2026-05-06.jsonl
+~/.marmot/usage/2026-05-07.jsonl
+~/.marmot/usage/2026-05-08.jsonl
+```
+
+One UTC day per file, append-only. JSONL — one record per line. Files are mode 0600, directory 0700.

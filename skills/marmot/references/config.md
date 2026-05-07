@@ -255,6 +255,99 @@ marmot models --search claude --mode text --limit 0   # 0 = no cap
 
 `--search` matches case-insensitive substrings of model id and display name. Default `--limit 10` total matches across all returned buckets; pass `--limit 0` to remove the cap. `--json` returns the structured envelope with `buckets`, plus `search` and `totalMatches` when `--search` is set. Use this when you know part of a model name but not the exact slug — faster than scrolling through the full `marmot models` output.
 
+## 7b. Usage log + `marmot usage` (0.5.0+)
+
+Privacy-safe per-call log at `~/.marmot/usage/<UTC-DATE>.jsonl`. Default ON, records verb-shape and outcome metadata only — never prompt text, query strings, or person identifiers unless explicitly opted in via `logging.recordSensitive`. One file per UTC day, append-only. Wired into all 15 verbs.
+
+### Schema (per record)
+
+```
+call_id        UUID, equals provider task id for async work
+ts             ISO 8601
+verb           search | scrape | run | enrich | ...
+provider       slug
+model          AI verbs and some web verbs
+preset         preset NAME (never contents)
+flags          { limit, depth, freshness, format, type, ... }   non-sensitive flag values
+flag_presence  { includeDomains, email, linkedin, schema, ... } sensitive flags as boolean only
+cached         boolean
+duration_ms    integer
+quantity       { results | pages | urls | entities | citations | tokens_input | tokens_output | ... }
+cost           USD when provider reports it (OpenRouter, AI Gateway), null otherwise
+exit           ok | error
+error_category validation | provider | auth | cache | io   (when exit=error)
+session        session name when bound, null otherwise
+sensitive      { prompt | query | system | schema | urls | flags } — opt-in only (see below)
+```
+
+### Reading
+
+```bash
+marmot usage                                       # default 7d, by provider
+marmot usage --since 1h | 24h | 7d | 30d | 4w
+marmot usage --from 2026-05-01 --to 2026-05-06
+marmot usage --by verb | day | model | provider
+marmot usage --provider parallel
+marmot usage --verb search
+marmot usage --failed-only
+marmot usage --json                                # envelope for piping
+```
+
+`--since` accepts a positive integer plus `h`/`d`/`w`. Aggregator reports `calls`, `errors`, `error_rate`, `cached`, `cache_hit_rate`, `duration_avg/p50/p95`, `cost_total/avg`, `calls_with_cost`, `calls_without_cost`, and `quantity_totals` (sum of every numeric child key, e.g. `tokens_input: 142310`).
+
+### Pruning
+
+```bash
+marmot usage prune --older-than 90d
+```
+
+Deletes day files older than the cutoff. Returns `{files_deleted, bytes_freed}`.
+
+### Disabling and sensitive recording
+
+Three controls, in precedence order from highest to lowest:
+
+```bash
+# Per call:
+marmot search "..." --no-log          # skip the record entirely
+marmot search "..." --redact          # log metadata, omit sensitive payload
+
+# Env-var equivalents (script-friendly):
+MARMOT_NO_LOG=1 marmot search "..."
+MARMOT_REDACT=1 marmot search "..."
+MARMOT_RECORD_SENSITIVE=1 marmot search "..."   # opposite: force sensitive ON
+
+# Global config:
+marmot config set logging.enabled false           # turn logging off entirely
+marmot config set logging.recordSensitive true    # opt in to capturing prompts/queries/identifiers
+```
+
+The `sensitive` field on each record is verb-shaped:
+
+```
+run             { prompt, system?, schema? }
+image/speak/video  { prompt, flags?: {negative | instructions} }
+transcribe      { urls: [audioPath], flags?: {prompt} }
+search/answer   { query, flags?: {includeDomains, excludeDomains, afterDate, beforeDate} }
+scrape/map      { urls, flags?: {query | search} }
+crawl           { urls: [url], flags?: {instructions, includePaths, excludePaths} }
+research/findall { query, schema?, flags?: {instructions | matchConditions} }
+enrich/lookup/verify { flags?: {email, linkedin, phone, firstName, lastName, q, title, ...} }
+```
+
+### Verb coverage as of 0.5.0
+
+All 15 verbs log: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`), data (`enrich`, `lookup`, `verify`). Async verbs (`crawl`, `research`, `findall`) use the provider's task id as `call_id` so submit/poll/completion records can be joined.
+
+## 7c. `marmot doctor` (0.5.0+)
+
+```bash
+marmot doctor              # human-readable
+marmot doctor --json       # envelope
+```
+
+Read-only health check. Reports: CLI version, Node version, config readability, provider readiness count (`N ready · N enabled · N total`), usage logging state (with file count + dir size + ⚠ above 100 MB), and total `~/.marmot` size. Does not make API calls. Use before debugging a failing call, after upgrading marmot, or when something feels off about logging.
+
 ## 8. Presets
 
 Saved invocation bundles. Stored under top-level `presets` map in `config.json`. One preset is scoped to one mode.
