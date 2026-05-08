@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DEFAULT_GENERATION_TIMEOUT_MS } from '../lib/retry.js';
+import { DEFAULT_TRANSCRIPTION_TIMEOUT_MS } from '../lib/retry.js';
 import {
   DEFAULT_PROVIDER,
   PROVIDERS,
@@ -33,7 +33,7 @@ const transcribeRunInputSchema = z.object({
   text: z.boolean().default(false),
   retries: z.coerce.number().int().min(0).max(10).default(0),
   timeoutSeconds: z.coerce.number().int().min(1).max(86_400).default(
-    DEFAULT_GENERATION_TIMEOUT_MS / 1_000,
+    DEFAULT_TRANSCRIPTION_TIMEOUT_MS / 1_000,
   ),
 }).superRefine((value, context) => {
   // Audio source (path) must be set OR stdin must have bytes — checked at command layer.

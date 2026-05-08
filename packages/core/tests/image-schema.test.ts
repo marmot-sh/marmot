@@ -12,7 +12,7 @@ describe('resolveImageRunInput', () => {
     expect(result.binary).toBe(false);
     expect(result.b64).toBe(false);
     expect(result.retries).toBe(0);
-    expect(result.timeoutMs).toBe(120_000);
+    expect(result.timeoutMs).toBe(300_000);
   });
 
   it('parses --n and clamps to 1–10', () => {

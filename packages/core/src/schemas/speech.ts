@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DEFAULT_GENERATION_TIMEOUT_MS } from '../lib/retry.js';
+import { DEFAULT_SPEECH_TIMEOUT_MS } from '../lib/retry.js';
 import {
   DEFAULT_PROVIDER,
   PROVIDERS,
@@ -30,7 +30,7 @@ const speechRunInputSchema = z.object({
   wait: z.boolean().default(false),
   retries: z.coerce.number().int().min(0).max(10).default(0),
   timeoutSeconds: z.coerce.number().int().min(1).max(86_400).default(
-    DEFAULT_GENERATION_TIMEOUT_MS / 1_000,
+    DEFAULT_SPEECH_TIMEOUT_MS / 1_000,
   ),
 }).superRefine((value, context) => {
   const hasInline = Boolean(value.inlineText?.trim());

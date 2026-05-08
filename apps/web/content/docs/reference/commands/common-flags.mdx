@@ -13,7 +13,7 @@ Every verb supports the same cross-cutting flags. Verb-specific flags live on ea
 | `--api-key <key>` | Override the env-var API key. No effect for Ollama. |
 | `-o, --output <path>` | Write the result to a file. With `--stream`, written incrementally. |
 | `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
-| `--timeout <seconds>` | Per-attempt timeout. Default 120, max 86400. |
+| `--timeout <seconds>` | Per-attempt timeout. Default varies by verb (web/data 120, text/image/speech 300, transcription/video 600); max 86400. |
 | `--session <name>` | Bind the call to a session so the usage record carries `session: <name>` and the call appears under `marmot session show <name>` (chat-mode sessions also prepend chat history for `run`). Available on every verb. |
 | `--dry-run` | Resolve options, auth, and adapter, then print a JSON envelope describing what would be sent and exit before making the provider call. No usage record is written. Useful for prompt iteration on metered AI verbs and pipeline debugging. Available on every verb. |
 

@@ -4,7 +4,7 @@ import { createInterface } from 'node:readline';
 
 import {
   AICliError,
-  DEFAULT_GENERATION_TIMEOUT_MS,
+  DEFAULT_TEXT_TIMEOUT_MS,
   PROVIDER_DEFAULT_MODELS,
   SESSION_MODES,
   approximateTokens,
@@ -629,7 +629,7 @@ export async function handleSessionCompact(
         cloudflareAccountId,
         abortSignal,
       }),
-    { retries: 0, timeoutMs: DEFAULT_GENERATION_TIMEOUT_MS },
+    { retries: 0, timeoutMs: DEFAULT_TEXT_TIMEOUT_MS },
   );
 
   const summaryMessage: ChatMessage = {

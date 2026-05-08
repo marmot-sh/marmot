@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DEFAULT_GENERATION_TIMEOUT_MS } from '../lib/retry.js';
+import { DEFAULT_IMAGE_TIMEOUT_MS } from '../lib/retry.js';
 import {
   DEFAULT_PROVIDER,
   PROVIDERS,
@@ -40,7 +40,7 @@ const imageRunInputSchema = z.object({
     .int()
     .min(1)
     .max(86_400)
-    .default(DEFAULT_GENERATION_TIMEOUT_MS / 1_000),
+    .default(DEFAULT_IMAGE_TIMEOUT_MS / 1_000),
 }).superRefine((value, context) => {
   const hasInlinePrompt = Boolean(value.inlinePrompt?.trim());
   const hasPromptFile = Boolean(value.promptFileContent?.trim());

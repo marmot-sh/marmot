@@ -4,6 +4,16 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Changed
+
+- **Per-verb default timeouts for AI generation.** Replaced the shared 120s default with per-verb defaults that match how long real generations actually take: `run` (text), `image`, `speak` now default to 300s; `transcribe` defaults to 600s; `video` stays at 600s. Web and data verbs (search, scrape, answer, map, crawl, lookup, research, findall, enrich, verify) continue to default to 120s. Anyone relying on the old 120s fail-fast on AI verbs can pass `--timeout 120` per-call or save it on a preset.
+
+### Fixed
+
+- **`prefer-const` lint error in `marmot usage`.** A stray `let` on a never-reassigned local variable was failing `pnpm check` in `apps/cli`. No runtime behavior change.
+
 ## [0.6.0] — 2026-05-08
 
 A read-side observability release. The 0.5.0 usage log gets sub-day-aware local-time display, a live `--watch` tail, a per-call `marmot history` browser, a global `--dry-run` flag, and a verdict-driven `marmot doctor`. Presets get a stable `preset_id` and a `rename` verb. Several fixes close gaps in usage logging (AI error paths, async completions, web/data session binding). Three breaking changes to internal record/envelope shapes are documented inline; old records on disk continue to read tolerantly.

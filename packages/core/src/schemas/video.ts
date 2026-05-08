@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DEFAULT_GENERATION_TIMEOUT_MS } from '../lib/retry.js';
+import { DEFAULT_VIDEO_TIMEOUT_MS } from '../lib/retry.js';
 import { DEFAULT_PROVIDER, PROVIDERS, type ProviderSlug } from '../lib/constants.js';
 import { AICliError } from '../lib/errors.js';
 
@@ -46,10 +46,10 @@ const videoRunInputSchema = z.object({
     .int()
     .min(1)
     .max(86_400)
-    // Video generation is async and can take minutes -- default longer than
+    // Video generation is async and can take minutes — default longer than
     // text/image. The provider-side polling timeout is also bumped via
     // providerOptions to keep up with this.
-    .default(Math.max(DEFAULT_GENERATION_TIMEOUT_MS / 1_000, 600)),
+    .default(DEFAULT_VIDEO_TIMEOUT_MS / 1_000),
 }).superRefine((value, context) => {
   const hasInlinePrompt = Boolean(value.inlinePrompt?.trim());
   const hasPromptFile = Boolean(value.promptFileContent?.trim());

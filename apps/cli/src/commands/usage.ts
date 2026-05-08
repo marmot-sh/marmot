@@ -91,7 +91,7 @@ function localDayKey(ts: string): string {
 
 function aggregate(records: UsageRecord[], by: UsageCommandOptions['by']): { totals: Totals; rows: GroupedRow[] } {
   const groups = new Map<string, GroupedRow>();
-  let totalDurations: number[] = [];
+  const totalDurations: number[] = [];
   for (const r of records) {
     const key =
       by === 'verb'
