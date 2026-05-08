@@ -342,11 +342,16 @@ All 15 verbs log: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`sea
 ## 7c. `marmot doctor` (0.5.0+)
 
 ```bash
-marmot doctor              # human-readable
-marmot doctor --json       # envelope
+marmot doctor              # human-readable, ends with a verdict line
+marmot doctor --json       # envelope (every check carries fix_suggestion when applicable)
+marmot doctor --fix        # apply safe, idempotent auto-fixes
 ```
 
-Read-only health check. Reports: CLI version, Node version, config readability, provider readiness count (`N ready · N enabled · N total`), usage logging state (with file count + dir size + ⚠ above 100 MB), and total `~/.marmot` size. Does not make API calls. Use before debugging a failing call, after upgrading marmot, or when something feels off about logging.
+Health check. Reports: CLI version, Node version, config readability, provider readiness count (`N ready · N enabled · N total`), usage logging state (with file count + dir size + ⚠ above 100 MB), and total `~/.marmot` size. Does not make API calls.
+
+The output ends with a **verdict line**: `✓ Everything is in good order.` when clean, or `⚠ N issues found. Run X to fix.` where X is the highest-priority remediation across failed checks (errors outrank warnings; first-pushed check wins within a level).
+
+`--fix` (0.6.0+) applies only safe, idempotent fixes: writes a default `~/.marmot/config.json` when the file is missing, prunes the usage log when it exceeds 100 MB. Anything that needs user input (missing API keys, corrupt config, old Node) is surfaced as still-failing, never silently fixed. The `--json` envelope adds `fixes_applied` and `fixes_skipped` arrays.
 
 ## 8. Presets
 
