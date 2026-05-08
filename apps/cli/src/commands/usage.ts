@@ -2,10 +2,12 @@ import { Command } from 'commander';
 
 import {
   AICliError,
+  getUsageFilePath,
   parseDuration,
   parseIsoDate,
   pruneUsageOlderThan,
   readUsageRecords,
+  usageRecordSchema,
   warnText,
   writeLine,
   type OutputWriter,
@@ -21,6 +23,7 @@ export type UsageCommandOptions = {
   verb?: string;
   failedOnly?: boolean;
   json?: boolean;
+  watch?: boolean;
 };
 
 export type UsageCommandDependencies = {
@@ -275,10 +278,165 @@ function formatNumber(n: number): string {
   return n.toLocaleString('en-US');
 }
 
+export type UsageWatchDependencies = UsageCommandDependencies & {
+  /** Polling interval. Default 500ms, override for fast tests. */
+  intervalMs?: number;
+  /** Override the loop terminator (used by tests to bound the watch). */
+  shouldStop?: () => boolean;
+  /** Override sleep so tests don't wait wall time. */
+  sleep?: (ms: number) => Promise<void>;
+  /** Inject a clock so tests can simulate UTC midnight rollover. */
+  now?: () => Date;
+};
+
+/** Live-tail today's usage file. Polls the current UTC day's path; when
+ *  the file grows, parses each new line and emits one row per record
+ *  (human format or JSONL with `--json`). At UTC midnight the watcher
+ *  swaps to the new day's path. Filters (`--provider`, `--verb`,
+ *  `--failed-only`) apply per record. */
+export async function handleUsageWatchCommand(
+  options: UsageCommandOptions,
+  dependencies: UsageWatchDependencies = {},
+): Promise<void> {
+  const { readFile, stat } = await import('node:fs/promises');
+  const env = dependencies.env ?? process.env;
+  const stdout = dependencies.stdout ?? process.stdout;
+  const stderr = dependencies.stderr ?? process.stderr;
+  const intervalMs = dependencies.intervalMs ?? 500;
+  const sleep = dependencies.sleep
+    ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const now = dependencies.now ?? (() => new Date());
+  const shouldStop = dependencies.shouldStop ?? (() => false);
+
+  // Track the day we're watching (UTC) and how many bytes we've already
+  // emitted from that file. On rollover, reset the offset for the new
+  // file. Buffered partial line is preserved across polls.
+  let currentDate = utcDayKey(now());
+  let currentPath = getUsageFilePath(now(), env);
+  let offset = 0;
+  let lineBuffer = '';
+
+  // On first iteration, jump to end-of-file so we don't replay history.
+  // The point of --watch is to see what's NEW.
+  try {
+    const s = await stat(currentPath);
+    offset = s.size;
+  } catch {
+    /* file doesn't exist yet — start from 0 once it appears */
+  }
+
+  if (!options.json) {
+    stderr.write(`Watching ${currentPath}…\n`);
+  }
+
+  while (!shouldStop()) {
+    const tickDate = utcDayKey(now());
+    if (tickDate !== currentDate) {
+      currentDate = tickDate;
+      currentPath = getUsageFilePath(now(), env);
+      offset = 0;
+      lineBuffer = '';
+      if (!options.json) {
+        stderr.write(`(rolled over to ${currentPath})\n`);
+      }
+    }
+
+    let size = 0;
+    try {
+      size = (await stat(currentPath)).size;
+    } catch {
+      await sleep(intervalMs);
+      continue;
+    }
+
+    if (size > offset) {
+      let chunk: string;
+      try {
+        const buf = await readFile(currentPath);
+        chunk = buf.subarray(offset, size).toString('utf8');
+      } catch {
+        await sleep(intervalMs);
+        continue;
+      }
+      offset = size;
+      lineBuffer += chunk;
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
+      for (const raw of lines) {
+        const trimmed = raw.trim();
+        if (!trimmed) continue;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(trimmed);
+        } catch {
+          continue;
+        }
+        const result = usageRecordSchema.safeParse(parsed);
+        if (!result.success) continue;
+        const record = result.data;
+        if (options.provider && record.provider !== options.provider) continue;
+        if (options.verb && record.verb !== options.verb) continue;
+        if (options.failedOnly && record.exit !== 'error') continue;
+        if (options.json) {
+          writeLine(stdout, JSON.stringify(record));
+        } else {
+          writeLine(stdout, formatHistoryLine(record));
+        }
+      }
+    }
+
+    await sleep(intervalMs);
+  }
+}
+
+function utcDayKey(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** One-line per-record formatter shared by `usage --watch` and the
+ *  `history` verb. Renders timestamps in local TZ, abbreviates duration,
+ *  and includes salient quantity fields when present. */
+export function formatHistoryLine(r: UsageRecord): string {
+  const ts = new Date(r.ts).toLocaleString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const provider = (r.provider ?? '').padEnd(10);
+  const verb = r.verb.padEnd(9);
+  const dur = formatMs(r.duration_ms);
+  const cost = typeof r.cost === 'number' ? `  $${r.cost.toFixed(4)}` : '';
+  const exit = r.exit === 'error' ? `  [error${r.error_category ? `:${r.error_category}` : ''}]` : '';
+  const qty = r.quantity ? formatQuantityShort(r.quantity) : '';
+  return `${ts}  ${verb} ${provider} ${dur.padStart(6)}${qty ? `  ${qty}` : ''}${cost}${exit}`;
+}
+
+function formatQuantityShort(q: Record<string, number>): string {
+  const tIn = q.tokens_input;
+  const tOut = q.tokens_output;
+  if (typeof tIn === 'number' || typeof tOut === 'number') {
+    return `${tIn ?? 0} in / ${tOut ?? 0} out`;
+  }
+  const entries = Object.entries(q);
+  if (entries.length === 0) return '';
+  return entries.map(([k, v]) => `${formatNumber(v)} ${k}`).join(' · ');
+}
+
 export async function handleUsageCommand(
   options: UsageCommandOptions,
   dependencies: UsageCommandDependencies = {},
 ): Promise<void> {
+  if (options.watch) {
+    return handleUsageWatchCommand(options, dependencies);
+  }
+
   const env = dependencies.env ?? process.env;
   const stdout = dependencies.stdout ?? process.stdout;
   const stderr = dependencies.stderr ?? process.stderr;
@@ -377,6 +535,7 @@ export function buildUsageCommand(deps: UsageCommandDependencies = {}): Command 
     .option('--verb <name>', 'Filter to one verb.')
     .option('--failed-only', 'Only error records.')
     .option('--json', 'Emit a structured envelope.')
+    .option('--watch', 'Live-tail today\'s usage file: print each new record as it lands. Filters (--provider, --verb, --failed-only) apply per record. Day-rollover (UTC midnight) is handled automatically.')
     .action(async (options: UsageCommandOptions) => {
       await handleUsageCommand(options, deps);
     });

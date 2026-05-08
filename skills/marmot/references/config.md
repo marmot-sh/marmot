@@ -295,7 +295,27 @@ marmot usage --failed-only
 marmot usage --json                                # envelope for piping
 ```
 
-`--since` accepts a positive integer plus `h`/`d`/`w`. Aggregator reports `calls`, `errors`, `error_rate`, `cached`, `cache_hit_rate`, `duration_avg/p50/p95`, `cost_total/avg`, `calls_with_cost`, `calls_without_cost`, and `quantity_totals` (sum of every numeric child key, e.g. `tokens_input: 142310`).
+`--since` accepts a positive integer plus `h`/`d`/`w`. Aggregator reports `requests`, `errors`, `error_rate`, `cached`, `cache_hit_rate`, `duration_avg/p50/p95`, `cost_total/avg`, `requests_with_cost`, `requests_without_cost`, and `quantity_totals` (sum of every numeric child key, e.g. `tokens_input: 142310`).
+
+### Live tail: `--watch`
+
+```bash
+marmot usage --watch                  # human format, one record per line
+marmot usage --watch --json           # JSONL on stdout for piping
+marmot usage --watch --provider openrouter --failed-only
+```
+
+Polls today's `~/.marmot/usage/<UTC-DATE>.jsonl` every 500ms; initial scan jumps to EOF so only NEW records print. Filters apply per record. UTC midnight swaps the watched file automatically. Ctrl-C exits cleanly.
+
+### Browse individual calls: `marmot history`
+
+```bash
+marmot history                              # newest 10 by default
+marmot history --since 1h --limit 50
+marmot history --provider parallel --verb search --json
+```
+
+Lists individual records (newest first), not aggregates. Same window/filter flags as `usage`, plus `--limit <n>` (default 10, cap 1000). Timestamps render in local TZ. `preset_id` resolves to the current slug at render time; deleted presets fall back to `(preset:<short-id>)`.
 
 ### Pruning
 

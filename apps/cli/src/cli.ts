@@ -20,6 +20,7 @@ import { buildScrapeCommand } from './commands/scrape.js';
 import { buildDoctorCommand } from './commands/doctor.js';
 import { buildSearchCommand } from './commands/search.js';
 import { buildUsageCommand } from './commands/usage.js';
+import { buildHistoryCommand } from './commands/history.js';
 import { buildTasksCommand } from './commands/tasks/index.js';
 import { buildVerifyCommand } from './commands/verify.js';
 import { buildApiCommand } from './commands/api.js';
@@ -749,6 +750,7 @@ export function createProgram(): Command {
   program.addCommand(providersCommand.helpGroup('Other'));
   program.addCommand(modelsCommand.helpGroup('Other'));
   program.addCommand(buildUsageCommand().helpGroup('Other'));
+  program.addCommand(buildHistoryCommand().helpGroup('Other'));
   program.addCommand(buildDoctorCommand().helpGroup('Other'));
   program.addCommand(completionsCommand.helpGroup('Other'));
   program.addCommand(aboutCommand.helpGroup('Other'));

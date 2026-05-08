@@ -78,6 +78,48 @@ The human-formatted output renders all timestamps in your local timezone. Storag
 
 Cost is only summed where the provider reports it. The summary always discloses how many calls had cost data so you know your coverage.
 
+## Live tail — `--watch`
+
+`marmot usage --watch` prints each new record as it lands in today's usage file. Useful while running a batch job in another shell or iterating on a script:
+
+```bash
+marmot usage --watch                              # human format, one record per line
+marmot usage --watch --json                       # JSONL on stdout for piping
+marmot usage --watch --provider openrouter        # filter live
+marmot usage --watch --verb run --failed-only     # only failed run calls
+```
+
+Implementation notes:
+
+- Polls today's `~/.marmot/usage/<UTC-DATE>.jsonl` every 500ms. Initial scan jumps to end-of-file so existing records aren't replayed — you only see what's *new*.
+- Filters (`--provider`, `--verb`, `--failed-only`) apply per record.
+- At UTC midnight the watcher swaps to the new day's file automatically; a one-line stderr note marks the rollover.
+- Ctrl-C exits cleanly.
+
+## Browse individual calls — `marmot history`
+
+`marmot history` lists individual recent records (newest first) instead of aggregates. Useful when you need the timestamp / duration / outcome of a specific call without the rollup math:
+
+```bash
+marmot history                              # default last 10
+marmot history --since 1h --limit 50        # last hour, up to 50
+marmot history --provider parallel --json   # filter + structured envelope
+marmot history --failed-only                # only error rows
+```
+
+| Flag | Description |
+| --- | --- |
+| `--since <duration>` | Time window: `Nh`, `Nd`, `Nw` (default 7d). |
+| `--from <YYYY-MM-DD>` | Window lower bound (overrides `--since`). |
+| `--to <YYYY-MM-DD>` | Window upper bound (inclusive). |
+| `--provider <slug>` | Filter to one provider. |
+| `--verb <name>` | Filter to one verb. |
+| `--failed-only` | Only error records. |
+| `--limit <n>` | Max records to return (default 10, cap 1000). |
+| `--json` | Emit `{ ok, window, limit, count, records: [...] }`. |
+
+Timestamps render in your local timezone. The `preset_id` field on each record is resolved to the current slug at render time, so renames don't break historical readability — if the preset has been deleted, the row falls back to `(preset:<short-id>)`.
+
 ## Pruning
 
 ```bash
