@@ -271,7 +271,7 @@ export async function handleEnrichCommand(
         return {
           result: out.response,
           cached: out.cached,
-          quantity: { calls: 1 },
+          quantity: { requests: 1 },
           cost: null,
         };
       },
@@ -333,7 +333,7 @@ export async function handleEnrichCommand(
       return {
         result: out.response,
         cached: out.cached,
-        quantity: { calls: 1 },
+        quantity: { requests: 1 },
         cost: null,
       };
     },

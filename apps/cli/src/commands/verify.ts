@@ -124,7 +124,7 @@ export async function handleVerifyCommand(
       return {
         result: out.response,
         cached: out.cached,
-        quantity: { calls: 1 },
+        quantity: { requests: 1 },
         cost: null,
       };
     },

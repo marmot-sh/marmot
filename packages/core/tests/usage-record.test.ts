@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   isUsageLoggingEnabled,
   listUsageFiles,
-  newCallId,
+  newRequestId,
   parseDuration,
   parseIsoDate,
   pruneUsageOlderThan,
@@ -80,10 +80,10 @@ describe('isUsageLoggingEnabled', () => {
   });
 });
 
-describe('newCallId', () => {
+describe('newRequestId', () => {
   it('produces UUIDs that differ between calls', () => {
-    const a = newCallId();
-    const b = newCallId();
+    const a = newRequestId();
+    const b = newRequestId();
     expect(a).not.toBe(b);
     expect(a).toMatch(/^[0-9a-f-]{36}$/);
   });
@@ -114,7 +114,7 @@ describe('recordUsage + readUsageRecords round-trip', () => {
     expect(r.provider).toBe('parallel');
     expect(r.quantity).toEqual({ results: 25 });
     expect(r.exit).toBe('ok');
-    expect(r.call_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(r.request_id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('appends multiple records to the same day file', async () => {
@@ -238,7 +238,7 @@ describe('usageRecordSchema', () => {
 
   it('rejects negative duration', () => {
     const r = usageRecordSchema.safeParse({
-      call_id: 'x',
+      request_id: 'x',
       ts: '2026-05-06T12:00:00.000Z',
       verb: 'search',
       provider: 'parallel',
@@ -249,9 +249,26 @@ describe('usageRecordSchema', () => {
     expect(r.success).toBe(false);
   });
 
-  it('accepts a fully-populated record', () => {
+  it('accepts legacy records that use call_id (preprocessed to request_id)', () => {
     const r = usageRecordSchema.safeParse({
       call_id: '11111111-2222-3333-4444-555555555555',
+      ts: '2026-05-06T12:00:00.000Z',
+      verb: 'search',
+      provider: 'parallel',
+      cached: false,
+      duration_ms: 50,
+      exit: 'ok',
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.request_id).toBe('11111111-2222-3333-4444-555555555555');
+      expect(r.data.call_id).toBe('11111111-2222-3333-4444-555555555555');
+    }
+  });
+
+  it('accepts a fully-populated record', () => {
+    const r = usageRecordSchema.safeParse({
+      request_id: '11111111-2222-3333-4444-555555555555',
       ts: '2026-05-06T12:00:00.000Z',
       verb: 'run',
       provider: 'openrouter',
