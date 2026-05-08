@@ -132,6 +132,7 @@ const presetNameSchema = z
 const presetTextSchema = z
   .object({
     mode: z.literal('text'),
+    preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
     system: z.string().optional(),
@@ -156,6 +157,7 @@ const presetTextSchema = z
 const presetImageSchema = z
   .object({
     mode: z.literal('image'),
+    preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
     size: z.string().trim().min(1).optional(),
@@ -173,6 +175,7 @@ const presetImageSchema = z
 const presetSpeechSchema = z
   .object({
     mode: z.literal('speech'),
+    preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
     voice: z.string().trim().min(1).optional(),
@@ -188,6 +191,7 @@ const presetSpeechSchema = z
 const presetTranscriptionSchema = z
   .object({
     mode: z.literal('transcription'),
+    preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
     language: z.string().trim().min(1).optional(),
@@ -202,6 +206,7 @@ const presetTranscriptionSchema = z
 const presetVideoSchema = z
   .object({
     mode: z.literal('video'),
+    preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
     aspect: z.string().trim().min(1).optional(),
@@ -230,6 +235,7 @@ const isoDateSchema = z
 const presetSearchSchema = z
   .object({
     mode: z.literal('search'),
+    preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
     limit: z.number().int().positive().optional(),
     depth: z.enum(['basic', 'standard', 'deep']).optional(),
@@ -247,6 +253,7 @@ const presetSearchSchema = z
 const presetScrapeSchema = z
   .object({
     mode: z.literal('scrape'),
+    preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
     format: z.enum(['markdown', 'text', 'html']).optional(),
     query: z.string().min(1).optional(),
@@ -258,6 +265,7 @@ const presetScrapeSchema = z
 const presetAnswerSchema = z
   .object({
     mode: z.literal('answer'),
+    preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
     maxCitations: z.number().int().positive().optional(),
     includeSearch: z.boolean().optional(),
@@ -269,6 +277,7 @@ const presetAnswerSchema = z
 const presetMapSchema = z
   .object({
     mode: z.literal('map'),
+    preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
     search: z.string().min(1).optional(),
     limit: z.number().int().positive().optional(),
@@ -280,6 +289,7 @@ const presetMapSchema = z
 const presetCrawlSchema = z
   .object({
     mode: z.literal('crawl'),
+    preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
     maxPages: z.number().int().positive().optional(),
     maxDepth: z.number().int().min(0).optional(),
@@ -295,6 +305,7 @@ const presetCrawlSchema = z
 const presetResearchSchema = z
   .object({
     mode: z.literal('research'),
+    preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
     depth: z.enum(['basic', 'standard', 'deep']).optional(),
     schema: z.string().min(1).optional(),
@@ -310,6 +321,7 @@ const presetResearchSchema = z
 const presetFindallSchema = z
   .object({
     mode: z.literal('findall'),
+    preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
     limit: z.number().int().positive().optional(),
     schema: z.string().min(1).optional(),
@@ -324,6 +336,7 @@ const presetFindallSchema = z
 const presetEnrichSchema = z
   .object({
     mode: z.literal('enrich'),
+    preset_id: z.string().uuid().optional(),
     provider: dataProviderSlugSchema.optional(),
     type: z.enum(['person', 'org']).optional(),
     minLikelihood: z.number().int().positive().optional(),
@@ -337,6 +350,7 @@ const presetEnrichSchema = z
 const presetLookupSchema = z
   .object({
     mode: z.literal('lookup'),
+    preset_id: z.string().uuid().optional(),
     provider: dataProviderSlugSchema.optional(),
     type: z.enum(['person', 'org', 'email']).optional(),
     limit: z.number().int().positive().optional(),
@@ -348,6 +362,7 @@ const presetLookupSchema = z
 const presetVerifySchema = z
   .object({
     mode: z.literal('verify'),
+    preset_id: z.string().uuid().optional(),
     provider: dataProviderSlugSchema.optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),

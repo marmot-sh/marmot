@@ -48,6 +48,7 @@ export type ResearchCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type ResearchCommandDependencies = DataVerbDependencies & {
@@ -188,7 +189,7 @@ export async function handleResearchCommand(
     );
   } catch (error) {
     await finishCall(config, {
-      verb: 'research', provider, preset: options.preset,
+      verb: 'research', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
@@ -209,7 +210,7 @@ export async function handleResearchCommand(
   // --async: return immediately.
   if (options.async) {
     await finishCall(config, {
-      verb: 'research', provider, preset: options.preset,
+      verb: 'research', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
       call_id: submission.taskId,
       startedAtMs, cached: false,
@@ -269,7 +270,7 @@ export async function handleResearchCommand(
     );
   } catch (error) {
     await finishCall(config, {
-      verb: 'research', provider, preset: options.preset,
+      verb: 'research', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
       call_id: submission.taskId,
       startedAtMs, cached: false, exit: 'error',
@@ -278,7 +279,7 @@ export async function handleResearchCommand(
     throw error;
   }
   await finishCall(config, {
-    verb: 'research', provider, preset: options.preset,
+    verb: 'research', provider, preset_id: options.preset_id,
     flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
     call_id: submission.taskId,
     startedAtMs, cached: false,

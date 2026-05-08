@@ -27,7 +27,7 @@ export const sessionMetaSchema = z
   .object({
     name: z.string().regex(SESSION_NAME_REGEX),
     mode: z.enum(SESSION_MODES),
-    preset: z.string().regex(SESSION_NAME_REGEX).optional(),
+    preset_id: z.string().uuid().optional(),
     label: z.string().optional(),
     record_prompts: z.boolean().default(false),
     auto_compact: z.boolean().default(false),
@@ -73,7 +73,7 @@ export const logRecordSchema = z
     verb: z.enum(VERBS),
     provider: providerSlugSchema,
     model: z.string().optional(),
-    preset: z.string().optional(),
+    preset_id: z.string().uuid().optional(),
     duration_ms: z.number().int().min(0).optional(),
     input: logInputSchema.optional(),
     tokens: logTokensSchema.optional(),

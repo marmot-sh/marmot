@@ -34,6 +34,7 @@ export type VerifyCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type VerifyCommandDependencies = {
@@ -91,7 +92,7 @@ export async function handleVerifyCommand(
     {
       verb: 'verify',
       provider,
-      preset: options.preset,
+      preset_id: options.preset_id,
       flag_presence: { email: true },
       session: null,
       sensitive: { flags: { email } },

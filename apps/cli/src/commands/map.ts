@@ -35,6 +35,7 @@ export type MapCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type MapCommandDependencies = {
@@ -102,7 +103,7 @@ export async function handleMapCommand(
     {
       verb: 'map',
       provider,
-      preset: options.preset,
+      preset_id: options.preset_id,
       flags,
       flag_presence: { search: Boolean(options.search) },
       session: null,

@@ -256,7 +256,7 @@ describe('usageRecordSchema', () => {
       verb: 'run',
       provider: 'openrouter',
       model: 'anthropic/claude-opus-4-7',
-      preset: 'deep',
+      preset_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       flags: { temperature: 0.7 },
       flag_presence: { system: true },
       cached: false,

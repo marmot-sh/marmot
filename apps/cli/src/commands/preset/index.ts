@@ -5,6 +5,7 @@ import {
   getPreset,
   listPresets,
   presetSchema,
+  renamePreset,
   upsertPreset,
   validatePresetName,
   writeLine,
@@ -360,7 +361,10 @@ export async function handlePresetCreate(
   const preset = buildPresetFromFlags(mode, options);
 
   await upsertPreset(name, preset, { overwrite: false }, env);
-  writeLine(stdout, JSON.stringify({ ok: true, action: 'create', name, preset }, null, 2));
+  // Read back so the JSON output reflects the persisted preset including
+  // the auto-assigned preset_id.
+  const stored = await getPreset(name, env);
+  writeLine(stdout, JSON.stringify({ ok: true, action: 'create', name, preset: stored }, null, 2));
 }
 
 export async function handlePresetUpdate(
@@ -391,7 +395,8 @@ export async function handlePresetUpdate(
   const merged = { ...existing, ...patch } as Preset;
 
   await upsertPreset(name, merged, { overwrite: true }, env);
-  writeLine(stdout, JSON.stringify({ ok: true, action: 'update', name, preset: merged }, null, 2));
+  const stored = await getPreset(name, env);
+  writeLine(stdout, JSON.stringify({ ok: true, action: 'update', name, preset: stored }, null, 2));
 }
 
 export async function handlePresetDelete(
@@ -404,6 +409,31 @@ export async function handlePresetDelete(
   validatePresetName(name);
   const removed = await deletePreset(name, env);
   writeLine(stdout, JSON.stringify({ ok: true, action: 'delete', name, removed }, null, 2));
+}
+
+export async function handlePresetRename(
+  oldName: string,
+  newName: string,
+  dependencies: PresetCommandDependencies = {},
+): Promise<void> {
+  const env = dependencies.env ?? process.env;
+  const stdout = dependencies.stdout ?? process.stdout;
+
+  const result = await renamePreset(oldName, newName, env);
+  writeLine(
+    stdout,
+    JSON.stringify(
+      {
+        ok: true,
+        action: 'rename',
+        from: result.from,
+        to: result.to,
+        preset_id: result.preset.preset_id,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 export async function handlePresetList(

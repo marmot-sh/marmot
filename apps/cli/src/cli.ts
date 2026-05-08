@@ -51,6 +51,7 @@ import {
   handlePresetCreate,
   handlePresetDelete,
   handlePresetList,
+  handlePresetRename,
   handlePresetShow,
   handlePresetUpdate,
   type PresetWriteOptions,
@@ -270,6 +271,15 @@ function buildPresetCommand(): Command {
     .argument('<name>', 'Preset name.')
     .action(async (name: string) => {
       await handlePresetDelete(name);
+    });
+
+  presetCommand
+    .command('rename')
+    .description('Rename a preset. Stable preset_id is preserved, so any sessions and usage records keep working.')
+    .argument('<old>', 'Existing preset name.')
+    .argument('<new>', 'New preset name.')
+    .action(async (oldName: string, newName: string) => {
+      await handlePresetRename(oldName, newName);
     });
 
   presetCommand

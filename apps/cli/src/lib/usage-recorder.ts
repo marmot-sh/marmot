@@ -52,7 +52,7 @@ export function categorizeError(error: unknown): string {
 
 export type UsageMetadata = Pick<
   RecordUsageInput,
-  'verb' | 'provider' | 'model' | 'preset' | 'flags' | 'flag_presence' | 'session' | 'call_id'
+  'verb' | 'provider' | 'model' | 'preset_id' | 'flags' | 'flag_presence' | 'session' | 'call_id'
 > & {
   /** Opt-in audit payload. Caller passes the actual prompt/query/URLs/
    *  identifier values; the recorder includes them only when

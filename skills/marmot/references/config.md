@@ -267,7 +267,7 @@ ts             ISO 8601
 verb           search | scrape | run | enrich | ...
 provider       slug
 model          AI verbs and some web verbs
-preset         preset NAME (never contents)
+preset_id      stable preset UUID; resolved to current slug at display time (0.6.0+)
 flags          { limit, depth, freshness, format, type, ... }   non-sensitive flag values
 flag_presence  { includeDomains, email, linkedin, schema, ... } sensitive flags as boolean only
 cached         boolean
@@ -350,7 +350,7 @@ Read-only health check. Reports: CLI version, Node version, config readability, 
 
 ## 8. Presets
 
-Saved invocation bundles. Stored under top-level `presets` map in `config.json`. One preset is scoped to one mode.
+Saved invocation bundles. Stored under top-level `presets` map in `config.json`. One preset is scoped to one mode. Each preset carries a stable `preset_id` UUID (auto-assigned at creation, 0.6.0+) so sessions and usage records reference presets by id, not by mutable slug — renames don't break references.
 
 ### Modes and fields
 
@@ -400,12 +400,13 @@ marmot preset create deep-research \
   --system "Be terse and cite sources."
 
 marmot preset list                # JSON: [{name, mode, provider, model}]
-marmot preset show deep-research  # JSON: full preset body
+marmot preset show deep-research  # JSON: full preset body (includes preset_id)
 marmot preset update deep-research --model claude-sonnet-4-6
+marmot preset rename deep-research deep-research-v2   # 0.6.0+; preset_id stays stable
 marmot preset delete deep-research
 ```
 
-`create` refuses to overwrite an existing name. `update` patches only the flags you pass; mode is immutable (delete + recreate to change). `delete` returns `{removed: false}` if the name didn't exist; not an error.
+`create` refuses to overwrite an existing name. `update` patches only the flags you pass; mode is immutable (delete + recreate to change). `rename` validates that the new slug is well-formed and not already taken; `preset_id` stays stable so any sessions or usage records referencing the preset keep working. `delete` returns `{removed: false}` if the name didn't exist; not an error.
 
 ### Use a preset
 

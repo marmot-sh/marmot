@@ -40,6 +40,7 @@ export type AnswerCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type AnswerCommandDependencies = DataVerbDependencies & {
@@ -107,7 +108,7 @@ export async function handleAnswerCommand(
     {
       verb: 'answer',
       provider,
-      preset: options.preset,
+      preset_id: options.preset_id,
       flags,
       flag_presence: { query: true },
       session: null,

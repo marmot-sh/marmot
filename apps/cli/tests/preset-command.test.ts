@@ -126,7 +126,7 @@ describe('preset create', () => {
       { env, stdout: cap.writer },
     );
     const out = JSON.parse(cap.text);
-    expect(out.preset).toEqual({
+    expect(out.preset).toMatchObject({
       mode: 'search',
       provider: 'parallel',
       limit: 25,
@@ -188,7 +188,7 @@ describe('preset create', () => {
       { env, stdout: cap.writer },
     );
     const out = JSON.parse(cap.text);
-    expect(out.preset).toEqual({
+    expect(out.preset).toMatchObject({
       mode: 'enrich',
       provider: 'pdl',
       type: 'person',
@@ -218,7 +218,7 @@ describe('preset create', () => {
       { env, stdout: cap.writer },
     );
     const out = JSON.parse(cap.text);
-    expect(out.preset).toEqual({
+    expect(out.preset).toMatchObject({
       mode: 'verify',
       provider: 'hunter',
       retries: 1,

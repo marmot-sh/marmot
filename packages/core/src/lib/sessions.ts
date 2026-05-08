@@ -2,6 +2,8 @@ import { copyFile, mkdir, readFile, readdir, rm, writeFile, appendFile, stat } f
 import { dirname } from 'node:path';
 
 import { AICliError } from './errors.js';
+import { readMarmotConfig } from './config.js';
+import { getPresetById } from './presets.js';
 import {
   getCurrentSessionPath,
   getSessionDir,
@@ -47,6 +49,19 @@ async function readJsonFile<T>(path: string): Promise<T | null> {
   }
 }
 
+/** Lookup a preset by slug from the on-disk config. Returns the preset's
+ *  body or null if not found. Used here (not via getPreset in presets.ts)
+ *  to avoid an import cycle: sessions.ts ↔ presets.ts ↔ config.ts. */
+async function getPresetByName(
+  name: string,
+  env: NodeJS.ProcessEnv,
+): Promise<{ preset_id: string } | null> {
+  const config = await readMarmotConfig(env);
+  const preset = config?.presets?.[name];
+  if (!preset || !preset.preset_id) return null;
+  return { preset_id: preset.preset_id };
+}
+
 async function writeJsonFile(path: string, value: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
@@ -83,12 +98,25 @@ export async function createSession(
     );
   }
 
-  if (options.preset !== undefined) validateSessionName(options.preset);
+  // The caller passes a preset slug for ergonomics; resolve to preset_id
+  // for stable storage. Renaming the preset later won't break the binding.
+  let preset_id: string | undefined;
+  if (options.preset !== undefined) {
+    validateSessionName(options.preset);
+    const found = await getPresetByName(options.preset, env);
+    if (!found) {
+      throw new AICliError(
+        'validation',
+        `Preset "${options.preset}" not found. Run "marmot preset list" to see available presets.`,
+      );
+    }
+    preset_id = found.preset_id;
+  }
 
   const meta = sessionMetaSchema.parse({
     name,
     mode: options.mode ?? 'stateless',
-    preset: options.preset,
+    preset_id,
     label: options.label,
     record_prompts: options.recordPrompts ?? false,
     auto_compact: options.autoCompact ?? false,
@@ -602,7 +630,7 @@ export async function exportSession(
   const lines: string[] = [
     `# Session: ${meta.name}`,
     '',
-    `_Mode: ${meta.mode}${meta.preset ? `  ·  Preset: ${meta.preset}` : ''}_`,
+    `_Mode: ${meta.mode}${meta.preset_id ? `  ·  Preset: ${(await getPresetById(meta.preset_id, env))?.slug ?? meta.preset_id}` : ''}_`,
     '',
   ];
   for (const m of messages) {

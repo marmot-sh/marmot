@@ -61,6 +61,7 @@ export type EnrichCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type EnrichCommandDependencies = {
@@ -219,7 +220,7 @@ export async function handleEnrichCommand(
   const usageMeta = {
     verb: 'enrich' as const,
     provider,
-    preset: options.preset,
+    preset_id: options.preset_id,
     flags: usageFlags,
     flag_presence: usagePresence,
     session: null,

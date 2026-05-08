@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -32,6 +33,19 @@ import {
 } from '../schemas/config.js';
 
 
+function ensurePresetIdsOnRead(payload: unknown): void {
+  if (!payload || typeof payload !== 'object') return;
+  const presets = (payload as { presets?: unknown }).presets;
+  if (!presets || typeof presets !== 'object') return;
+  for (const entry of Object.values(presets)) {
+    if (!entry || typeof entry !== 'object') continue;
+    const preset = entry as { preset_id?: unknown };
+    if (typeof preset.preset_id !== 'string') {
+      preset.preset_id = randomUUID();
+    }
+  }
+}
+
 export async function readMarmotConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<MarmotConfig | null> {
@@ -61,6 +75,12 @@ export async function readMarmotConfig(
       { cause: error },
     );
   }
+
+  // Lazy assign-on-read: presets created before 0.6.0 don't carry
+  // preset_id. Inject a fresh UUID so schema validation passes; the new
+  // id is persisted on the next write. Single-line "migration" — not a
+  // sweep.
+  ensurePresetIdsOnRead(payload);
 
   const parsed = marmotConfigSchema.safeParse(payload);
   if (!parsed.success) {

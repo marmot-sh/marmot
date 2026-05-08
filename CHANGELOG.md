@@ -4,6 +4,24 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Added
+
+- **Stable `preset_id` UUID on every preset.** Auto-assigned at creation. Sessions and usage records reference presets by `preset_id` rather than slug; the display layer (`marmot session show`, `marmot session list`, chat-mode export) resolves `preset_id` → current slug at render time.
+- **`marmot preset rename <old> <new>`** — atomic config rewrite. Validates that the new slug is well-formed and not already taken. Because the `preset_id` stays stable, sessions and historical usage records continue to resolve correctly to the new name.
+
+### Changed
+
+- **Breaking:** `sessionMetaSchema` replaces the `preset` slug field with `preset_id` (UUID). Existing sessions that referenced presets by slug lose that linkage; new sessions created via `marmot session create --preset <slug>` resolve the slug to `preset_id` at creation.
+- **Breaking:** `usageRecordSchema` now writes `preset_id` instead of `preset` (slug). Display layer resolves the current slug at render time. Old records on disk keep their original `preset` field; the aggregator tolerates both.
+- **Breaking:** `logRecordSchema` (session log) replaces `preset` slug with `preset_id`.
+- Existing presets in `~/.marmot/config.json` without `preset_id` get a fresh UUID assigned in-memory on next read; persisted on next write. No migration sweep.
+
+### Notes
+
+- `marmot preset show` now includes the `preset_id` UUID in its output. End users typically never need to think about it; it's there so external tooling and audit flows can reference presets durably.
+
 ## [0.5.0] — 2026-05-06
 
 ### Added

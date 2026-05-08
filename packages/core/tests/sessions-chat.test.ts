@@ -18,6 +18,7 @@ import {
   readChatMessages,
   rewriteChatMessages,
 } from '../src/lib/sessions.js';
+import { upsertPreset } from '../src/lib/presets.js';
 import { buildUserMessages } from '../src/lib/messages.js';
 import { approximateTokens, lookupContextWindow } from '../src/lib/constants.js';
 
@@ -171,6 +172,7 @@ describe('exportSession', () => {
 
   it('renders md with role headings and metadata', async () => {
     const { env } = await fixture();
+    await upsertPreset('deep-research', { mode: 'text', provider: 'anthropic' }, {}, env);
     await createSession('s1', { mode: 'chat', preset: 'deep-research' }, env);
     await appendChatMessage('s1', { role: 'user', content: 'hello' }, env);
     await appendChatMessage('s1', { role: 'assistant', content: 'hi' }, env);
