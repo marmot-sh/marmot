@@ -161,6 +161,18 @@ marmot config set providers.tomba.apiSecretEnvVar WORK_TOMBA_SECRET
 
 Successful writes echo `{ok: true, key, value, path}` as JSON. Schema validation runs before write; an invalid value never touches the file.
 
+## 4b. `marmot config get <key>` (0.6.0+)
+
+Per-key reader. Accepts the same dotted-path keys as `config set`, plus any of their bucket prefixes (`text`, `providers`, `providers.openai`, `providers.openai.cache`).
+
+```bash
+marmot config get text.provider                      # → openrouter (bare)
+marmot config get logging.recordSensitive            # → false (bare)
+marmot config get providers.openai.cache             # → { "enabled": true, "ttlDays": 30 } (JSON)
+```
+
+Primitives render bare on stdout so shells can capture them with `$()`. Objects and sub-buckets pretty-print as JSON. Missing keys exit non-zero with `Key "X" is not set.` on stderr — script with `marmot config get x || ...`. A typo'd key (not a known prefix) gets the same friendly "valid shapes" hint as `config set`.
+
 ## 5. `marmot config unset <key>`
 
 Symmetrical to `set`. Accepts the same three key shapes. Walks up after delete and prunes empty parent objects, so the file never carries dead branches.

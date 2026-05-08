@@ -1,0 +1,59 @@
+---
+title: History
+description: marmot history — list individual recent calls (newest first), not aggregates.
+---
+
+`marmot history` lists individual recent records from the usage log instead of aggregates. Use it when you need the timestamp / duration / outcome of a specific call without the rollup math `marmot usage` does.
+
+```bash
+marmot history                              # default last 10 (newest first)
+marmot history --since 1h --limit 50        # last hour, up to 50
+marmot history --provider parallel --json   # filter + structured envelope
+marmot history --failed-only                # only error rows
+marmot history --verb run --since 24h       # one verb in the last 24h
+```
+
+## Flags
+
+| Flag | Description |
+| --- | --- |
+| `--since <duration>` | Time window: `Nh`, `Nd`, `Nw` (default 7d). |
+| `--from <YYYY-MM-DD>` | Window lower bound (overrides `--since`). |
+| `--to <YYYY-MM-DD>` | Window upper bound (inclusive). |
+| `--provider <slug>` | Filter to one provider. |
+| `--verb <name>` | Filter to one verb. |
+| `--failed-only` | Only error records. |
+| `--limit <n>` | Max records to return (default 10, cap 1000). |
+| `--json` | Emit `{ ok, window, limit, count, records: [...] }` envelope. |
+
+## Output
+
+Default: one record per line, newest first. Timestamps render in your local timezone. Storage stays UTC, so file boundaries are stable but human output matches your wall clock.
+
+```
+2026-05-08 14:14:23  search    parallel    1.2s  3 results
+2026-05-08 14:13:55  run       openrouter  2.1s  142 in / 204 out  $0.0123
+2026-05-08 13:59:01  research  exa         44.3s 1 tasks                  [error:provider]
+```
+
+`--json` returns:
+
+```json
+{
+  "ok": true,
+  "window": { "from": "2026-05-01T00:00:00.000Z", "to": "2026-05-08T15:00:00.000Z" },
+  "limit": 10,
+  "count": 3,
+  "records": [ /* full UsageRecord with optional preset_slug */ ]
+}
+```
+
+Each record carries `preset_slug` when the call was made under a preset — resolved from the stable `preset_id` at render time, so renames don't break readability. If the preset has been deleted, the row falls back to `(preset:<short-id>)`.
+
+## When to use `history` vs `usage`
+
+- **`marmot usage`** — aggregates over a window (totals + by-provider/verb/day/model breakdowns). Use it for rollups: "what did I spend last week?", "which provider has the worst error rate?".
+- **`marmot history`** — individual rows, newest first. Use it for forensics: "what was that failed call I just made?", "show me my last 20 research tasks".
+- **`marmot usage --watch`** — live tail of new records as they land. Use it during a batch job or while iterating.
+
+All three read the same `~/.marmot/usage/<UTC-DATE>.jsonl` files written by every verb.
