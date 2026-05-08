@@ -24,6 +24,7 @@ import { buildTasksCommand } from './commands/tasks/index.js';
 import { buildVerifyCommand } from './commands/verify.js';
 import { buildApiCommand } from './commands/api.js';
 import {
+  handleConfigGet,
   handleConfigInit,
   handleConfigPath,
   handleConfigSet,
@@ -598,6 +599,14 @@ export function createProgram(): Command {
     .option('--force', 'Overwrite an existing or malformed config file.')
     .action(async (options: { force?: boolean }) => {
       await handleConfigInit(options);
+    });
+
+  configCommand
+    .command('get')
+    .description('Print one config value by key. Primitives render bare; objects pretty-print as JSON. Exits non-zero if the key is unset.')
+    .argument('<key>', 'Dotted-path key, e.g. text.provider or providers.openai.cache.enabled')
+    .action(async (key: string) => {
+      await handleConfigGet(key);
     });
 
   configCommand

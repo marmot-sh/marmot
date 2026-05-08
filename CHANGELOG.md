@@ -17,6 +17,7 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 - **`marmot doctor` verdict line.** The output now ends with a clear summary: `✓ Everything is in good order.` when clean, or `⚠ N issues found. Run X to fix.` where `X` is the highest-priority remediation across failed checks. Errors outrank warnings; within a level, the first-pushed check wins.
 - **Per-check `fix_suggestion`** in `marmot doctor`. Each failing check carries an inline `→ command — description` hint in human output and a `fix_suggestion` field in the `--json` envelope so agents can self-heal programmatically. Suggestions cover corrupt config (`marmot config init --force`), zero providers ready (`marmot providers list --check-keys`), and oversized usage log (`marmot usage prune --older-than 90d`).
 - **`marmot doctor --fix`** runs only safe, idempotent auto-fixes: writes a default `~/.marmot/config.json` when missing, prunes the usage log when over 100 MB. Refuses anything that needs user input (missing API keys, corrupt config, old Node — those are still surfaced as failing). The `--json` envelope gains `fixes_applied` and `fixes_skipped` arrays.
+- **`marmot config get <key>`.** Single-key reader complementing `config set`. Primitives render bare for shell capture; objects and sub-buckets (`providers.openai.cache`, `text`, etc.) pretty-print as JSON. Missing keys exit non-zero with a stderr message so scripts can branch with `marmot config get x || ...`.
 
 ### Fixed
 

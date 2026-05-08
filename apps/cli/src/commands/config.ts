@@ -525,6 +525,104 @@ export async function handleConfigSet(
   );
 }
 
+/** Resolve a dotted-path key to walk segments, accepting either a full
+ *  set-shaped leaf (handed off to parseKey) or a known prefix of one
+ *  (e.g. `text`, `providers`, `providers.openai`, `providers.openai.cache`).
+ *  Typos that aren't prefixes get the same friendly "valid shapes"
+ *  message as `marmot config set`. */
+function parseKeyForGet(key: string): readonly string[] {
+  const VERBS = new Set<string>([
+    ...AI_VERB_KEYS.map((k) => k.split('.')[0]!),
+    ...WEB_VERB_KEYS.map((k) => k.split('.')[0]!),
+    ...DATA_VERB_KEYS.map((k) => k.split('.')[0]!),
+  ]);
+  const TOP_LEVEL = new Set(['defaults', 'providers', 'logging', 'presets', 'version']);
+
+  if (TOP_LEVEL.has(key)) return [key];
+  if (VERBS.has(key)) return ['defaults', key];
+
+  // Provider-bucket prefixes that aren't full leaves: `providers.<slug>`,
+  // `providers.<slug>.cache`, `providers.<slug>.pricing`,
+  // `providers.<slug>.pricing.<modelId>`.
+  if (key.startsWith('providers.')) {
+    const rest = key.slice('providers.'.length);
+    const firstDot = rest.indexOf('.');
+    const slug = firstDot < 0 ? rest : rest.slice(0, firstDot);
+    if (ALL_PROVIDER_SLUGS.has(slug)) {
+      const suffix = firstDot < 0 ? '' : rest.slice(firstDot + 1);
+      if (suffix === '' || suffix === 'cache' || suffix === 'pricing') {
+        return ['providers', slug, ...(suffix ? [suffix] : [])];
+      }
+      if (suffix.startsWith('pricing.') && !suffix.slice('pricing.'.length).includes('.')) {
+        // providers.<slug>.pricing.<modelId> (sub-bucket, no field yet).
+        const modelId = suffix.slice('pricing.'.length);
+        if (modelId) return ['providers', slug, 'pricing', modelId];
+      }
+    }
+  }
+
+  // Fall through to strict parser for full leaves; surfaces the same
+  // typo error as `config set`.
+  return parseKey(key).segments;
+}
+
+/** Walk a dotted-path segment array against the loaded config and return
+ *  the leaf, or `undefined` if any segment is missing. Distinguishes
+ *  "got there but the value is null" from "stopped early": null is a
+ *  valid stored value and is returned directly. */
+function getBySegments(
+  root: Record<string, unknown> | null | undefined,
+  segments: readonly string[],
+): { found: boolean; value: unknown } {
+  let cursor: unknown = root;
+  for (const seg of segments) {
+    if (typeof cursor !== 'object' || cursor === null) {
+      return { found: false, value: undefined };
+    }
+    if (!(seg in (cursor as Record<string, unknown>))) {
+      return { found: false, value: undefined };
+    }
+    cursor = (cursor as Record<string, unknown>)[seg];
+  }
+  return { found: true, value: cursor };
+}
+
+/** Print a single config value to stdout. Primitives render bare so
+ *  shells can capture them with `$()` without quoting; objects pretty-
+ *  print as JSON. Missing keys exit non-zero with a stderr message so
+ *  scripts can branch on `marmot config get x || ...`. */
+export async function handleConfigGet(
+  key: string,
+  dependencies: ConfigCommandDependencies = {},
+): Promise<void> {
+  const env = dependencies.env ?? process.env;
+  const stdout = dependencies.stdout ?? process.stdout;
+
+  // Accept either a full set-shaped leaf or a known prefix bucket
+  // (`text`, `providers.openai.cache`, etc.). Typos are caught and
+  // routed to the same friendly "valid shapes" message as `config set`.
+  const segments = parseKeyForGet(key);
+  const config = await readMarmotConfig(env);
+  const { found, value } = getBySegments(
+    config as Record<string, unknown> | null,
+    segments,
+  );
+
+  if (!found) {
+    throw new AICliError('validation', `Key "${key}" is not set.`);
+  }
+
+  if (value === null) {
+    writeLine(stdout, 'null');
+    return;
+  }
+  if (typeof value === 'object') {
+    writeLine(stdout, JSON.stringify(value, null, 2));
+    return;
+  }
+  writeLine(stdout, String(value));
+}
+
 export async function handleConfigUnset(
   key: string,
   dependencies: ConfigCommandDependencies = {},
