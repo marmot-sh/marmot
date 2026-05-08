@@ -49,6 +49,7 @@ import type {
 } from '@marmot-sh/core';
 import { keySource as resolveKeySource } from '@marmot-sh/core';
 import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
+import { categorizeError } from '../lib/usage-recorder.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
 export type SpeechRunCommandOptions = {
@@ -69,6 +70,8 @@ export type SpeechRunCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   session?: string;
+  preset?: string;
+  preset_id?: string;
   providerOption?: string[];
 };
 
@@ -193,41 +196,86 @@ export async function handleSpeechRunCommand(
   // Skip cache validation; the provider API will reject invalid model ids
   // with a clean error.
 
-  const result = await withSpinner(
-    `Generating ${adapter.name} speech…`,
-    () =>
-      runWithRetries(
-        (abortSignal) =>
-          adapter.generateSpeech!({
-            model,
-            text: input.text,
-            voice: input.voice,
-            format: input.format,
-            speed: input.speed,
-            instructions: input.instructions,
-            providerOptions: parseProviderOptions(options.providerOption),
-            apiKey,
-            cloudflareAccountId,
-            fetchFn: dependencies.fetchFn,
-            abortSignal,
-          }),
-        {
-          retries: input.retries,
-          timeoutMs: input.timeoutMs,
-          baseDelayMs:
-            dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
-          shouldRetry: isRetryableProviderError,
-          sleep: dependencies.sleep,
-        },
-      ),
-    { stream: stderr, env },
-  ).catch((error) => {
-    throw toAICliError(
-      error,
-      'provider',
-      `${adapter.name} speech generation failed for model "${model}".`,
+  // Privacy-safe usage extras computed before the call so the error path
+  // logs the same shape as the success path.
+  const speakFlags: Record<string, string | number | boolean> = {};
+  if (input.voice) speakFlags.voice = input.voice;
+  if (input.format) speakFlags.format = input.format;
+  if (typeof input.speed === 'number') speakFlags.speed = input.speed;
+  const speakPresence = { text: true, instructions: Boolean(input.instructions) };
+  const speakSensitive = {
+    prompt: input.text,
+    ...(input.instructions ? { flags: { instructions: input.instructions } } : {}),
+  };
+
+  let result;
+  try {
+    result = await withSpinner(
+      `Generating ${adapter.name} speech…`,
+      () =>
+        runWithRetries(
+          (abortSignal) =>
+            adapter.generateSpeech!({
+              model,
+              text: input.text,
+              voice: input.voice,
+              format: input.format,
+              speed: input.speed,
+              instructions: input.instructions,
+              providerOptions: parseProviderOptions(options.providerOption),
+              apiKey,
+              cloudflareAccountId,
+              fetchFn: dependencies.fetchFn,
+              abortSignal,
+            }),
+          {
+            retries: input.retries,
+            timeoutMs: input.timeoutMs,
+            baseDelayMs:
+              dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
+            shouldRetry: isRetryableProviderError,
+            sleep: dependencies.sleep,
+          },
+        ),
+      { stream: stderr, env },
+    ).catch((error) => {
+      throw toAICliError(
+        error,
+        'provider',
+        `${adapter.name} speech generation failed for model "${model}".`,
+      );
+    });
+  } catch (error) {
+    await recordCall(
+      sessionBinding,
+      {
+        verb: 'speak',
+        provider: input.provider,
+        model,
+        preset_id: options.preset_id,
+        startedAtMs,
+        finishedAtMs: Date.now(),
+        input: { prompt_chars: input.text.length },
+        keySource: resolveKeySource(
+          apiKey,
+          [PROVIDER_API_KEY_ENV_VARS[input.provider]].filter((v): v is string => v !== null),
+          env,
+        ),
+        prompt: input.text,
+        exit: 'error',
+        errorCategory: categorizeError(error),
+      },
+      {
+        flags: speakFlags,
+        flag_presence: speakPresence,
+        cost: null,
+        sensitive: speakSensitive,
+      },
+      config,
+      env,
     );
-  });
+    throw error;
+  }
 
   const stdout = dependencies.stdout ?? process.stdout;
   const now = dependencies.now ?? (() => new Date());
@@ -316,10 +364,8 @@ export async function handleSpeechRunCommand(
     renderSpeechBinaryOutput(result, stdout as unknown as { write: (chunk: Uint8Array) => boolean });
   }
 
-  const speakFlags: Record<string, string | number | boolean> = {};
-  if (input.voice) speakFlags.voice = input.voice;
-  if (input.format) speakFlags.format = input.format;
-  if (typeof input.speed === 'number') speakFlags.speed = input.speed;
+  // speakFlags / speakPresence / speakSensitive computed before the
+  // adapter call so the error path logs the same metadata.
 
   await recordCall(
     sessionBinding,
@@ -327,6 +373,7 @@ export async function handleSpeechRunCommand(
       verb: 'speak',
       provider: input.provider,
       model,
+      preset_id: options.preset_id,
       startedAtMs,
       finishedAtMs: Date.now(),
       input: { prompt_chars: input.text.length },
@@ -341,12 +388,9 @@ export async function handleSpeechRunCommand(
     },
     {
       flags: speakFlags,
-      flag_presence: { text: true, instructions: Boolean(input.instructions) },
+      flag_presence: speakPresence,
       cost: null,
-      sensitive: {
-        prompt: input.text,
-        ...(input.instructions ? { flags: { instructions: input.instructions } } : {}),
-      },
+      sensitive: speakSensitive,
     },
     config,
     env,

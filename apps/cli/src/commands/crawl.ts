@@ -30,6 +30,7 @@ import {
   categorizeError,
   finishCall,
 } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 import { newCallId } from '@marmot-sh/core';
 
 export type CrawlCommandOptions = {
@@ -49,6 +50,7 @@ export type CrawlCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type CrawlCommandDependencies = {
@@ -79,6 +81,7 @@ export async function handleCrawlCommand(
     throw new AICliError('validation', '--wait and --async are mutually exclusive.');
   }
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('crawl', config, {
     provider: options.provider,
@@ -144,6 +147,7 @@ export async function handleCrawlCommand(
         verb: 'crawl', provider, preset_id: options.preset_id,
         flags: usageFlags, flag_presence: usagePresence,
         sensitive: usageSensitive,
+        session: sessionBinding?.name ?? null,
         startedAtMs, cached: false, exit: 'error',
         error_category: categorizeError(error),
       }, env);
@@ -153,6 +157,7 @@ export async function handleCrawlCommand(
       verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       startedAtMs, cached: false,
       quantity: { pages: result.data?.pages?.length ?? 0 },
       cost: null,
@@ -192,6 +197,7 @@ export async function handleCrawlCommand(
       verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       call_id: newCallId(),
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
@@ -216,6 +222,7 @@ export async function handleCrawlCommand(
       verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       call_id: submission.taskId,
       startedAtMs, cached: false,
       quantity: { tasks: 1 },
@@ -268,6 +275,7 @@ export async function handleCrawlCommand(
       verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       call_id: submission.taskId,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
@@ -281,6 +289,7 @@ export async function handleCrawlCommand(
     verb: 'crawl', provider, preset_id: options.preset_id,
     flags: usageFlags, flag_presence: usagePresence,
     sensitive: usageSensitive,
+    session: sessionBinding?.name ?? null,
     call_id: submission.taskId,
     startedAtMs, cached: false,
     quantity: { tasks: 1, pages: (finalStatus.data as { pages?: unknown[] } | undefined)?.pages?.length ?? 0 },
@@ -288,6 +297,10 @@ export async function handleCrawlCommand(
     exit: finalStatus.status === 'done' ? 'ok' : 'error',
     error_category: finalStatus.status === 'done' ? undefined : 'provider',
   }, env);
+  await updateTaskRecord(
+    { taskId: submission.taskId, provider: provider as WebProviderSlug, usageLogged: true },
+    env,
+  );
   const envelope = {
     ok: finalStatus.status === 'done',
     provider,
@@ -323,6 +336,7 @@ export function buildCrawlCommand(
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved crawl preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (url: string, options: CrawlCommandOptions) => {
       const merged = await withPreset(options, 'crawl');
       await handleCrawlCommand(url, merged, deps);

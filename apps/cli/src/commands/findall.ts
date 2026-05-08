@@ -32,6 +32,7 @@ import {
 import { withPreset } from '../lib/with-preset.js';
 import { parseIntFlag } from '../lib/parse-numeric.js';
 import { categorizeError, finishCall } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 export type FindallCommandOptions = {
   provider?: string;
@@ -49,6 +50,7 @@ export type FindallCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type FindallCommandDependencies = DataVerbDependencies & {
@@ -77,6 +79,7 @@ export async function handleFindallCommand(
   const piped = await readQueryStdin(deps);
   const objective = mergeQueries(deps, objectiveParts.join(' '), piped, 'Findall');
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('findall', config, {
     provider: options.provider,
@@ -164,6 +167,7 @@ export async function handleFindallCommand(
     await finishCall(config, {
       verb: 'findall', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
     }, env);
@@ -184,6 +188,7 @@ export async function handleFindallCommand(
     await finishCall(config, {
       verb: 'findall', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       call_id: submission.taskId,
       startedAtMs, cached: false,
       quantity: { tasks: 1 },
@@ -235,6 +240,7 @@ export async function handleFindallCommand(
     await finishCall(config, {
       verb: 'findall', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       call_id: submission.taskId,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
@@ -244,6 +250,7 @@ export async function handleFindallCommand(
   await finishCall(config, {
     verb: 'findall', provider, preset_id: options.preset_id,
     flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+    session: sessionBinding?.name ?? null,
     call_id: submission.taskId,
     startedAtMs, cached: false,
     quantity: { tasks: 1, entities: (finalStatus.data as { items?: unknown[] } | undefined)?.items?.length ?? 0 },
@@ -251,6 +258,10 @@ export async function handleFindallCommand(
     exit: finalStatus.status === 'done' ? 'ok' : 'error',
     error_category: finalStatus.status === 'done' ? undefined : 'provider',
   }, env);
+  await updateTaskRecord(
+    { taskId: submission.taskId, provider: provider as WebProviderSlug, usageLogged: true },
+    env,
+  );
 
   const envelope = {
     ok: finalStatus.status === 'done',
@@ -286,6 +297,7 @@ export function buildFindallCommand(
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved findall preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (objectiveParts: string[], options: FindallCommandOptions) => {
       const merged = await withPreset(options, 'findall');
       await handleFindallCommand(objectiveParts, merged, deps);

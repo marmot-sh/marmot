@@ -47,6 +47,7 @@ import {
 } from '../providers/index.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 const VIDEO_CAPABLE_HINT =
   'Try --provider openrouter or --provider vercel (only those route video generation today).';
@@ -70,6 +71,9 @@ export type VideoRunCommandOptions = {
   json?: boolean;
   retries?: string | number;
   timeout?: string | number;
+  session?: string;
+  preset?: string;
+  preset_id?: string;
   providerOption?: string[];
 };
 
@@ -125,6 +129,7 @@ export async function handleVideoRunCommand(
   const env = dependencies.env ?? process.env;
   const stderr = dependencies.stderr ?? process.stderr;
   const resolveProvider = dependencies.resolveProvider ?? getProviderAdapter;
+  const sessionBinding = await resolveSessionBinding(options, env);
   const inlinePrompt = promptParts.join(' ');
 
   const promptFile = options.promptFile
@@ -283,9 +288,10 @@ export async function handleVideoRunCommand(
       verb: 'video',
       provider: input.provider,
       model,
+      preset_id: options.preset_id,
       flags: videoFlags,
       flag_presence: { prompt: true, images: images.length > 0 },
-      session: null,
+      session: sessionBinding?.name ?? null,
       sensitive: { prompt: input.prompt },
     },
     async () => {

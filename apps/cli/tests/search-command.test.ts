@@ -9,7 +9,7 @@ import {
   handleSearchCommand,
   validateIsoDate,
 } from '../src/commands/search.js';
-import { writeMarmotConfig } from '@marmot-sh/core';
+import { createSession, readUsageRecords, writeMarmotConfig } from '@marmot-sh/core';
 
 const tempDirs: string[] = [];
 
@@ -127,6 +127,26 @@ describe('handleSearchCommand', () => {
     const out = JSON.parse(stdout.text());
     expect(out.provider).toBe('brave');
     expect(out.data.results[0].title).toBe('B');
+  });
+
+  it('records session name in usage when --session is bound', async () => {
+    const { env } = await fixture();
+    await createSession('research-q2', { mode: 'stateless' }, env);
+    const stdout = new CapturingStream();
+    const fetchFn = (async () =>
+      new Response(
+        JSON.stringify({ web: { results: [{ url: 'https://e.com', title: 't' }] } }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    await handleSearchCommand(
+      ['cats'],
+      { provider: 'brave', apiKey: 'k', session: 'research-q2' },
+      { env, stdout, fetchFn },
+    );
+    const records = await readUsageRecords({}, env);
+    expect(records).toHaveLength(1);
+    expect(records[0]!.session).toBe('research-q2');
+    expect(records[0]!.verb).toBe('search');
   });
 
   it('emits raw payload under raw when --raw is set', async () => {

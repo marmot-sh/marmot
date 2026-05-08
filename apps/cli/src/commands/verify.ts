@@ -22,6 +22,7 @@ import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 export type VerifyCommandOptions = {
   email?: string;
@@ -35,6 +36,7 @@ export type VerifyCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type VerifyCommandDependencies = {
@@ -62,6 +64,7 @@ export async function handleVerifyCommand(
     );
   }
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveDataVerbDefaults('verify', config, {
     provider: options.provider,
@@ -94,7 +97,7 @@ export async function handleVerifyCommand(
       provider,
       preset_id: options.preset_id,
       flag_presence: { email: true },
-      session: null,
+      session: sessionBinding?.name ?? null,
       sensitive: { flags: { email } },
     },
     async () => {
@@ -156,6 +159,7 @@ export function buildVerifyCommand(deps: VerifyCommandDependencies = {}): Comman
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved verify preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (emailArg: string | undefined, options: VerifyCommandOptions) => {
       const merged = await withPreset(options, 'verify');
       await handleVerifyCommand(emailArg ? [emailArg] : [], merged, deps);

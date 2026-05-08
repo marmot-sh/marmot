@@ -22,6 +22,7 @@ import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 export type MapCommandOptions = {
   provider?: string;
@@ -36,6 +37,7 @@ export type MapCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type MapCommandDependencies = {
@@ -59,6 +61,7 @@ export async function handleMapCommand(
     throw new AICliError('validation', 'A URL is required.');
   }
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('map', config, {
     provider: options.provider,
@@ -106,7 +109,7 @@ export async function handleMapCommand(
       preset_id: options.preset_id,
       flags,
       flag_presence: { search: Boolean(options.search) },
-      session: null,
+      session: sessionBinding?.name ?? null,
       sensitive: {
         urls: [url],
         ...(options.search ? { flags: { search: options.search } } : {}),
@@ -171,6 +174,7 @@ export function buildMapCommand(
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved map preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (url: string, options: MapCommandOptions) => {
       const merged = await withPreset(options, 'map');
       await handleMapCommand(url, merged, deps);

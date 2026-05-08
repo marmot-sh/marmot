@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { handleGetCommand } from '../src/commands/get.js';
-import { appendTaskRecord, getTaskRecord } from '@marmot-sh/core';
+import { appendTaskRecord, getTaskRecord, readUsageRecords } from '@marmot-sh/core';
 
 const tempDirs: string[] = [];
 
@@ -121,6 +121,42 @@ describe('handleGetCommand', () => {
     );
     const out = JSON.parse(stdout.text());
     expect(out.status).toBe('done');
+  });
+
+  it('logs a usage record on terminal transition and marks usageLogged', async () => {
+    const { env } = await fixture();
+    await appendTaskRecord(
+      { taskId: 't_completion', provider: 'parallel', verb: 'research' },
+      env,
+    );
+    const fetchFn = (async () =>
+      new Response(JSON.stringify({ status: 'completed', output: { content: 'done' } }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    await handleGetCommand(
+      't_completion',
+      { provider: 'parallel', apiKey: 'k' },
+      { env, stdout: new Cap(), stderr: new Cap(), fetchFn },
+    );
+
+    const records = await readUsageRecords({}, env);
+    expect(records).toHaveLength(1);
+    expect(records[0]!.verb).toBe('research');
+    expect(records[0]!.provider).toBe('parallel');
+    expect(records[0]!.exit).toBe('ok');
+    expect(records[0]!.call_id).toBe('t_completion');
+
+    const updated = await getTaskRecord('t_completion', env);
+    expect(updated!.usageLogged).toBe(true);
+
+    // Re-running should not double-log.
+    await handleGetCommand(
+      't_completion',
+      { provider: 'parallel', apiKey: 'k' },
+      { env, stdout: new Cap(), stderr: new Cap(), fetchFn },
+    );
+    const after = await readUsageRecords({}, env);
+    expect(after).toHaveLength(1);
   });
 
   it('returns in-flight status without polling when --wait is not set', async () => {

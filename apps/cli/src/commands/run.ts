@@ -55,6 +55,7 @@ import {
   type ChatHistoryEntry,
 } from '@marmot-sh/core';
 import { recordCall, resolveSessionBinding, type SessionBinding } from '../lib/session-binding.js';
+import { categorizeError } from '../lib/usage-recorder.js';
 import { assertNoCommandConfusion } from '../lib/command-typo.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
@@ -90,6 +91,49 @@ async function appendChatTurn(
   if (!binding || binding.meta.mode !== 'chat') return;
   await appendChatMessage(binding.name, { role: 'user', content: prompt }, env);
   await appendChatMessage(binding.name, { role: 'assistant', content: reply }, env);
+}
+
+/** Log a failed run-verb adapter call to session log + usage log. The
+ *  success path uses recordCall directly with full result-derived data;
+ *  the error path passes a stub (no tokens, no cost) plus the error
+ *  category so `marmot usage --failed-only` surfaces it. */
+async function recordRunError(
+  sessionBinding: SessionBinding | null,
+  execution: PreparedRunExecution,
+  startedAtMs: number,
+  error: unknown,
+  options: { preset_id?: string },
+  env: NodeJS.ProcessEnv,
+): Promise<void> {
+  await recordCall(
+    sessionBinding,
+    {
+      verb: 'run',
+      provider: execution.input.provider as ProviderSlug,
+      model: execution.input.model ?? undefined,
+      preset_id: options.preset_id,
+      startedAtMs,
+      finishedAtMs: Date.now(),
+      input: {
+        prompt_chars: execution.input.prompt.length,
+        system_chars: execution.input.system?.length,
+        files: execution.files?.length ?? 0,
+        images: execution.images?.length ?? 0,
+      },
+      keySource: resolveKeySource(
+        execution.apiKey,
+        [PROVIDER_API_KEY_ENV_VARS[execution.input.provider as ProviderSlug]].filter((v): v is string => v !== null),
+        env,
+      ),
+      prompt: execution.input.prompt,
+      system: execution.input.system,
+      exit: 'error',
+      errorCategory: categorizeError(error),
+    },
+    buildRunUsageExtras(execution, null, execution.input.prompt, execution.input.system),
+    execution.config,
+    env,
+  );
 }
 
 /** Build privacy-safe usage extras for a run-verb call. Non-sensitive
@@ -169,6 +213,8 @@ export type RunCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   session?: string;
+  preset?: string;
+  preset_id?: string;
 };
 
 type RunCommandDependencies = {
@@ -233,37 +279,43 @@ export async function handleRunCommand(
 
   if (execution.input.schemaSource) {
     const schema = await resolveStructuredSchema(execution.input.schemaSource);
-    const generationResult = await withSpinner(
-      `Generating ${execution.adapter.name} response…`,
-      () =>
-        runWithRetries(
-          (abortSignal) =>
-            execution.adapter.generateObject({
-              model: execution.input.model,
-              prompt: execution.input.prompt,
-              system: execution.input.system,
-              schema,
-              apiKey: execution.apiKey,
-              ollamaBaseUrl: execution.ollamaBaseUrl,
-              cloudflareAccountId: execution.cloudflareAccountId,
-              images: execution.images,
-              files: execution.files,
-              history,
-              cacheBreakpoints,
-              temperature: execution.input.temperature,
-              maxOutputTokens: execution.input.maxOutputTokens,
-              topP: execution.input.topP,
-              seed: execution.input.seed,
-              stopSequences: execution.input.stopSequences,
-              reasoning: execution.input.reasoning,
-              providerOptions: execution.input.providerOptions,
-              fetchFn: dependencies.fetchFn,
-              abortSignal,
-            }),
-          getRetryOptions(execution, dependencies),
-        ),
-      { stream: stderr, env },
-    );
+    let generationResult;
+    try {
+      generationResult = await withSpinner(
+        `Generating ${execution.adapter.name} response…`,
+        () =>
+          runWithRetries(
+            (abortSignal) =>
+              execution.adapter.generateObject({
+                model: execution.input.model,
+                prompt: execution.input.prompt,
+                system: execution.input.system,
+                schema,
+                apiKey: execution.apiKey,
+                ollamaBaseUrl: execution.ollamaBaseUrl,
+                cloudflareAccountId: execution.cloudflareAccountId,
+                images: execution.images,
+                files: execution.files,
+                history,
+                cacheBreakpoints,
+                temperature: execution.input.temperature,
+                maxOutputTokens: execution.input.maxOutputTokens,
+                topP: execution.input.topP,
+                seed: execution.input.seed,
+                stopSequences: execution.input.stopSequences,
+                reasoning: execution.input.reasoning,
+                providerOptions: execution.input.providerOptions,
+                fetchFn: dependencies.fetchFn,
+                abortSignal,
+              }),
+            getRetryOptions(execution, dependencies),
+          ),
+        { stream: stderr, env },
+      );
+    } catch (error) {
+      await recordRunError(sessionBinding, execution, startedAtMs, error, options, env);
+      throw error;
+    }
 
     const result: NormalizedObjectRunResult = {
       ok: true,
@@ -333,34 +385,40 @@ export async function handleRunCommand(
     };
   }
 
-  const generationResult = await withSpinner(
-    `Generating ${execution.adapter.name} response…`,
-    () =>
-      runWithRetries(
-        (abortSignal) =>
-          execution.adapter.generate({
-            model: execution.input.model,
-            prompt: execution.input.prompt,
-            system: execution.input.system,
-            apiKey: execution.apiKey,
-            ollamaBaseUrl: execution.ollamaBaseUrl,
-            cloudflareAccountId: execution.cloudflareAccountId,
-            images: execution.images,
-            files: execution.files,
-            temperature: execution.input.temperature,
-            maxOutputTokens: execution.input.maxOutputTokens,
-            topP: execution.input.topP,
-            seed: execution.input.seed,
-            stopSequences: execution.input.stopSequences,
-            reasoning: execution.input.reasoning,
-            providerOptions: execution.input.providerOptions,
-            fetchFn: dependencies.fetchFn,
-            abortSignal,
-          }),
-        getRetryOptions(execution, dependencies),
-      ),
-    { stream: stderr, env },
-  );
+  let generationResult;
+  try {
+    generationResult = await withSpinner(
+      `Generating ${execution.adapter.name} response…`,
+      () =>
+        runWithRetries(
+          (abortSignal) =>
+            execution.adapter.generate({
+              model: execution.input.model,
+              prompt: execution.input.prompt,
+              system: execution.input.system,
+              apiKey: execution.apiKey,
+              ollamaBaseUrl: execution.ollamaBaseUrl,
+              cloudflareAccountId: execution.cloudflareAccountId,
+              images: execution.images,
+              files: execution.files,
+              temperature: execution.input.temperature,
+              maxOutputTokens: execution.input.maxOutputTokens,
+              topP: execution.input.topP,
+              seed: execution.input.seed,
+              stopSequences: execution.input.stopSequences,
+              reasoning: execution.input.reasoning,
+              providerOptions: execution.input.providerOptions,
+              fetchFn: dependencies.fetchFn,
+              abortSignal,
+            }),
+          getRetryOptions(execution, dependencies),
+        ),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await recordRunError(sessionBinding, execution, startedAtMs, error, options, env);
+    throw error;
+  }
 
   const result: NormalizedRunResult = {
     ok: true,
@@ -449,7 +507,9 @@ export async function handleStreamRunCommand(
 
   let lastAttemptWroteChunks = false;
 
-  const streamedResult = await runWithRetries(async (abortSignal) => {
+  let streamedResult;
+  try {
+    streamedResult = await runWithRetries(async (abortSignal) => {
     const streamed = await execution.adapter.stream({
       model: execution.input.model,
       prompt: execution.input.prompt,
@@ -503,9 +563,13 @@ export async function handleStreamRunCommand(
       }
     }
   }, {
-    ...getRetryOptions(execution, dependencies),
-    shouldRetry: (error) => !lastAttemptWroteChunks && isRetryableProviderError(error),
-  });
+      ...getRetryOptions(execution, dependencies),
+      shouldRetry: (error) => !lastAttemptWroteChunks && isRetryableProviderError(error),
+    });
+  } catch (error) {
+    await recordRunError(sessionBinding, execution, startedAtMs, error, options, env);
+    throw error;
+  }
 
   if (!streamedResult.endedWithNewline) {
     execution.stdout.write('\n');

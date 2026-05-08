@@ -28,6 +28,7 @@ import {
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 import type { StdinReader } from '@marmot-sh/core';
 
 export type SearchCommandOptions = {
@@ -50,6 +51,7 @@ export type SearchCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type SearchCommandDependencies = DataVerbDependencies & {
@@ -173,6 +175,7 @@ export async function handleSearchCommand(
   const piped = await readQueryStdin(deps);
   const query = mergeQueries(deps, queryParts.join(' '), piped, 'Search');
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('search', config, {
     provider: options.provider,
@@ -241,7 +244,7 @@ export async function handleSearchCommand(
         afterDate: Boolean(options.afterDate),
         beforeDate: Boolean(options.beforeDate),
       },
-      session: null,
+      session: sessionBinding?.name ?? null,
       sensitive: {
         query,
         flags: {
@@ -324,6 +327,7 @@ export function buildSearchCommand(
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved search preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (queryParts: string[], options: SearchCommandOptions) => {
       const merged = await withPreset(options, 'search');
       await handleSearchCommand(queryParts, merged, deps);

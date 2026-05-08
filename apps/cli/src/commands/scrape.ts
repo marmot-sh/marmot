@@ -27,6 +27,7 @@ import {
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 export type ScrapeCommandOptions = {
   provider?: string;
@@ -41,6 +42,7 @@ export type ScrapeCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type ScrapeCommandDependencies = DataVerbDependencies & {
@@ -72,6 +74,7 @@ export async function handleScrapeCommand(
     );
   }
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('scrape', config, {
     provider: options.provider,
@@ -114,7 +117,7 @@ export async function handleScrapeCommand(
       preset_id: options.preset_id,
       flags,
       flag_presence: { query: Boolean(options.query) },
-      session: null,
+      session: sessionBinding?.name ?? null,
       sensitive: {
         urls,
         ...(options.query ? { flags: { query: options.query } } : {}),
@@ -179,6 +182,7 @@ export function buildScrapeCommand(
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved scrape preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (urls: string[], options: ScrapeCommandOptions) => {
       const merged = await withPreset(options, 'scrape');
       await handleScrapeCommand(urls, merged, deps);
