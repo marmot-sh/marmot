@@ -23,6 +23,7 @@ import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type VerifyCommandOptions = {
   email?: string;
@@ -89,6 +90,20 @@ export async function handleVerifyCommand(
   });
   const onRetry = makeRetryNotifier(stderr, provider, 'verify', retries);
   const input: DataVerifyEmailInput = { email, apiKey, apiSecret, fetchFn };
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'verify',
+        provider,
+        request: { email: true },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   const { result, cached } = await withUsageLogging(
     config,

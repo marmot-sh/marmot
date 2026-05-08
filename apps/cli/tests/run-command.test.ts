@@ -171,4 +171,66 @@ describe('handleRunCommand', () => {
     expect(records[0]!.exit).toBe('error');
     expect(records[0]!.error_category).toBe('provider');
   });
+
+  it('--dry-run prints the resolved envelope and never calls the adapter', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'marmot-run-dry-'));
+    tempDirs.push(tempDir);
+
+    const generate = vi.fn();
+    const generateObject = vi.fn();
+    const stream = vi.fn();
+    const adapter: ProviderAdapter = {
+      slug: 'ollama',
+      name: 'Ollama',
+      defaultModel: 'qwen3:4b',
+      requiresApiKey: false,
+      capabilities: { text: true, image: false, speech: false, transcription: false },
+      generate,
+      generateObject,
+      stream,
+      refreshModels: vi.fn(async ({ now }) => ({
+        version: 1 as const,
+        provider: 'ollama' as const,
+        defaultModel: 'qwen3:4b',
+        fetchedAt: (now?.() ?? new Date()).toISOString(),
+        models: [
+          {
+            id: 'qwen3:4b',
+            name: 'qwen3:4b',
+            contextLength: null,
+            pricing: null,
+            inputModalities: ['text'],
+            outputModalities: ['text'],
+            updatedAt: null,
+            metadata: {},
+          },
+        ],
+      })),
+    };
+
+    const env = { MARMOT_HOME: join(tempDir, '.marmot'), MARMOT_DRY_RUN: '1' };
+    const writes: string[] = [];
+    await handleRunCommand(
+      ['hello world'],
+      { provider: 'ollama', json: true },
+      {
+        env,
+        stdout: { write(c: string) { writes.push(c); return true; } },
+        now: () => new Date('2026-05-08T12:00:00.000Z'),
+        resolveProvider: () => adapter,
+      },
+    );
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(generateObject).not.toHaveBeenCalled();
+    expect(stream).not.toHaveBeenCalled();
+    const out = JSON.parse(writes.join(''));
+    expect(out.dry_run).toBe(true);
+    expect(out.verb).toBe('run');
+    expect(out.provider).toBe('ollama');
+    expect(typeof out.request.prompt_chars).toBe('number');
+
+    const records = await readUsageRecords({}, env);
+    expect(records).toHaveLength(0);
+  });
 });

@@ -51,6 +51,7 @@ import { keySource as resolveKeySource } from '@marmot-sh/core';
 import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
 import { categorizeError } from '../lib/usage-recorder.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type ImageRunCommandOptions = {
   provider?: string;
@@ -216,6 +217,43 @@ export async function handleImageRunCommand(
     prompt: input.prompt,
     ...(input.negative ? { flags: { negative: input.negative } } : {}),
   };
+
+  if (isDryRun(env)) {
+    const stdout = dependencies.stdout ?? process.stdout;
+    emitDryRun(
+      {
+        verb: 'image',
+        provider: input.provider,
+        model,
+        request: {
+          prompt_chars: input.prompt.length,
+          negative: Boolean(input.negative),
+          n: input.n,
+          size: input.size,
+          quality: input.quality,
+          style: input.style,
+          seed: input.seed,
+        },
+        retries: input.retries,
+        timeoutMs: input.timeoutMs,
+      },
+      stdout,
+    );
+    return {
+      result: {
+        provider: input.provider,
+        model,
+        images: [],
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+        finishReason: null,
+      },
+      rendered: null,
+      input,
+      adapter,
+      resolvedOutputPath: null,
+      timestamp: (dependencies.now?.() ?? new Date()).toISOString(),
+    };
+  }
 
   let result;
   try {

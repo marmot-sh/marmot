@@ -32,6 +32,7 @@ import {
 } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
 import { newRequestId } from '@marmot-sh/core';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type CrawlCommandOptions = {
   provider?: string;
@@ -127,6 +128,29 @@ export async function handleCrawlCommand(
       ...(options.excludePaths ? { excludePaths: options.excludePaths } : {}),
     },
   };
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'crawl',
+        provider,
+        request: {
+          url,
+          max_pages: input.maxPages,
+          max_depth: input.maxDepth,
+          include_paths: Boolean(input.includePaths),
+          exclude_paths: Boolean(input.excludePaths),
+          allow_external: Boolean(input.allowExternal),
+          instructions: Boolean(options.instructions),
+          mode: options.async ? 'async' : 'wait',
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   // Tavily is sync; Firecrawl is async.
   if (adapter.crawl) {

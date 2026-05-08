@@ -58,6 +58,7 @@ import { recordCall, resolveSessionBinding, type SessionBinding } from '../lib/s
 import { categorizeError } from '../lib/usage-recorder.js';
 import { assertNoCommandConfusion } from '../lib/command-typo.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 /**
  * Choose where to set Anthropic-style cache_control breakpoints. For chat-mode
@@ -276,6 +277,45 @@ export async function handleRunCommand(
       ? chatMessagesToHistory(await readChatMessages(sessionBinding.name, env))
       : undefined;
   const cacheBreakpoints = pickCacheBreakpoints(execution, sessionBinding?.meta.mode);
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'run',
+        provider: execution.input.provider,
+        model: execution.input.model,
+        request: {
+          prompt_chars: execution.input.prompt.length,
+          system_chars: execution.input.system?.length ?? 0,
+          images: execution.images?.length ?? 0,
+          files: execution.files?.length ?? 0,
+          schema: Boolean(execution.input.schemaSource),
+          stream: Boolean(execution.input.stream),
+          temperature: execution.input.temperature,
+          max_tokens: execution.input.maxOutputTokens,
+          reasoning: execution.input.reasoning,
+        },
+        retries: execution.input.retries,
+        timeoutMs: execution.input.timeoutMs,
+      },
+      execution.stdout,
+    );
+    return {
+      result: {
+        ok: true,
+        provider: execution.input.provider,
+        model: execution.input.model,
+        text: '',
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+        finishReason: null,
+        cachedModelValidated: true,
+        outputFile: null,
+        timestamp: execution.timestamp,
+      },
+      renderedOutput: '',
+      text: false,
+    };
+  }
 
   if (execution.input.schemaSource) {
     const schema = await resolveStructuredSchema(execution.input.schemaSource);
@@ -504,6 +544,45 @@ export async function handleStreamRunCommand(
       ? chatMessagesToHistory(await readChatMessages(sessionBinding.name, env))
       : undefined;
   const _cacheBreakpoints = pickCacheBreakpoints(execution, sessionBinding?.meta.mode);
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'run',
+        provider: execution.input.provider,
+        model: execution.input.model,
+        request: {
+          prompt_chars: execution.input.prompt.length,
+          system_chars: execution.input.system?.length ?? 0,
+          images: execution.images?.length ?? 0,
+          files: execution.files?.length ?? 0,
+          schema: Boolean(execution.input.schemaSource),
+          stream: true,
+          temperature: execution.input.temperature,
+          max_tokens: execution.input.maxOutputTokens,
+          reasoning: execution.input.reasoning,
+        },
+        retries: execution.input.retries,
+        timeoutMs: execution.input.timeoutMs,
+      },
+      execution.stdout,
+    );
+    return {
+      result: {
+        ok: true,
+        provider: execution.input.provider,
+        model: execution.input.model,
+        text: '',
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+        finishReason: null,
+        cachedModelValidated: true,
+        outputFile: null,
+        timestamp: execution.timestamp,
+      },
+      renderedOutput: '',
+      text: true,
+    };
+  }
 
   let lastAttemptWroteChunks = false;
 

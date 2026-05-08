@@ -28,6 +28,7 @@ import {
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type ScrapeCommandOptions = {
   provider?: string;
@@ -108,6 +109,24 @@ export async function handleScrapeCommand(
 
   const flags: Record<string, string | number | boolean> = { url_count: urls.length };
   if (options.format) flags.format = options.format;
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'scrape',
+        provider,
+        request: {
+          url_count: urls.length,
+          format: input.format,
+          query: Boolean(input.query),
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   const { result, cached } = await withUsageLogging(
     config,

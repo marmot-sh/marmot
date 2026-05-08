@@ -810,18 +810,18 @@ function readPresetModeSync(name: string): PresetMode | null {
 }
 
 /**
- * Strip `--no-log` and `--redact` from argv and set the matching env vars
- * so the existing `isUsageLoggingEnabled` / `shouldRecordSensitive`
- * helpers honor them. These work on every verb without per-command wiring
- * because commander never sees them — they're consumed at argv level
- * before parsing.
+ * Strip global cross-cutting flags from argv and set the matching env
+ * vars so verb handlers can honor them without per-command wiring.
+ * These are consumed at argv level before commander sees them.
  *
  * - `--no-log` → `MARMOT_NO_LOG=1` (no record at all this call).
  * - `--redact` → `MARMOT_REDACT=1` (record metadata, omit sensitive
  *   payload even if `logging.recordSensitive` is on globally).
+ * - `--dry-run` → `MARMOT_DRY_RUN=1` (resolve options + auth, print
+ *   the envelope of what would be sent, exit before the adapter call).
  *
- * Returns the filtered argv. Mutates `process.env` so the rest of the
- * call honors the override.
+ * Returns the filtered argv. Mutates `env` so the rest of the call
+ * honors the override.
  */
 export function applyGlobalLoggingFlags(
   argv: readonly string[],
@@ -835,6 +835,10 @@ export function applyGlobalLoggingFlags(
     }
     if (tok === '--redact') {
       env.MARMOT_REDACT = '1';
+      continue;
+    }
+    if (tok === '--dry-run') {
+      env.MARMOT_DRY_RUN = '1';
       continue;
     }
     out.push(tok);

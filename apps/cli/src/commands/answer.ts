@@ -28,6 +28,7 @@ import {
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type AnswerCommandOptions = {
   provider?: string;
@@ -105,6 +106,24 @@ export async function handleAnswerCommand(
   const flags: Record<string, string | number | boolean> = {};
   if (maxCitations !== undefined) flags.max_citations = maxCitations;
   if (options.includeSearch) flags.include_search = true;
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'answer',
+        provider,
+        request: {
+          query_chars: query.length,
+          max_citations: maxCitations,
+          include_search: Boolean(options.includeSearch),
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   const { result, cached } = await withUsageLogging(
     config,

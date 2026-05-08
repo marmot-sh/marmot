@@ -97,4 +97,26 @@ describe('handleVerifyCommand', () => {
     expect(out.data.deliverable).toBe(false);
     expect(out.data.status).toBe('invalid');
   });
+
+  it('--dry-run prints the resolved envelope without calling the provider', async () => {
+    const { env } = await fixture();
+    let calls = 0;
+    const fetchFn = (async () => {
+      calls += 1;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const stdout = new Cap();
+    await handleVerifyCommand(
+      ['a@b.com'],
+      { provider: 'hunter', apiKey: 'hk' },
+      { env: { ...env, MARMOT_DRY_RUN: '1' }, stdout, fetchFn },
+    );
+    expect(calls).toBe(0);
+    const out = JSON.parse(stdout.text());
+    expect(out.dry_run).toBe(true);
+    expect(out.verb).toBe('verify');
+    expect(out.provider).toBe('hunter');
+    // Privacy: the email body must not appear in the dry-run envelope.
+    expect(stdout.text()).not.toContain('a@b.com');
+  });
 });

@@ -51,6 +51,7 @@ import { keySource as resolveKeySource } from '@marmot-sh/core';
 import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
 import { categorizeError } from '../lib/usage-recorder.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type SpeechRunCommandOptions = {
   provider?: string;
@@ -207,6 +208,41 @@ export async function handleSpeechRunCommand(
     prompt: input.text,
     ...(input.instructions ? { flags: { instructions: input.instructions } } : {}),
   };
+
+  if (isDryRun(env)) {
+    const stdout = dependencies.stdout ?? process.stdout;
+    emitDryRun(
+      {
+        verb: 'speak',
+        provider: input.provider,
+        model,
+        request: {
+          prompt_chars: input.text.length,
+          instructions: Boolean(input.instructions),
+          voice: input.voice,
+          format: input.format,
+          speed: input.speed,
+        },
+        retries: input.retries,
+        timeoutMs: input.timeoutMs,
+      },
+      stdout,
+    );
+    const now = dependencies.now ?? (() => new Date());
+    return {
+      result: {
+        provider: input.provider,
+        model,
+        audio: { data: new Uint8Array(), mimeType: `audio/${input.format ?? 'mp3'}` },
+        voice: input.voice,
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+      },
+      rendered: null,
+      input,
+      adapter,
+      timestamp: now().toISOString(),
+    };
+  }
 
   let result;
   try {

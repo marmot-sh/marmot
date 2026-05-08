@@ -305,6 +305,15 @@ marmot usage prune --older-than 90d
 
 Deletes day files older than the cutoff. Returns `{files_deleted, bytes_freed}`.
 
+### Pre-flight: `--dry-run`
+
+Every verb honors `--dry-run`. Marmot resolves options, auth, and the adapter, then prints a JSON envelope describing what would be sent and exits without firing the provider call. No usage record is written, no async task is submitted, no chat history is appended. Useful for prompt iteration on metered AI verbs (don't burn tokens while tweaking) and pipeline debugging ("what's actually being sent?"). Equivalent env var: `MARMOT_DRY_RUN=1`.
+
+```bash
+marmot search "x" --provider parallel --include-domains linkedin.com --dry-run
+# → { "ok": true, "dry_run": true, "verb": "search", ... }
+```
+
 ### Disabling and sensitive recording
 
 Three controls, in precedence order from highest to lowest:
