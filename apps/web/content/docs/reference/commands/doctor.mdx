@@ -8,6 +8,7 @@ description: marmot doctor — health check covering CLI version, config, provid
 ```bash
 marmot doctor
 marmot doctor --json
+marmot doctor --fix
 ```
 
 ## What it checks
@@ -23,30 +24,67 @@ marmot doctor --json
 
 ## Output
 
-Default: human-readable, one check per line:
+Default: human-readable, one check per line, with a verdict line at the end:
 
 ```
 · marmot version       0.5.0
 ✓ node version         v25.9.0
 ✓ config readable      /Users/amuaddi/.marmot/config.json
-✓ providers            16 ready · 19 enabled · 19 total
+⚠ providers            0 ready · 19 enabled · 19 total
+  → `marmot providers list --check-keys` — See which provider API keys
+    are missing from your environment, with the env-var name to set
+    per provider.
 ✓ usage logging        enabled · 7 day-files · 0.42 MB
 · marmot home          /Users/amuaddi/.marmot · 1.84 MB
+
+⚠ 1 issue found. Run `marmot providers list --check-keys` to fix.
 ```
 
-`--json` returns a structured envelope:
+The verdict picks the highest-priority remediation across failed checks (errors outrank warnings; within a level, the first failed check wins) and surfaces it in the closing line. When everything is healthy: `✓ Everything is in good order.`
+
+`--json` returns a structured envelope. Each check carries an optional `fix_suggestion` so agents can self-heal programmatically:
 
 ```json
 {
   "ok": true,
+  "verdict": "⚠ 1 issue found. Run `marmot providers list --check-keys` to fix.",
+  "issues_found": 1,
   "checks": [
     { "name": "marmot version", "level": "info", "detail": "0.5.0" },
-    { "name": "node version", "level": "ok", "detail": "v25.9.0" }
+    {
+      "name": "providers",
+      "level": "warn",
+      "detail": "0 ready · 19 enabled · 19 total",
+      "fix_suggestion": {
+        "command": "marmot providers list --check-keys",
+        "description": "See which provider API keys are missing from your environment, with the env-var name to set per provider."
+      }
+    }
   ]
 }
 ```
 
 `ok` is `true` when no check returned `error`.
+
+## Auto-fixes — `--fix`
+
+`marmot doctor --fix` applies safe, idempotent fixes before re-running the checks:
+
+- **Missing config file** → writes a fresh default `~/.marmot/config.json`. Existing provider keys in your environment still apply. Never overwrites an existing file (use `marmot config init --force` for that).
+- **Usage log over 100 MB** → runs `marmot usage prune --older-than 90d`.
+
+Anything that requires user input (missing API keys, corrupt config, an old Node) is reported as still-failing, never silently fixed. The output lists what was applied and what was skipped:
+
+```
+Applied fixes:
+  • wrote default config to /Users/amuaddi/.marmot/config.json
+
+✓ marmot version       0.6.0
+…
+✓ Everything is in good order.
+```
+
+In `--json` mode, `--fix` adds two arrays to the envelope: `fixes_applied` and `fixes_skipped`.
 
 ## When to run it
 
@@ -58,4 +96,5 @@ Default: human-readable, one check per line:
 ## What it does NOT do
 
 - Make a live API call to any provider — that would burn credits. Use `marmot providers list --check-keys` to verify provider readiness without round-tripping the network.
-- Modify any config or files. Doctor is read-only.
+- Modify any config or files **unless `--fix` is passed**. Without `--fix`, doctor is read-only.
+- Touch anything destructive or interactive even with `--fix`. Missing API keys are surfaced, not invented.
