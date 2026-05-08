@@ -49,6 +49,7 @@ export type SearchCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type SearchCommandDependencies = DataVerbDependencies & {
@@ -232,7 +233,7 @@ export async function handleSearchCommand(
     {
       verb: 'search',
       provider,
-      preset: options.preset,
+      preset_id: options.preset_id,
       flags,
       flag_presence: {
         includeDomains: Boolean(options.includeDomains),

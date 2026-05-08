@@ -8,6 +8,7 @@ Use presets to save provider, model, and verb-specific flags under a name. Prese
 ```bash
 marmot preset create <name> --mode <mode> [flags…]
 marmot preset update <name> [flags…]
+marmot preset rename <old> <new>
 marmot preset delete <name>
 marmot preset list
 marmot preset show <name>
@@ -28,6 +29,32 @@ marmot @linkedin "Daniel Francis Abel Police"   # → marmot search
 Mode → verb mapping covers all 15 modes. Three AI exceptions remap because the verb name differs from the mode name: `speech` → `speak`, `transcription` → `transcribe`, `text` → default-run (no verb token needed).
 
 Explicit verbs still win — `marmot scrape @some-search-preset url` keeps `scrape` as the verb and surfaces a clean mode-mismatch error rather than silently swapping. Only the first matching `@…` token is consumed, so `marmot run "@user said hi"` keeps the literal in the prompt.
+
+## Identity: every preset has a stable `preset_id`
+
+As of 0.6.0, each preset carries a stable `preset_id` UUID assigned at creation. Sessions and the privacy-safe usage log reference presets by `preset_id` rather than by slug. Renaming a preset is therefore a no-op at the data layer — sessions and historical usage records keep working without any rewrites.
+
+The `preset_id` is auto-generated; users only ever interact with the slug. Display surfaces (`marmot session show`, `marmot session list`, chat-mode export) resolve `preset_id` → current slug at render time. Orphan ids (the preset was deleted) render as the raw UUID or `(deleted)`.
+
+## Rename
+
+```bash
+marmot preset rename <old> <new>
+```
+
+Validates that `<new>` follows the slug regex (`^[a-z0-9]+([-_][a-z0-9]+)*$`), is not already taken, and that `<old>` exists. Atomic config rewrite. Output:
+
+```json
+{
+  "ok": true,
+  "action": "rename",
+  "from": "linkedin-people",
+  "to": "linkedin-folks",
+  "preset_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+```
+
+Because the `preset_id` is stable, sessions that bound to the old slug continue to resolve correctly; the next `marmot session show` displays the new slug. Historical usage records keep their original `preset_id` and resolve to the new slug at display time.
 
 ## Create
 

@@ -19,6 +19,7 @@ import {
   setCurrentSession,
   validateSessionName,
 } from '../src/lib/sessions.js';
+import { upsertPreset } from '../src/lib/presets.js';
 import { SESSION_NAME_REGEX } from '../src/schemas/session.js';
 
 const tempDirs: string[] = [];
@@ -69,13 +70,21 @@ describe('createSession + getSession', () => {
 
   it('creates a chat session with preset + label + flags', async () => {
     const { env } = await fixture();
+    // Preset must exist to be bound to a session — resolution from slug
+    // happens at session-create time and fails fast for missing presets.
+    await upsertPreset(
+      'deep-research',
+      { mode: 'text', provider: 'anthropic' },
+      {},
+      env,
+    );
     const meta = await createSession(
       'research',
       { mode: 'chat', preset: 'deep-research', label: 'Q3 sizing', recordPrompts: true, autoCompact: true },
       env,
     );
     expect(meta.mode).toBe('chat');
-    expect(meta.preset).toBe('deep-research');
+    expect(meta.preset_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(meta.label).toBe('Q3 sizing');
     expect(meta.record_prompts).toBe(true);
     expect(meta.auto_compact).toBe(true);
@@ -92,6 +101,13 @@ describe('createSession + getSession', () => {
     await expect(
       createSession('s1', { preset: 'Bad-Preset' }, env),
     ).rejects.toThrowError(/Invalid session name/);
+  });
+
+  it('rejects unknown preset slug at create time', async () => {
+    const { env } = await fixture();
+    await expect(
+      createSession('s1', { preset: 'unknown-preset' }, env),
+    ).rejects.toThrowError(/not found/);
   });
 
   it('rejects bad session name', async () => {

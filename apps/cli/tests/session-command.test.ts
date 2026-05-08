@@ -74,7 +74,7 @@ describe('session create', () => {
     );
     const out = JSON.parse(cap.text);
     expect(out.session.mode).toBe('chat');
-    expect(out.session.preset).toBe('research');
+    expect(out.session.preset_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(out.session.label).toBe('q3');
     expect(out.session.record_prompts).toBe(true);
   });

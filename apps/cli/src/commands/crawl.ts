@@ -48,6 +48,7 @@ export type CrawlCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type CrawlCommandDependencies = {
@@ -140,7 +141,7 @@ export async function handleCrawlCommand(
       );
     } catch (error) {
       await finishCall(config, {
-        verb: 'crawl', provider, preset: options.preset,
+        verb: 'crawl', provider, preset_id: options.preset_id,
         flags: usageFlags, flag_presence: usagePresence,
         sensitive: usageSensitive,
         startedAtMs, cached: false, exit: 'error',
@@ -149,7 +150,7 @@ export async function handleCrawlCommand(
       throw error;
     }
     await finishCall(config, {
-      verb: 'crawl', provider, preset: options.preset,
+      verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
       startedAtMs, cached: false,
@@ -188,7 +189,7 @@ export async function handleCrawlCommand(
     );
   } catch (error) {
     await finishCall(config, {
-      verb: 'crawl', provider, preset: options.preset,
+      verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
       call_id: newCallId(),
@@ -212,7 +213,7 @@ export async function handleCrawlCommand(
     // --async: log the submit only. Record uses task_id as call_id so a
     // later `marmot get` can append a completion record sharing the id.
     await finishCall(config, {
-      verb: 'crawl', provider, preset: options.preset,
+      verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
       call_id: submission.taskId,
@@ -264,7 +265,7 @@ export async function handleCrawlCommand(
     );
   } catch (error) {
     await finishCall(config, {
-      verb: 'crawl', provider, preset: options.preset,
+      verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
       call_id: submission.taskId,
@@ -277,7 +278,7 @@ export async function handleCrawlCommand(
   // final poll. call_id = task_id so this row joins to any prior submit
   // record under the same id.
   await finishCall(config, {
-    verb: 'crawl', provider, preset: options.preset,
+    verb: 'crawl', provider, preset_id: options.preset_id,
     flags: usageFlags, flag_presence: usagePresence,
     sensitive: usageSensitive,
     call_id: submission.taskId,

@@ -439,13 +439,15 @@ describe('upsertPreset + getPreset + listPresets', () => {
       env,
     );
     const back = await getPreset('deep-research', env);
-    expect(back).toEqual({
+    expect(back).toMatchObject({
       mode: 'text',
       provider: 'anthropic',
       model: 'claude-opus-4-7',
     });
+    expect(back.preset_id).toMatch(/^[0-9a-f-]{36}$/);
     const onDisk = JSON.parse(await readFile(join(dir, 'config.json'), 'utf8'));
     expect(onDisk.presets['deep-research'].provider).toBe('anthropic');
+    expect(onDisk.presets['deep-research'].preset_id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('refuses to overwrite without overwrite=true', async () => {

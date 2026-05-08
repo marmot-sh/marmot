@@ -40,6 +40,7 @@ export type ScrapeCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type ScrapeCommandDependencies = DataVerbDependencies & {
@@ -110,7 +111,7 @@ export async function handleScrapeCommand(
     {
       verb: 'scrape',
       provider,
-      preset: options.preset,
+      preset_id: options.preset_id,
       flags,
       flag_presence: { query: Boolean(options.query) },
       session: null,

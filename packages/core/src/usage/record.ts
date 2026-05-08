@@ -70,8 +70,9 @@ export const usageRecordSchema = z
     provider: z.string().min(1),
     /** Model id (AI verbs and some web verbs). */
     model: z.string().optional(),
-    /** Preset name when one was applied (NOT preset contents). */
-    preset: z.string().optional(),
+    /** Stable preset id when a preset was applied. UUID. Display layer
+     *  resolves to the current slug at render time via `getPresetById`. */
+    preset_id: z.string().uuid().optional(),
     /** Non-sensitive flag values (limit, depth, freshness, format, etc.).
      *  Sensitive flags must NOT appear here — use flag_presence instead. */
     flags: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),

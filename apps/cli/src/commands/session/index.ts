@@ -18,6 +18,7 @@ import {
   getCurrentSession,
   getOllamaApiBaseUrl,
   getPreset,
+  getPresetById,
   getSession,
   getSessionLogPath,
   lastMarkIndex,
@@ -152,14 +153,25 @@ export async function handleSessionList(
   const stdout = deps.stdout ?? process.stdout;
 
   const sessions = await listSessions(env);
-  const summary = sessions.map((s) => ({
-    name: s.name,
-    mode: s.mode,
-    preset: s.preset,
-    label: s.label,
-    calls: s.totals.calls,
-    last_used_at: s.last_used_at,
-  }));
+  // Resolve preset_id → current slug at render time. Orphan ids (preset
+  // was deleted) render as the raw UUID.
+  const summary = await Promise.all(
+    sessions.map(async (s) => {
+      let presetSlug: string | undefined;
+      if (s.preset_id) {
+        const found = await getPresetById(s.preset_id, env);
+        presetSlug = found?.slug ?? s.preset_id;
+      }
+      return {
+        name: s.name,
+        mode: s.mode,
+        preset: presetSlug,
+        label: s.label,
+        calls: s.totals.calls,
+        last_used_at: s.last_used_at,
+      };
+    }),
+  );
   writeLine(stdout, JSON.stringify({ sessions: summary }, null, 2));
 }
 
@@ -479,14 +491,10 @@ async function resolveSessionModel(
   session: SessionMeta,
   env: NodeJS.ProcessEnv,
 ): Promise<{ provider: ProviderSlug; model: string }> {
-  if (session.preset) {
-    try {
-      const preset = await getPreset(session.preset, env);
-      if (preset.mode === 'text' && preset.provider && preset.model) {
-        return { provider: preset.provider, model: preset.model };
-      }
-    } catch {
-      // Fall through to config defaults if preset is missing/invalid.
+  if (session.preset_id) {
+    const found = await getPresetById(session.preset_id, env);
+    if (found && found.preset.mode === 'text' && found.preset.provider && found.preset.model) {
+      return { provider: found.preset.provider, model: found.preset.model };
     }
   }
   const config = await readMarmotConfig(env);

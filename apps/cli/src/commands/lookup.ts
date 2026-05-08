@@ -57,6 +57,7 @@ export type LookupCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type LookupCommandDependencies = {
@@ -170,7 +171,7 @@ export async function handleLookupCommand(
   const usageMeta = {
     verb: 'lookup' as const,
     provider,
-    preset: options.preset,
+    preset_id: options.preset_id,
     flags: usageFlags,
     flag_presence: usagePresence,
     session: null,

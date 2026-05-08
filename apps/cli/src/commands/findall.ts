@@ -48,6 +48,7 @@ export type FindallCommandOptions = {
   timeout?: string | number;
   output?: string;
   preset?: string;
+  preset_id?: string;
 };
 
 export type FindallCommandDependencies = DataVerbDependencies & {
@@ -161,7 +162,7 @@ export async function handleFindallCommand(
     );
   } catch (error) {
     await finishCall(config, {
-      verb: 'findall', provider, preset: options.preset,
+      verb: 'findall', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
@@ -181,7 +182,7 @@ export async function handleFindallCommand(
 
   if (options.async) {
     await finishCall(config, {
-      verb: 'findall', provider, preset: options.preset,
+      verb: 'findall', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
       call_id: submission.taskId,
       startedAtMs, cached: false,
@@ -232,7 +233,7 @@ export async function handleFindallCommand(
     );
   } catch (error) {
     await finishCall(config, {
-      verb: 'findall', provider, preset: options.preset,
+      verb: 'findall', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
       call_id: submission.taskId,
       startedAtMs, cached: false, exit: 'error',
@@ -241,7 +242,7 @@ export async function handleFindallCommand(
     throw error;
   }
   await finishCall(config, {
-    verb: 'findall', provider, preset: options.preset,
+    verb: 'findall', provider, preset_id: options.preset_id,
     flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
     call_id: submission.taskId,
     startedAtMs, cached: false,

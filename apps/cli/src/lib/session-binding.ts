@@ -43,7 +43,9 @@ export type CallLogInput = {
   verb: Verb;
   provider: ProviderSlug;
   model?: string;
-  preset?: string;
+  /** Stable preset id (UUID) when a preset was applied. Slug is resolved
+   *  at render time. */
+  preset_id?: string;
   startedAtMs: number;
   finishedAtMs: number;
   input?: AppendLogInput['input'];
@@ -72,7 +74,7 @@ export async function logCallToSession(
     verb: input.verb,
     provider: input.provider,
     model: input.model,
-    preset: input.preset,
+    preset_id: input.preset_id,
     duration_ms: Math.max(0, input.finishedAtMs - input.startedAtMs),
     input: input.input,
     tokens: input.tokens,
@@ -148,7 +150,7 @@ export async function recordCall(
       verb: input.verb,
       provider: input.provider,
       model: input.model,
-      preset: input.preset,
+      preset_id: input.preset_id,
       flags: extras.flags,
       flag_presence: extras.flag_presence,
       cached: false,
