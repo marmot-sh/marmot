@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.6.1] — 2026-05-08
+
+A papercut release. AI generation no longer aborts at 120s in the middle of legitimately long-running calls (image HD, reasoning models, long-form TTS, multi-minute Whisper transcription) — defaults are now per-verb. Users on stale Node 18 (typically: nvm not loaded in a non-interactive shell) get a one-line diagnostic naming the detected version and binary path, instead of a cryptic `util.styleText is not a function` crash. Plus a lint cleanup.
 
 ### Added
 
