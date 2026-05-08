@@ -1,6 +1,17 @@
 import { AICliError, isAICliError } from './errors.js';
 
+/**
+ * Generic 120s default used by web/data verbs (search, scrape, answer, map,
+ * crawl, lookup, research, findall, enrich, verify) via `resolveRetryOptions`.
+ * AI verbs use the per-verb defaults below — generation is allowed to take
+ * longer than a typical web request.
+ */
 export const DEFAULT_GENERATION_TIMEOUT_MS = 120_000;
+export const DEFAULT_TEXT_TIMEOUT_MS = 300_000;
+export const DEFAULT_IMAGE_TIMEOUT_MS = 300_000;
+export const DEFAULT_SPEECH_TIMEOUT_MS = 300_000;
+export const DEFAULT_TRANSCRIPTION_TIMEOUT_MS = 600_000;
+export const DEFAULT_VIDEO_TIMEOUT_MS = 600_000;
 export const DEFAULT_RETRY_BASE_DELAY_MS = 500;
 export const MAX_RETRIES = 10;
 const MAX_RETRY_DELAY_MS = 8_000;
@@ -8,9 +19,12 @@ const MAX_RETRY_DELAY_MS = 8_000;
 /**
  * Normalize raw `--retries` / `--timeout` CLI string inputs into the numeric
  * pair every verb's retry wrapper expects. Throws `AICliError('validation')`
- * on out-of-range values. Defaults match the AI verb behavior:
+ * on out-of-range values. Defaults match the web/data verb behavior:
  *   - retries: 0 (no retries)
  *   - timeout: DEFAULT_GENERATION_TIMEOUT_MS (120s)
+ *
+ * AI verbs (text/image/speech/transcription/video) get their defaults from
+ * their own zod schemas; this function is invoked by the web/data verbs only.
  */
 export function resolveRetryOptions(input: {
   retries?: string | number;

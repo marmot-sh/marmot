@@ -271,7 +271,7 @@ marmot image 'a marmot waving' | marmot video 'gentle waving, slight breeze'
 
 - `--stream` (run only): tokens to stdout as they arrive. Mutually exclusive with `--json` and `--schema*`. Final newline appended if the stream didn't end with one.
 - `--retries <n>`: attempts beyond the first on retryable provider errors (transport / 429 / 5xx). Exponential backoff. Streaming retries only fire if no chunks were emitted on the failed attempt.
-- `--timeout <seconds>`: per-attempt hard timeout. Aborts via `AbortSignal`. Multiplied by retries for total wall time.
+- `--timeout <seconds>`: per-attempt hard timeout. Aborts via `AbortSignal`. Multiplied by retries for total wall time. Defaults: `run` / `image` / `speak` 300s, `transcribe` / `video` 600s.
 
 All four verbs honor `--retries` and `--timeout`. Only `run` has `--stream`.
 
