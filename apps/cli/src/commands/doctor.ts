@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import { Command } from 'commander';
 
 import {
+  DATA_PROVIDERS,
+  PROVIDERS,
+  WEB_PROVIDERS,
   getMarmotConfigPath,
   getMarmotHome,
   isUsageLoggingEnabled,
@@ -152,7 +155,37 @@ async function runChecks(env: NodeJS.ProcessEnv): Promise<Check[]> {
     });
   }
 
-  // 6. Usage dir size — informational
+  // 6. No-op cache settings: AI-only providers honor neither cache.enabled
+  // nor cache.ttlDays because AI verbs intentionally never serve from a
+  // local response cache (sampling is non-deterministic, chat sessions
+  // mutate state). The setting persists for forward-compat with future
+  // hybrid providers, but flag it here so users don't wonder why their
+  // AI calls keep hitting the network.
+  const aiSlugs: readonly string[] = PROVIDERS;
+  const webSlugs: readonly string[] = WEB_PROVIDERS;
+  const dataSlugs: readonly string[] = DATA_PROVIDERS;
+  const noopCacheSlugs: string[] = [];
+  if (config?.providers) {
+    for (const [slug, settings] of Object.entries(config.providers)) {
+      if (
+        settings?.cache?.enabled === true
+        && aiSlugs.includes(slug)
+        && !webSlugs.includes(slug)
+        && !dataSlugs.includes(slug)
+      ) {
+        noopCacheSlugs.push(slug);
+      }
+    }
+  }
+  if (noopCacheSlugs.length > 0) {
+    checks.push({
+      name: 'cache settings',
+      level: 'info',
+      detail: `${noopCacheSlugs.join(', ')} ${noopCacheSlugs.length === 1 ? 'is' : 'are'} AI-only — cache.enabled has no effect (AI verbs never cache)`,
+    });
+  }
+
+  // 7. Usage dir size — informational
   const home = getMarmotHome(env);
   let homeBytes = 0;
   try {
