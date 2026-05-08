@@ -132,6 +132,29 @@ describe('marmot doctor', () => {
     );
   });
 
+  it('surfaces no-op cache settings on AI-only providers', async () => {
+    const { env } = await fixture();
+    await writeMarmotConfig(
+      {
+        version: 1,
+        providers: {
+          openrouter: { cache: { enabled: true, ttlDays: 7 } },
+        },
+      },
+      env,
+    );
+    const cap = captureStdout();
+    await handleDoctorCommand({ json: true }, { env, stdout: cap.writer });
+    const out = JSON.parse(cap.text);
+    const cacheCheck = (out.checks as Array<{ name: string; level: string; detail: string }>).find(
+      (c) => c.name === 'cache settings',
+    );
+    expect(cacheCheck).toBeDefined();
+    expect(cacheCheck?.level).toBe('info');
+    expect(cacheCheck?.detail).toContain('openrouter');
+    expect(cacheCheck?.detail).toContain('AI verbs never cache');
+  });
+
   it('--fix is a no-op when the config already exists and the usage dir is small', async () => {
     const { env } = await fixture();
     await writeMarmotConfig({ version: 1, defaults: { text: {}, image: {} } }, env);

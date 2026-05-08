@@ -462,3 +462,45 @@ describe('config get', () => {
     ).rejects.toThrowError(/Unknown config key/);
   });
 });
+
+describe('config set: AI-only cache no-op warning', () => {
+  it('warns on stderr when cache.enabled=true is set for an AI-only provider', async () => {
+    const { env } = await fixture();
+    const stdout = captureStdout();
+    const stderr = captureStdout();
+    await handleConfigSet('providers.openrouter.cache.enabled', 'true', {
+      env,
+      stdout: stdout.writer,
+      stderr: stderr.writer,
+    });
+    expect(stderr.text).toContain('"openrouter" is an AI-only provider');
+    expect(stderr.text).toContain('AI verbs never cache');
+    // Setting still persists.
+    const out = JSON.parse(stdout.text);
+    expect(out.value).toBe(true);
+  });
+
+  it('does not warn for web/data providers', async () => {
+    const { env } = await fixture();
+    const stdout = captureStdout();
+    const stderr = captureStdout();
+    await handleConfigSet('providers.tavily.cache.enabled', 'true', {
+      env,
+      stdout: stdout.writer,
+      stderr: stderr.writer,
+    });
+    expect(stderr.text).not.toContain('AI-only');
+  });
+
+  it('does not warn when disabling cache (false) on an AI-only provider', async () => {
+    const { env } = await fixture();
+    const stdout = captureStdout();
+    const stderr = captureStdout();
+    await handleConfigSet('providers.openrouter.cache.enabled', 'false', {
+      env,
+      stdout: stdout.writer,
+      stderr: stderr.writer,
+    });
+    expect(stderr.text).not.toContain('AI-only');
+  });
+});

@@ -194,6 +194,8 @@ Default primary env vars (used when `apiKeyEnvVar` is absent): `OPENROUTER_API_K
 
 Disabled by default. Web/data sync verbs only: `search`, `scrape`, `answer`, `map`, `enrich`, `lookup`, `verify`. AI verbs and async verbs (`research`, `crawl`, `findall`, `get`) are never cached.
 
+**AI verbs are intentionally never cached.** Sampling is non-deterministic and chat-mode sessions mutate history each call, so a hit would silently return stale or wrong output. The `providers.<slug>.cache.enabled` field stays in the schema for hybrid providers, but on AI-only slugs (`openai`, `anthropic`, `openrouter`, `vercel`, `cloudflare`, `ollama`) the setting is a no-op. `marmot config set providers.openai.cache.enabled true` warns on stderr; `marmot doctor` surfaces the no-op as an informational check.
+
 ### Enable
 
 ```bash

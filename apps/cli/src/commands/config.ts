@@ -493,6 +493,21 @@ export async function handleConfigInit(
   );
 }
 
+/** True for slugs that only show up in the AI provider registry (not
+ *  in WEB_PROVIDERS or DATA_PROVIDERS). AI verbs never honor the
+ *  response cache — sampling is non-deterministic and a hit would be
+ *  semantically unsafe. The `providers.<slug>.cache.enabled` flag stays
+ *  in the schema for future hybrid providers, but on AI-only slugs the
+ *  setting is a no-op; we surface that explicitly at config-set time
+ *  rather than letting users wonder why their next AI call still hits
+ *  the network. */
+function isAiOnlyProvider(slug: string): boolean {
+  const aiSlugs: readonly string[] = PROVIDERS;
+  const webSlugs: readonly string[] = WEB_PROVIDERS;
+  const dataSlugs: readonly string[] = DATA_PROVIDERS;
+  return aiSlugs.includes(slug) && !webSlugs.includes(slug) && !dataSlugs.includes(slug);
+}
+
 export async function handleConfigSet(
   key: string,
   value: string,
@@ -500,6 +515,7 @@ export async function handleConfigSet(
 ): Promise<void> {
   const env = dependencies.env ?? process.env;
   const stdout = dependencies.stdout ?? process.stdout;
+  const stderr = dependencies.stderr ?? process.stderr;
 
   const parsed = parseKey(key);
   const coerced = coerceValue(key, value);
@@ -519,6 +535,21 @@ export async function handleConfigSet(
   }
 
   const path = await writeMarmotConfig(validated.data, env);
+
+  // Emit a no-op warning when the user enables a cache flag on an AI-only
+  // provider. The setting persists (in case the provider gains web/data
+  // capabilities later) but won't actually affect AI verbs.
+  if (
+    parsed.kind === 'provider-setting'
+    && key.endsWith('.cache.enabled')
+    && coerced === true
+    && isAiOnlyProvider(parsed.segments[1]!)
+  ) {
+    stderr.write(
+      `${warnText(`[config] "${parsed.segments[1]}" is an AI-only provider. Cache settings have no effect — AI verbs never cache.`)}\n`,
+    );
+  }
+
   writeLine(
     stdout,
     JSON.stringify({ ok: true, key, value: coerced, path }, null, 2),

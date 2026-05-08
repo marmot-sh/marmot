@@ -294,7 +294,7 @@ All four verbs honor `--retries` and `--timeout`. Only `run` has `--stream`.
 - `--json` and `--stream` don't combine. `--stream` always wins and forces text.
 - `--schema*` rejects `--stream` and `--text`. Object mode is always JSON.
 - `--binary` on `image` requires `--n 1`. With multiple images you must write to files.
-- AI verbs bypass marmot's response cache. Caching applies only to web/data verbs.
+- AI verbs bypass marmot's response cache **by design** — sampling is non-deterministic and chat-mode sessions mutate history per call. Setting `providers.<slug>.cache.enabled true` for an AI-only provider is a no-op; `marmot config set` emits a stderr warning and `marmot doctor` surfaces the no-op as an informational check. The setting stays in the schema for forward-compat with hybrid providers.
 - Cloudflare needs both `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Missing either is a hard auth error.
 - Ollama needs no key. Set `OLLAMA_HOST` if not at `http://localhost:11434`.
 - Model id is validated against a 24h cache for `run`. If a freshly added model 404s, run `marmot ai cache refresh <provider>`. `image`, `speak`, and `transcribe` skip cache validation; the provider rejects unknown ids directly.

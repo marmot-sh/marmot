@@ -14,7 +14,7 @@ Sync verbs only:
 
 Async verbs (`research`, `crawl`, `findall`, `get`) are not cached. They tend to be one-off, run for minutes, and produce large responses that don't usefully replay.
 
-AI verbs (`run`, `image`, `speak`, `transcribe`) are not cached either. AI inputs vary every call and per-token billing is usually cheaper than the cost of cache management.
+AI verbs (`run`, `image`, `speak`, `transcribe`, `video`) are not cached either, and the design is intentional: sampling is non-deterministic (temperature, top-p, seeds you may not have set), chat-mode sessions append to history each call, and a "hit" against a slightly drifted prompt would silently return stale output. The `providers.<slug>.cache.enabled` config field exists for forward-compat with hybrid providers that may route both AI and web traffic, but on AI-only slugs (`openai`, `anthropic`, `openrouter`, `vercel`, `cloudflare`, `ollama`) the setting is a no-op. `marmot config set` warns on stderr when you enable it for an AI-only provider, and `marmot doctor` surfaces the no-op as an informational check.
 
 ## Enable caching
 
