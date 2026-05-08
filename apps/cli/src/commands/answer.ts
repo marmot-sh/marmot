@@ -27,6 +27,7 @@ import {
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 export type AnswerCommandOptions = {
   provider?: string;
@@ -41,6 +42,7 @@ export type AnswerCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type AnswerCommandDependencies = DataVerbDependencies & {
@@ -63,6 +65,7 @@ export async function handleAnswerCommand(
   const piped = await readQueryStdin(deps);
   const query = mergeQueries(deps, queryParts.join(' '), piped, 'Answer');
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('answer', config, {
     provider: options.provider,
@@ -111,7 +114,7 @@ export async function handleAnswerCommand(
       preset_id: options.preset_id,
       flags,
       flag_presence: { query: true },
-      session: null,
+      session: sessionBinding?.name ?? null,
       sensitive: { query },
     },
     async () => {
@@ -176,6 +179,7 @@ export function buildAnswerCommand(
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved answer preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (queryParts: string[], options: AnswerCommandOptions) => {
       const merged = await withPreset(options, 'answer');
       await handleAnswerCommand(queryParts, merged, deps);

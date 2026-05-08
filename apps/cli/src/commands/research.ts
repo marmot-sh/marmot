@@ -31,6 +31,7 @@ import {
 } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { categorizeError, finishCall } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 export type ResearchCommandOptions = {
   provider?: string;
@@ -49,6 +50,7 @@ export type ResearchCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type ResearchCommandDependencies = DataVerbDependencies & {
@@ -129,6 +131,7 @@ export async function handleResearchCommand(
   const piped = await readQueryStdin(deps);
   const query = mergeQueries(deps, queryParts.join(' '), piped, 'Research');
 
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveWebVerbDefaults('research', config, {
     provider: options.provider,
@@ -191,6 +194,7 @@ export async function handleResearchCommand(
     await finishCall(config, {
       verb: 'research', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
     }, env);
@@ -212,6 +216,7 @@ export async function handleResearchCommand(
     await finishCall(config, {
       verb: 'research', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       call_id: submission.taskId,
       startedAtMs, cached: false,
       quantity: { tasks: 1 },
@@ -272,6 +277,7 @@ export async function handleResearchCommand(
     await finishCall(config, {
       verb: 'research', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+      session: sessionBinding?.name ?? null,
       call_id: submission.taskId,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
@@ -281,6 +287,7 @@ export async function handleResearchCommand(
   await finishCall(config, {
     verb: 'research', provider, preset_id: options.preset_id,
     flags: usageFlags, flag_presence: usagePresence, sensitive: usageSensitive,
+    session: sessionBinding?.name ?? null,
     call_id: submission.taskId,
     startedAtMs, cached: false,
     quantity: { tasks: 1 },
@@ -288,6 +295,10 @@ export async function handleResearchCommand(
     exit: finalStatus.status === 'done' ? 'ok' : 'error',
     error_category: finalStatus.status === 'done' ? undefined : 'provider',
   }, env);
+  await updateTaskRecord(
+    { taskId: submission.taskId, provider: provider as WebProviderSlug, usageLogged: true },
+    env,
+  );
 
   const envelope = {
     ok: finalStatus.status === 'done',
@@ -324,6 +335,7 @@ export function buildResearchCommand(
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved research preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (queryParts: string[], options: ResearchCommandOptions) => {
       const merged = await withPreset(options, 'research');
       await handleResearchCommand(queryParts, merged, deps);

@@ -28,6 +28,7 @@ import { makeRetryNotifier } from '../lib/retry-notifier.js';
 import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
+import { resolveSessionBinding } from '../lib/session-binding.js';
 
 export type LookupCommandOptions = {
   type?: string;
@@ -58,6 +59,7 @@ export type LookupCommandOptions = {
   output?: string;
   preset?: string;
   preset_id?: string;
+  session?: string;
 };
 
 export type LookupCommandDependencies = {
@@ -115,6 +117,7 @@ export async function handleLookupCommand(
   const fetchFn = deps.fetchFn ?? fetch;
 
   const type = resolveType(options.type);
+  const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
   const { provider } = resolveDataVerbDefaults('lookup', config, {
     provider: options.provider,
@@ -174,7 +177,7 @@ export async function handleLookupCommand(
     preset_id: options.preset_id,
     flags: usageFlags,
     flag_presence: usagePresence,
-    session: null,
+    session: sessionBinding?.name ?? null,
     sensitive: Object.keys(sensitiveFlags).length > 0 ? { flags: sensitiveFlags } : undefined,
   };
 
@@ -396,6 +399,7 @@ export function buildLookupCommand(deps: LookupCommandDependencies = {}): Comman
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved lookup preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (options: LookupCommandOptions) => {
       const merged = await withPreset(options, 'lookup');
       await handleLookupCommand(merged, deps);

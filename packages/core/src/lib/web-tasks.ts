@@ -106,6 +106,7 @@ export type UpdateTaskInput = {
   provider: WebTaskRecord['provider'];
   status?: WebTaskRecordStatus;
   completedAt?: string | null;
+  usageLogged?: boolean;
 };
 
 /**
@@ -136,6 +137,7 @@ export async function updateTaskRecord(
     status: newStatus,
     lastCheckedAt: nowIso(),
     completedAt,
+    ...(input.usageLogged !== undefined ? { usageLogged: input.usageLogged } : {}),
   };
   file.tasks[idx] = updated;
   await writeTasksFile(file, env);

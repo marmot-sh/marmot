@@ -49,6 +49,7 @@ import type {
 } from '@marmot-sh/core';
 import { keySource as resolveKeySource } from '@marmot-sh/core';
 import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
+import { categorizeError } from '../lib/usage-recorder.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
 export type ImageRunCommandOptions = {
@@ -69,6 +70,8 @@ export type ImageRunCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   session?: string;
+  preset?: string;
+  preset_id?: string;
   providerOption?: string[];
   // Commander binds --no-preview to `preview: false` (default true).
   preview?: boolean;
@@ -200,36 +203,83 @@ export async function handleImageRunCommand(
   // unknown ids cleanly. Skip cache validation here; we'll add a proper
   // image-cache store as a follow-up if cataloging becomes useful.
 
-  const result = await withSpinner(
-    `Generating ${adapter.name} image…`,
-    () =>
-      runWithRetries(
-        (abortSignal) =>
-          adapter.generateImage!({
-            model,
-            prompt: input.prompt,
-            n: input.n,
-            size: input.size,
-            quality: input.quality,
-            style: input.style,
-            seed: input.seed,
-            negative: input.negative,
-            providerOptions: parseProviderOptions(options.providerOption),
-            apiKey,
-            cloudflareAccountId,
-            fetchFn: dependencies.fetchFn,
-            abortSignal,
-          }),
-        {
-          retries: input.retries,
-          timeoutMs: input.timeoutMs,
-          baseDelayMs: dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
-          shouldRetry: isRetryableProviderError,
-          sleep: dependencies.sleep,
-        },
-      ),
-    { stream: stderr, env },
-  );
+  // Privacy-safe usage extras computed before the call so the error path
+  // logs the same shape as the success path.
+  const imageFlags: Record<string, string | number | boolean> = {};
+  if (typeof input.n === 'number') imageFlags.n = input.n;
+  if (input.size) imageFlags.size = input.size;
+  if (input.quality) imageFlags.quality = input.quality;
+  if (input.style) imageFlags.style = input.style;
+  if (typeof input.seed === 'number') imageFlags.seed = input.seed;
+  const imagePresence = { prompt: true, negative: Boolean(input.negative) };
+  const imageSensitive = {
+    prompt: input.prompt,
+    ...(input.negative ? { flags: { negative: input.negative } } : {}),
+  };
+
+  let result;
+  try {
+    result = await withSpinner(
+      `Generating ${adapter.name} image…`,
+      () =>
+        runWithRetries(
+          (abortSignal) =>
+            adapter.generateImage!({
+              model,
+              prompt: input.prompt,
+              n: input.n,
+              size: input.size,
+              quality: input.quality,
+              style: input.style,
+              seed: input.seed,
+              negative: input.negative,
+              providerOptions: parseProviderOptions(options.providerOption),
+              apiKey,
+              cloudflareAccountId,
+              fetchFn: dependencies.fetchFn,
+              abortSignal,
+            }),
+          {
+            retries: input.retries,
+            timeoutMs: input.timeoutMs,
+            baseDelayMs: dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
+            shouldRetry: isRetryableProviderError,
+            sleep: dependencies.sleep,
+          },
+        ),
+      { stream: stderr, env },
+    );
+  } catch (error) {
+    await recordCall(
+      sessionBinding,
+      {
+        verb: 'image',
+        provider: input.provider,
+        model,
+        preset_id: options.preset_id,
+        startedAtMs,
+        finishedAtMs: Date.now(),
+        input: { prompt_chars: input.prompt.length, files: 0, images: 0 },
+        keySource: resolveKeySource(
+          apiKey,
+          [PROVIDER_API_KEY_ENV_VARS[input.provider]].filter((v): v is string => v !== null),
+          env,
+        ),
+        prompt: input.prompt,
+        exit: 'error',
+        errorCategory: categorizeError(error),
+      },
+      {
+        flags: imageFlags,
+        flag_presence: imagePresence,
+        cost: null,
+        sensitive: imageSensitive,
+      },
+      config,
+      env,
+    );
+    throw error;
+  }
 
   const stdout = dependencies.stdout ?? process.stdout;
   const now = dependencies.now ?? (() => new Date());
@@ -281,14 +331,8 @@ export async function handleImageRunCommand(
     }
   }
 
-  // Privacy-safe usage extras. Image flags are non-sensitive; prompt body
-  // and negative prompt are recorded as boolean presence only.
-  const imageFlags: Record<string, string | number | boolean> = {};
-  if (typeof input.n === 'number') imageFlags.n = input.n;
-  if (input.size) imageFlags.size = input.size;
-  if (input.quality) imageFlags.quality = input.quality;
-  if (input.style) imageFlags.style = input.style;
-  if (typeof input.seed === 'number') imageFlags.seed = input.seed;
+  // imageFlags / imagePresence / imageSensitive computed before the
+  // adapter call so the error path logs the same metadata.
 
   await recordCall(
     sessionBinding,
@@ -296,6 +340,7 @@ export async function handleImageRunCommand(
       verb: 'image',
       provider: input.provider,
       model,
+      preset_id: options.preset_id,
       startedAtMs,
       finishedAtMs: Date.now(),
       input: { prompt_chars: input.prompt.length, files: 0, images: 0 },
@@ -310,12 +355,9 @@ export async function handleImageRunCommand(
     },
     {
       flags: imageFlags,
-      flag_presence: { prompt: true, negative: Boolean(input.negative) },
+      flag_presence: imagePresence,
       cost: null,
-      sensitive: {
-        prompt: input.prompt,
-        ...(input.negative ? { flags: { negative: input.negative } } : {}),
-      },
+      sensitive: imageSensitive,
     },
     config,
     env,

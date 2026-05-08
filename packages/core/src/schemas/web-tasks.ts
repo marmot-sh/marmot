@@ -22,6 +22,7 @@ export const webTaskRecordSchema = z
     lastCheckedAt: z.string().nullable().default(null),
     completedAt: z.string().nullable().default(null),
     label: z.string().max(256).optional(),
+    usageLogged: z.boolean().optional(),
   })
   .strict();
 

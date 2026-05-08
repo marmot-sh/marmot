@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readUsageRecords } from '@marmot-sh/core';
 
 import { handleRunCommand } from '../src/commands/run.js';
 import type { ProviderAdapter } from '../src/providers/index.js';
@@ -109,5 +110,65 @@ describe('handleRunCommand', () => {
     expect(parsed.outputFile).toBe(outputFile);
     expect(writes.join('')).toContain('"provider": "ollama"');
     expect(outcome.result.outputFile).toBe(outputFile);
+  });
+
+  it('logs a usage record with exit=error when the adapter throws', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'marmot-run-err-'));
+    tempDirs.push(tempDir);
+
+    const generate = vi.fn(async () => {
+      throw Object.assign(new Error('boom'), { category: 'provider' });
+    });
+
+    const adapter: ProviderAdapter = {
+      slug: 'ollama',
+      name: 'Ollama',
+      defaultModel: 'qwen3:4b',
+      requiresApiKey: false,
+      capabilities: { text: true, image: false, speech: false, transcription: false },
+      generate,
+      generateObject: vi.fn(),
+      stream: vi.fn(),
+      refreshModels: vi.fn(async ({ now }) => ({
+        version: 1 as const,
+        provider: 'ollama' as const,
+        defaultModel: 'qwen3:4b',
+        fetchedAt: (now?.() ?? new Date()).toISOString(),
+        models: [
+          {
+            id: 'qwen3:4b',
+            name: 'qwen3:4b',
+            contextLength: null,
+            pricing: null,
+            inputModalities: ['text'],
+            outputModalities: ['text'],
+            updatedAt: null,
+            metadata: {},
+          },
+        ],
+      })),
+    };
+
+    const env = { MARMOT_HOME: join(tempDir, '.marmot'), MARMOT_USAGE_STRICT: '1' };
+
+    await expect(
+      handleRunCommand(
+        ['hello'],
+        { provider: 'ollama', json: true },
+        {
+          env,
+          stdout: { write: () => true },
+          now: () => new Date('2026-05-08T12:00:00.000Z'),
+          resolveProvider: () => adapter,
+        },
+      ),
+    ).rejects.toThrow(/boom/);
+
+    const records = await readUsageRecords({}, env);
+    expect(records).toHaveLength(1);
+    expect(records[0]!.verb).toBe('run');
+    expect(records[0]!.provider).toBe('ollama');
+    expect(records[0]!.exit).toBe('error');
+    expect(records[0]!.error_category).toBe('provider');
   });
 });

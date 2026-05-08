@@ -43,6 +43,7 @@ import type {
 } from '@marmot-sh/core';
 import { keySource as resolveKeySource } from '@marmot-sh/core';
 import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
+import { categorizeError } from '../lib/usage-recorder.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 
 const TRANSCRIBE_CAPABLE_HINT =
@@ -75,6 +76,8 @@ export type TranscribeRunCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   session?: string;
+  preset?: string;
+  preset_id?: string;
   providerOption?: string[];
 };
 
@@ -237,41 +240,84 @@ export async function handleTranscribeRunCommand(
   // Transcription model lists are hardcoded curated sets. Skip cache
   // validation; provider API rejects invalid model ids cleanly.
 
-  const result = await withSpinner(
-    `Transcribing with ${adapter.name}…`,
-    () =>
-      runWithRetries(
-        (abortSignal) =>
-          adapter.transcribe!({
-            model,
-            audio: audioBytes!,
-            audioMimeType,
-            language: input.language,
-            prompt: input.prompt,
-            format: input.format,
-            providerOptions: parseProviderOptions(options.providerOption),
-            apiKey,
-            cloudflareAccountId,
-            fetchFn: dependencies.fetchFn,
-            abortSignal,
-          }),
-        {
-          retries: input.retries,
-          timeoutMs: input.timeoutMs,
-          baseDelayMs:
-            dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
-          shouldRetry: isRetryableProviderError,
-          sleep: dependencies.sleep,
-        },
-      ),
-    { stream: stderr, env },
-  ).catch((error) => {
-    throw toAICliError(
-      error,
-      'provider',
-      `${adapter.name} transcription failed for model "${model}".`,
+  // Privacy-safe usage extras computed before the call so the error path
+  // logs the same shape as the success path.
+  const sttFlags: Record<string, string | number | boolean> = {};
+  if (input.language) sttFlags.language = input.language;
+  if (input.format) sttFlags.format = input.format;
+  const sttPresence = { audio: true, prompt: Boolean(input.prompt) };
+  const sttSensitive = {
+    ...(input.audioPath ? { urls: [input.audioPath] } : {}),
+    ...(input.prompt ? { flags: { prompt: input.prompt } } : {}),
+  };
+
+  let result;
+  try {
+    result = await withSpinner(
+      `Transcribing with ${adapter.name}…`,
+      () =>
+        runWithRetries(
+          (abortSignal) =>
+            adapter.transcribe!({
+              model,
+              audio: audioBytes!,
+              audioMimeType,
+              language: input.language,
+              prompt: input.prompt,
+              format: input.format,
+              providerOptions: parseProviderOptions(options.providerOption),
+              apiKey,
+              cloudflareAccountId,
+              fetchFn: dependencies.fetchFn,
+              abortSignal,
+            }),
+          {
+            retries: input.retries,
+            timeoutMs: input.timeoutMs,
+            baseDelayMs:
+              dependencies.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS,
+            shouldRetry: isRetryableProviderError,
+            sleep: dependencies.sleep,
+          },
+        ),
+      { stream: stderr, env },
+    ).catch((error) => {
+      throw toAICliError(
+        error,
+        'provider',
+        `${adapter.name} transcription failed for model "${model}".`,
+      );
+    });
+  } catch (error) {
+    await recordCall(
+      sessionBinding,
+      {
+        verb: 'transcribe',
+        provider: input.provider,
+        model,
+        preset_id: options.preset_id,
+        startedAtMs,
+        finishedAtMs: Date.now(),
+        input: { files: 1 },
+        keySource: resolveKeySource(
+          apiKey,
+          [PROVIDER_API_KEY_ENV_VARS[input.provider]].filter((v): v is string => v !== null),
+          env,
+        ),
+        exit: 'error',
+        errorCategory: categorizeError(error),
+      },
+      {
+        flags: sttFlags,
+        flag_presence: sttPresence,
+        cost: null,
+        sensitive: sttSensitive,
+      },
+      config,
+      env,
     );
-  });
+    throw error;
+  }
 
   const stdout = dependencies.stdout ?? process.stdout;
   const now = dependencies.now ?? (() => new Date());
@@ -286,9 +332,7 @@ export async function handleTranscribeRunCommand(
 
   writeLine(stdout, stdoutBody);
 
-  const stTflags: Record<string, string | number | boolean> = {};
-  if (input.language) stTflags.language = input.language;
-  if (input.format) stTflags.format = input.format;
+  // sttFlags / sttPresence / sttSensitive computed before the adapter call.
 
   await recordCall(
     sessionBinding,
@@ -296,6 +340,7 @@ export async function handleTranscribeRunCommand(
       verb: 'transcribe',
       provider: input.provider,
       model,
+      preset_id: options.preset_id,
       startedAtMs,
       finishedAtMs: Date.now(),
       input: { files: 1 },
@@ -308,13 +353,10 @@ export async function handleTranscribeRunCommand(
       exit: 'ok',
     },
     {
-      flags: stTflags,
-      flag_presence: { audio: true, prompt: Boolean(input.prompt) },
+      flags: sttFlags,
+      flag_presence: sttPresence,
       cost: null,
-      sensitive: {
-        ...(input.audioPath ? { urls: [input.audioPath] } : {}),
-        ...(input.prompt ? { flags: { prompt: input.prompt } } : {}),
-      },
+      sensitive: sttSensitive,
     },
     config,
     env,

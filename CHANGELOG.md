@@ -10,6 +10,12 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 
 - **Stable `preset_id` UUID on every preset.** Auto-assigned at creation. Sessions and usage records reference presets by `preset_id` rather than slug; the display layer (`marmot session show`, `marmot session list`, chat-mode export) resolves `preset_id` → current slug at render time.
 - **`marmot preset rename <old> <new>`** — atomic config rewrite. Validates that the new slug is well-formed and not already taken. Because the `preset_id` stays stable, sessions and historical usage records continue to resolve correctly to the new name.
+- **`--session <name>` on every web/data verb.** `search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`, `enrich`, `lookup`, `verify`, `video` accept `--session` so a metered call can be tagged with a session for `marmot usage --session <name>` filtering. Previously only AI verbs honored `--session`; web/data verbs hardcoded `session: null` even when a session was bound.
+- **`marmot get` writes a completion usage record.** When an async task transitions to a terminal state (`done` / `failed` / `cancelled`), `marmot get` now appends a usage record using the task id as `call_id` so submit-time and completion-time rows join cleanly. Idempotent: a `usageLogged` flag on the local task record prevents double-logging across repeated `marmot get` calls.
+
+### Fixed
+
+- **AI verb error paths now log usage.** Previously, only successful adapter responses were recorded. When the provider failed (timeout, auth, 5xx), the call left no usage record, so `marmot usage --failed-only` undercounted. `run`, `image`, `speak`, `transcribe`, and `video` now wrap the adapter call in a try/catch that records `exit: 'error'` with a categorized error before re-throwing.
 
 ### Changed
 

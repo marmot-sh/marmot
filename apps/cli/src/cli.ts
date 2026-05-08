@@ -697,6 +697,7 @@ export function createProgram(): Command {
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 600).')
     .option('--provider-option <key=value>', 'Generic passthrough (repeatable). Lands in providerOptions[<provider>] for niche video params.', collectProviderOption, [] as string[])
     .option('--preset <name>', 'Apply a saved preset as defaults (explicit flags still win). Shorthand: @name.')
+    .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (promptParts: string[], options: VideoRunCommandOptions & { preset?: string }) => {
       const merged = await withPreset(options, 'video');
       await handleVideoRunCommand(promptParts, merged);

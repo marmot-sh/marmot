@@ -70,7 +70,7 @@ marmot get <id> [flags…]
 | `--raw` | Emit the provider's native response under `raw`. |
 | `--json` | Emit the structured envelope. The default. |
 
-Every poll updates `lastCheckedAt` and `status` on the local record. On terminal status, `completedAt` is stamped.
+Every poll updates `lastCheckedAt` and `status` on the local record. On terminal status, `completedAt` is stamped and a usage record is appended (`call_id` equals the task id, so submit-time and completion rows join cleanly under one identifier). The local task record carries a `usageLogged` flag so repeated `marmot get` calls don't double-log.
 
 ## Managing tasks
 

@@ -14,6 +14,7 @@ Every verb supports the same cross-cutting flags. Verb-specific flags live on ea
 | `-o, --output <path>` | Write the result to a file. With `--stream`, written incrementally. |
 | `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
 | `--timeout <seconds>` | Per-attempt timeout. Default 120, max 86400. |
+| `--session <name>` | Bind the call to a session so the usage record carries `session: <name>` and the call appears under `marmot session show <name>` (chat-mode sessions also prepend chat history for `run`). Available on every verb. |
 
 `--retries` and `--timeout` are scoped:
 

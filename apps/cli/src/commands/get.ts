@@ -20,6 +20,7 @@ import {
   getWebProviderAdapter,
 } from '../providers/web-index.js';
 import { isWebProvider, isWebVerb } from '../providers/web-capabilities.js';
+import { finishCall } from '../lib/usage-recorder.js';
 
 export type GetCommandOptions = {
   provider?: string;
@@ -111,6 +112,13 @@ export async function handleGetCommand(
     return status;
   };
 
+  // Reload the task record's pre-update state so we can detect whether
+  // this `marmot get` invocation needs to log a completion event. The
+  // submit-time record already covered "queued"; this writes the
+  // terminal-state record so analytics know when async work actually
+  // finished and whether it succeeded.
+  const recordBeforeFetch = local;
+
   let final: WebTaskStatus;
   if (options.wait) {
     final = await withSpinner(
@@ -129,6 +137,26 @@ export async function handleGetCommand(
     );
   } else {
     final = await fetchOnce();
+  }
+
+  const isTerminal =
+    final.status === 'done' || final.status === 'failed' || final.status === 'cancelled';
+  if (isTerminal && !recordBeforeFetch?.usageLogged) {
+    const startedAtMs = recordBeforeFetch
+      ? Date.parse(recordBeforeFetch.createdAt)
+      : Date.now();
+    await finishCall(config, {
+      verb,
+      provider,
+      call_id: taskId,
+      startedAtMs,
+      cached: false,
+      cost: null,
+      quantity: { tasks: 1 },
+      exit: final.status === 'done' ? 'ok' : 'error',
+      error_category: final.status === 'done' ? undefined : 'provider',
+    }, env);
+    await updateTaskRecord({ taskId, provider, usageLogged: true }, env);
   }
 
   const envelope = {
