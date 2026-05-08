@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  handleConfigGet,
   handleConfigInit,
   handleConfigPath,
   handleConfigSet,
@@ -417,5 +418,47 @@ describe('handleConfigShow — cache section', () => {
     expect(out.cache.totals.entries).toBe(1);
     expect(out.cache.providers).toHaveLength(1);
     expect(out.cache.providers[0].provider).toBe('parallel');
+  });
+});
+
+describe('config get', () => {
+  it('prints a string value bare', async () => {
+    const { env } = await fixture();
+    await handleConfigSet('text.provider', 'openrouter', { env });
+    const cap = captureStdout();
+    await handleConfigGet('text.provider', { env, stdout: cap.writer });
+    expect(cap.text.trim()).toBe('openrouter');
+  });
+
+  it('prints a boolean value bare', async () => {
+    const { env } = await fixture();
+    await handleConfigSet('logging.recordSensitive', 'false', { env });
+    const cap = captureStdout();
+    await handleConfigGet('logging.recordSensitive', { env, stdout: cap.writer });
+    expect(cap.text.trim()).toBe('false');
+  });
+
+  it('pretty-prints object values as JSON', async () => {
+    const { env } = await fixture();
+    await handleConfigSet('providers.openai.cache.enabled', 'true', { env });
+    await handleConfigSet('providers.openai.cache.ttlDays', '30', { env });
+    const cap = captureStdout();
+    await handleConfigGet('providers.openai.cache', { env, stdout: cap.writer });
+    const parsed = JSON.parse(cap.text);
+    expect(parsed).toEqual({ enabled: true, ttlDays: 30 });
+  });
+
+  it('errors when the key is unset', async () => {
+    const { env } = await fixture();
+    await expect(
+      handleConfigGet('text.provider', { env }),
+    ).rejects.toThrowError(/Key "text\.provider" is not set/);
+  });
+
+  it('errors when the key shape is invalid (same wording as set)', async () => {
+    const { env } = await fixture();
+    await expect(
+      handleConfigGet('made.up.key', { env }),
+    ).rejects.toThrowError(/Unknown config key/);
   });
 });

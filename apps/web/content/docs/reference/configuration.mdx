@@ -184,6 +184,26 @@ marmot config show --json                           # raw envelope
 marmot config path                                  # print the config file path
 ```
 
+### Reading a single key — `marmot config get`
+
+`marmot config get <key>` prints one value to stdout. Primitives render bare so shells can capture them with `$()`; objects and sub-buckets pretty-print as JSON. Missing keys exit non-zero with a stderr message so scripts can branch with `marmot config get x || ...`.
+
+```bash
+$ marmot config get text.provider
+openrouter
+
+$ marmot config get logging.recordSensitive
+false
+
+$ marmot config get providers.openai.cache
+{
+  "enabled": true,
+  "ttlDays": 30
+}
+```
+
+Accepts the same dotted-path keys as `config set`, plus any of their bucket prefixes (`providers`, `providers.openai`, `providers.openai.cache`, `text`, etc.). A typo gets the same "valid shapes" hint as `config set`.
+
 The human-readable `marmot config show` output (no `--json`) prints:
 
 - Installed marmot version and the path to the config file
