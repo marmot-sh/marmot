@@ -276,6 +276,16 @@ Apply only to sync verbs (`search`, `scrape`, `answer`, `map`). Async verbs are 
 
 Caching is opt-in per provider via `providers.<slug>.cache.enabled` in config. When disabled the flags are no-ops. The envelope's `cached: true|false` reports the result.
 
+## Session binding (0.6.0+)
+
+Every web verb (sync and async) accepts `--session <name>`. The bound name flows into the usage record so `marmot usage --session <name>` filters work on web traffic, and the call appears under `marmot session show <name>` alongside any AI calls in the same session. Pre-0.6.0 web verbs hardcoded `session: null` even when a session was active — fixed in 0.6.0.
+
+```bash
+marmot search "..." --session research-q2
+marmot research "..." --async --session research-q2
+marmot usage --since 7d --json | jq '.by_provider'   # session field on every row
+```
+
 ## Output formats
 
 Default for every verb is the structured envelope on stdout. Spinners and progress messages go to stderr; stdout is JSON-only and pipe-safe.

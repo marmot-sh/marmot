@@ -357,3 +357,4 @@ echo 'alice@acme.com' | xargs marmot verify --provider kickbox
 - Capability matrix is enforced at parse time. `marmot lookup --type email --provider apollo` errors before reading config.
 - `--raw` swaps `data` to `null` and surfaces the provider's native body verbatim under `raw`. Use it when normalization drops a field you care about.
 - Defaults are configured via `marmot setup` or `marmot config set <verb>.provider <slug>`. Stored under `defaults.{enrich,lookup,verify}.provider`.
+- **Session binding (0.6.0+).** Every data verb accepts `--session <name>`. The bound name flows into the usage record so `marmot usage --session <name>` filters work on data traffic, and the call appears under `marmot session show <name>`. Pre-0.6.0 data verbs hardcoded `session: null` even when a session was active.
