@@ -32,6 +32,7 @@ import {
 import { withPreset } from '../lib/with-preset.js';
 import { categorizeError, finishCall } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type ResearchCommandOptions = {
   provider?: string;
@@ -177,6 +178,26 @@ export async function handleResearchCommand(
     ...(schema ? { schema: typeof schema === 'string' ? schema : JSON.stringify(schema) } : {}),
     ...(options.instructions ? { flags: { instructions: options.instructions } } : {}),
   };
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'research',
+        provider,
+        request: {
+          query_chars: query.length,
+          depth: options.depth,
+          schema: Boolean(schema),
+          instructions: Boolean(options.instructions),
+          mode: options.async ? 'async' : 'wait',
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   const startedAtMs = Date.now();
   let submission: Awaited<ReturnType<NonNullable<typeof adapter.research>>>;

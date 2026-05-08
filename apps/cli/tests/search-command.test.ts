@@ -223,6 +223,29 @@ describe('handleSearchCommand', () => {
     expect(retryLines[1]).toMatch(/^\[retry 2\/2\] brave search:/);
   });
 
+  it('--dry-run prints the resolved envelope and never calls the provider', async () => {
+    const { env } = await fixture();
+    let calls = 0;
+    const fetchFn = (async () => {
+      calls += 1;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const stdout = new CapturingStream();
+    await handleSearchCommand(
+      ['hello'],
+      { provider: 'brave', apiKey: 'k' },
+      { env: { ...env, MARMOT_DRY_RUN: '1' }, stdout, fetchFn },
+    );
+    expect(calls).toBe(0);
+    const out = JSON.parse(stdout.text());
+    expect(out.dry_run).toBe(true);
+    expect(out.verb).toBe('search');
+    expect(out.provider).toBe('brave');
+    expect(out.request).toBeTruthy();
+    const records = await readUsageRecords({}, env);
+    expect(records).toHaveLength(0);
+  });
+
   it('rejects invalid --retries values without retrying', async () => {
     const { env } = await fixture();
     let calls = 0;

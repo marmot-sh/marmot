@@ -45,6 +45,7 @@ import { keySource as resolveKeySource } from '@marmot-sh/core';
 import { recordCall, resolveSessionBinding } from '../lib/session-binding.js';
 import { categorizeError } from '../lib/usage-recorder.js';
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 const TRANSCRIBE_CAPABLE_HINT =
   'Try --provider openai, --provider openrouter, --provider vercel, or --provider cloudflare.';
@@ -250,6 +251,49 @@ export async function handleTranscribeRunCommand(
     ...(input.audioPath ? { urls: [input.audioPath] } : {}),
     ...(input.prompt ? { flags: { prompt: input.prompt } } : {}),
   };
+
+  if (isDryRun(env)) {
+    const stdout = dependencies.stdout ?? process.stdout;
+    emitDryRun(
+      {
+        verb: 'transcribe',
+        provider: input.provider,
+        model,
+        request: {
+          audio_bytes: audioBytes.byteLength,
+          audio_mime: audioMimeType,
+          prompt: Boolean(input.prompt),
+          language: input.language,
+          format: input.format,
+        },
+        retries: input.retries,
+        timeoutMs: input.timeoutMs,
+      },
+      stdout,
+    );
+    const now = dependencies.now ?? (() => new Date());
+    return {
+      result: {
+        provider: input.provider,
+        model,
+        text: '',
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+      },
+      rendered: {
+        ok: true,
+        provider: input.provider,
+        model,
+        text: '',
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+        cachedModelValidated: true,
+        timestamp: now().toISOString(),
+      },
+      input,
+      adapter,
+      resolvedOutputPath: null,
+      timestamp: now().toISOString(),
+    };
+  }
 
   let result;
   try {

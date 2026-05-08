@@ -29,6 +29,7 @@ import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type LookupCommandOptions = {
   type?: string;
@@ -180,6 +181,25 @@ export async function handleLookupCommand(
     session: sessionBinding?.name ?? null,
     sensitive: Object.keys(sensitiveFlags).length > 0 ? { flags: sensitiveFlags } : undefined,
   };
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'lookup',
+        provider,
+        request: {
+          type,
+          limit,
+          cursor: Boolean(cursor),
+          ...usagePresence,
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   if (type === 'person') {
     if (!adapter.lookupPerson) {

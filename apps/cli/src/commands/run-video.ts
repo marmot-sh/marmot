@@ -48,6 +48,7 @@ import {
 import { ensureAutoConfig, formatNoProvidersHint } from '../lib/auto-config.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 const VIDEO_CAPABLE_HINT =
   'Try --provider openrouter or --provider vercel (only those route video generation today).';
@@ -281,6 +282,46 @@ export async function handleVideoRunCommand(
   if (typeof input.n === 'number') videoFlags.n = input.n;
   if (typeof input.seed === 'number') videoFlags.seed = input.seed;
   if (typeof input.audio === 'boolean') videoFlags.audio = input.audio;
+
+  if (isDryRun(env)) {
+    const stdout = dependencies.stdout ?? process.stdout;
+    emitDryRun(
+      {
+        verb: 'video',
+        provider: input.provider,
+        model,
+        request: {
+          prompt_chars: input.prompt.length,
+          images: images.length,
+          aspect: input.aspect,
+          resolution: input.resolution,
+          duration: input.duration,
+          fps: input.fps,
+          n: input.n,
+          seed: input.seed,
+          audio: input.audio,
+        },
+        retries: input.retries,
+        timeoutMs: input.timeoutMs,
+      },
+      stdout,
+    );
+    const now = dependencies.now ?? (() => new Date());
+    return {
+      result: {
+        provider: input.provider,
+        model,
+        videos: [],
+        usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+        finishReason: null,
+      },
+      rendered: null,
+      input,
+      adapter,
+      resolvedOutputPath: null,
+      timestamp: now().toISOString(),
+    };
+  }
 
   const { result } = await withUsageLogging(
     config,

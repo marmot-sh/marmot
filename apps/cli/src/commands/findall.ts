@@ -33,6 +33,7 @@ import { withPreset } from '../lib/with-preset.js';
 import { parseIntFlag } from '../lib/parse-numeric.js';
 import { categorizeError, finishCall } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type FindallCommandOptions = {
   provider?: string;
@@ -150,6 +151,27 @@ export async function handleFindallCommand(
     ...(schema ? { schema: JSON.stringify(schema) } : {}),
     ...(options.matchConditions ? { flags: { matchConditions: options.matchConditions } } : {}),
   };
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'findall',
+        provider,
+        request: {
+          objective_chars: objective.length,
+          limit,
+          entity_type: options.entityType,
+          schema: Boolean(schema),
+          match_conditions: Boolean(matchConditions),
+          mode: options.async ? 'async' : 'wait',
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   const startedAtMs = Date.now();
   let submission: Awaited<ReturnType<NonNullable<typeof adapter.findall>>>;

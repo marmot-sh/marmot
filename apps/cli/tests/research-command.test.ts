@@ -75,6 +75,29 @@ describe('handleResearchCommand', () => {
     expect(records[0]!.provider).toBe('exa');
   });
 
+  it('--dry-run prints the resolved envelope without submitting or recording a task', async () => {
+    const { env } = await fixture();
+    let calls = 0;
+    const fetchFn = (async () => {
+      calls += 1;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const stdout = new Cap();
+    await handleResearchCommand(
+      ['analyze postgres releases'],
+      { provider: 'exa', apiKey: 'k', async: true },
+      { env: { ...env, MARMOT_DRY_RUN: '1' }, stdout, stderr: new Cap(), fetchFn },
+    );
+    expect(calls).toBe(0);
+    const out = JSON.parse(stdout.text());
+    expect(out.dry_run).toBe(true);
+    expect(out.verb).toBe('research');
+    expect(out.provider).toBe('exa');
+    // No task record should be created for a dry run.
+    const records = await listTaskRecords({}, env);
+    expect(records).toHaveLength(0);
+  });
+
   it('--wait polls until terminal state, prints final result, updates record', async () => {
     const { env } = await fixture();
     await writeMarmotConfig(

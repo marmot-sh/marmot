@@ -23,6 +23,7 @@ import { writeEnvelope } from '../lib/data-verb-io.js';
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 
 export type MapCommandOptions = {
   provider?: string;
@@ -100,6 +101,24 @@ export async function handleMapCommand(
 
   const flags: Record<string, string | number | boolean> = {};
   if (limit !== undefined) flags.limit = limit;
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'map',
+        provider,
+        request: {
+          url,
+          limit,
+          search: Boolean(options.search),
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   const { result, cached } = await withUsageLogging(
     config,

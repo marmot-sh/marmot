@@ -29,6 +29,7 @@ import {
 import { withPreset } from '../lib/with-preset.js';
 import { withUsageLogging } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
+import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 import type { StdinReader } from '@marmot-sh/core';
 
 export type SearchCommandOptions = {
@@ -230,6 +231,30 @@ export async function handleSearchCommand(
   if (options.depth) flags.depth = options.depth;
   if (options.freshness) flags.freshness = options.freshness;
   if (options.includeContent) flags.include_content = true;
+
+  if (isDryRun(env)) {
+    emitDryRun(
+      {
+        verb: 'search',
+        provider,
+        request: {
+          query_chars: query.length,
+          limit: input.limit,
+          depth: input.depth,
+          freshness: input.freshness,
+          afterDate: input.afterDate,
+          beforeDate: input.beforeDate,
+          includeDomains: Boolean(input.includeDomains),
+          excludeDomains: Boolean(input.excludeDomains),
+          includeContent: Boolean(input.includeContent),
+        },
+        retries,
+        timeoutMs,
+      },
+      stdout,
+    );
+    return;
+  }
 
   const { result, cached } = await withUsageLogging(
     config,
