@@ -26,7 +26,7 @@ The envelope returns:
 
 Use this to decide whether to pass `--provider`, whether the response cache will short-circuit your call, and which presets are pre-tuned for the task. If sessions matter for the task, also run `marmot session list`.
 
-Verbs and flags this skill describes target marmot 0.5.0 and later. Earlier versions may not have `marmot video`, sampling controls (`--temperature`, `--reasoning`, `--provider-option`), stdin image sniffing on `marmot run` and `marmot video`, the `readyProviders` envelope field, presets for web/data verbs, sigil verb-routing (`marmot @<name>` auto-dispatches to the matching verb), `marmot models --search`, the privacy-safe usage log (`~/.marmot/usage/<UTC-DATE>.jsonl`), `marmot usage`, or `marmot doctor`. Suggest an upgrade if `marmotVersion` is below 0.5.0.
+Verbs and flags this skill describes target marmot 0.6.0 and later. Earlier versions may not have `marmot video`, sampling controls (`--temperature`, `--reasoning`, `--provider-option`), stdin image sniffing on `marmot run` and `marmot video`, the `readyProviders` envelope field, presets for web/data verbs, sigil verb-routing (`marmot @<name>` auto-dispatches to the matching verb), `marmot models --search`, the privacy-safe usage log (`~/.marmot/usage/<UTC-DATE>.jsonl`), `marmot usage`, or `marmot doctor`. Pre-0.6.0 versions also lack `marmot history`, `marmot usage --watch`, `marmot config get`, `marmot preset rename`, the `--session` flag on web/data verbs, the `--dry-run` flag on every verb, the `marmot doctor --fix` flag and verdict line, and the stable `preset_id` / `request_id` schema fields. Suggest an upgrade if `marmotVersion` is below 0.6.0.
 
 ## Verb surface
 
