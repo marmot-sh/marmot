@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.6.0] — 2026-05-08
+
+A read-side observability release. The 0.5.0 usage log gets sub-day-aware local-time display, a live `--watch` tail, a per-call `marmot history` browser, a global `--dry-run` flag, and a verdict-driven `marmot doctor`. Presets get a stable `preset_id` and a `rename` verb. Several fixes close gaps in usage logging (AI error paths, async completions, web/data session binding). Three breaking changes to internal record/envelope shapes are documented inline; old records on disk continue to read tolerantly.
 
 ### Added
 
