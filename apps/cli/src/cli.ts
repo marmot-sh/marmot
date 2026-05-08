@@ -916,15 +916,28 @@ function installSignalHandlers(): void {
   });
 }
 
-// Only auto-run when invoked as the CLI entry, not when imported by tests.
-// The previous filename-suffix heuristic broke for npm-installed binaries:
-// `.bin/marmot` is a symlink to dist/cli.js, and Node sets argv[1] to the
-// symlink path ("/.../node_modules/.bin/marmot"), which doesn't end in
-// cli.js. Compare import.meta.url to pathToFileURL(realpathSync(argv[1]))
-// instead — that resolves the symlink before matching, so any invocation
-// (direct, symlinked bin, or future shim layout) works.
+// Bin entry (`bin.ts`) imports this module dynamically and calls `runMain()`
+// after the Node version guard passes. Also auto-runs when someone invokes
+// `node dist/cli.js` directly — covered by the `isMainEntry()` heuristic.
 import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+
+export async function runMain(): Promise<void> {
+  try {
+    await main();
+  } catch (error) {
+    // Honor `--json` (anywhere in argv) by emitting a structured error
+    // envelope instead of human-formatted text. Lets agent harnesses parse
+    // failures without pattern-matching stderr.
+    const wantsJson = process.argv.includes('--json');
+    if (wantsJson) {
+      process.stderr.write(`${formatCliErrorJson(error)}\n`);
+    } else {
+      process.stderr.write(`${formatCliError(error)}\n`);
+    }
+    process.exitCode = getExitCode(error);
+  }
+}
 
 function isMainEntry(): boolean {
   if (!process.argv[1]) return false;
@@ -937,16 +950,5 @@ function isMainEntry(): boolean {
 }
 
 if (isMainEntry()) {
-  void main().catch((error) => {
-    // Honor `--json` (anywhere in argv) by emitting a structured error
-    // envelope instead of human-formatted text. Lets agent harnesses parse
-    // failures without pattern-matching stderr.
-    const wantsJson = process.argv.includes('--json');
-    if (wantsJson) {
-      process.stderr.write(`${formatCliErrorJson(error)}\n`);
-    } else {
-      process.stderr.write(`${formatCliError(error)}\n`);
-    }
-    process.exitCode = getExitCode(error);
-  });
+  void runMain();
 }

@@ -38,7 +38,7 @@
     "LICENSE"
   ],
   "bin": {
-    "marmot": "./dist/cli.js"
+    "marmot": "./dist/bin.js"
   },
   "scripts": {
     "build": "tsup",
