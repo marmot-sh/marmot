@@ -40,7 +40,7 @@
     "LICENSE"
   ],
   "bin": {
-    "marmot": "./dist/cli.js"
+    "marmot": "./dist/bin.js"
   },
   "scripts": {
     "build": "node scripts/sync-from-cli.js",

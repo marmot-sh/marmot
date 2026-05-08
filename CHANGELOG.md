@@ -6,6 +6,10 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 
 ## [Unreleased]
 
+### Added
+
+- **Friendly Node version diagnostic at bin entry.** The bin shim now runs a Node version check before loading the main CLI. On Node <20, marmot prints a clear message naming the detected Node version and the path to the `node` binary in use, then exits 1 — replacing the cryptic `util.styleText is not a function` (or similar) crash users hit when their non-interactive shell loaded a stale system Node ahead of nvm. The Node 20 floor itself is unchanged.
+
 ### Changed
 
 - **Per-verb default timeouts for AI generation.** Replaced the shared 120s default with per-verb defaults that match how long real generations actually take: `run` (text), `image`, `speak` now default to 300s; `transcribe` defaults to 600s; `video` stays at 600s. Web and data verbs (search, scrape, answer, map, crawl, lookup, research, findall, enrich, verify) continue to default to 120s. Anyone relying on the old 120s fail-fast on AI verbs can pass `--timeout 120` per-call or save it on a preset.

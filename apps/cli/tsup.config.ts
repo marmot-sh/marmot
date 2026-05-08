@@ -9,7 +9,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 const requireFromHere = createRequire(import.meta.url);
 
 export default defineConfig({
-  entry: { cli: 'src/cli.ts' },
+  entry: { cli: 'src/cli.ts', bin: 'src/bin.ts' },
   format: ['esm'],
   platform: 'node',
   target: 'node20',
