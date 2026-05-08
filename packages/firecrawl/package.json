@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/firecrawl",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "@marmot-sh adapter for Firecrawl — Web scraping, crawling, search, and structured extraction.",
   "type": "module",
   "private": true,

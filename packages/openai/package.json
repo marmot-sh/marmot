@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/openai",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "@marmot-sh adapter for OpenAI — text/image/speech/transcribe (where supported).",
   "type": "module",
   "private": true,
