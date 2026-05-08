@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/kickbox",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "@marmot-sh adapter for Kickbox — Email verification with Sendex confidence score, owned by Sendgrid/Twilio.",
   "type": "module",
   "private": true,
