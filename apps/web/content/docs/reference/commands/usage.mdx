@@ -21,7 +21,7 @@ One JSON record per call, written to `~/.marmot/usage/<UTC-DATE>.jsonl`. Schema:
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `call_id` | string (UUID) | Unique per call. For async work, equals the provider's task id so submit/poll/completion records can be joined. |
+| `request_id` | string (UUID) | Unique per request. For async work, equals the provider's task id so submit/poll/completion records can be joined. (Pre-0.6.0 records used `call_id`; the reader aliases the legacy field automatically.) |
 | `ts` | ISO 8601 | Wall-clock when the call returned. |
 | `verb` | string | `search`, `scrape`, `run`, `enrich`, etc. |
 | `provider` | string | Provider slug. |
@@ -65,10 +65,16 @@ marmot usage --json                         # structured envelope
 
 Every grouping (by provider / verb / day / model) reports:
 
-- `calls`, `errors`, `error_rate`, `cached`, `cache_hit_rate`
+- `requests`, `errors`, `error_rate`, `cached`, `cache_hit_rate`
 - `duration_ms_avg`, `duration_ms_p50`, `duration_ms_p95`
-- `cost_usd_total`, `cost_usd_avg` (over `calls_with_cost`), `calls_without_cost`
+- `cost_total`, `cost_avg_usd` (over `requests_with_cost`), `requests_without_cost`
 - `quantity_totals` — sum of every numeric child key
+
+The human-formatted output renders all timestamps in your local timezone. Storage stays UTC (one file per UTC day) so file boundaries are stable. The window header adapts to the range:
+
+- Sub-day windows show time-of-day on both sides — `Usage — last 1h (May 6 09:14 to 10:14)`.
+- Multi-day windows with `--since` echo the duration token — `Usage — last 7d (May 1 to May 8)`.
+- Explicit `--from/--to` show the range only — `Usage — May 1 to May 8`.
 
 Cost is only summed where the provider reports it. The summary always discloses how many calls had cost data so you know your coverage.
 
@@ -131,7 +137,7 @@ Precedence (highest first):
 
 ## Verb coverage
 
-As of 0.5.0, usage logging is wired into all 15 verbs: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`), and data (`enrich`, `lookup`, `verify`). Async verbs (`crawl`, `research`, `findall`) use the provider's task id as `call_id` so submit / poll / completion records can be joined.
+As of 0.5.0, usage logging is wired into all 15 verbs: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`), and data (`enrich`, `lookup`, `verify`). Async verbs (`crawl`, `research`, `findall`) use the provider's task id as `request_id` so submit / poll / completion records can be joined.
 
 ## File format on disk
 

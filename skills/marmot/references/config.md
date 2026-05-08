@@ -262,7 +262,7 @@ Privacy-safe per-call log at `~/.marmot/usage/<UTC-DATE>.jsonl`. Default ON, rec
 ### Schema (per record)
 
 ```
-call_id        UUID, equals provider task id for async work
+request_id        UUID, equals provider task id for async work
 ts             ISO 8601
 verb           search | scrape | run | enrich | ...
 provider       slug
@@ -337,7 +337,7 @@ enrich/lookup/verify { flags?: {email, linkedin, phone, firstName, lastName, q, 
 
 ### Verb coverage as of 0.5.0
 
-All 15 verbs log: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`), data (`enrich`, `lookup`, `verify`). Async verbs (`crawl`, `research`, `findall`) use the provider's task id as `call_id` so submit/poll/completion records can be joined.
+All 15 verbs log: AI (`run`, `image`, `speak`, `transcribe`, `video`), web (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`), data (`enrich`, `lookup`, `verify`). Async verbs (`crawl`, `research`, `findall`) use the provider's task id as `request_id` so submit/poll/completion records can be joined.
 
 ## 7c. `marmot doctor` (0.5.0+)
 

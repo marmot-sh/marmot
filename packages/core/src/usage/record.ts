@@ -57,11 +57,26 @@ export function shouldRecordSensitive(
  * Aggregators (`marmot usage`) sum any numeric child by key.
  */
 export const usageRecordSchema = z
+  .preprocess((value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const obj = value as Record<string, unknown>;
+      if (obj.request_id === undefined && typeof obj.call_id === 'string') {
+        return { ...obj, request_id: obj.call_id };
+      }
+    }
+    return value;
+  }, z
   .object({
-    /** Unique identifier for this call. For sync calls a fresh UUID. For
-     *  async work (research/findall/crawl), equals the provider's task id
-     *  so submit/poll/completion records can be joined by `call_id`. */
-    call_id: z.string().min(1),
+    /** Unique identifier for this request. For sync calls a fresh UUID.
+     *  For async work (research/findall/crawl), equals the provider's
+     *  task id so submit/poll/completion records can be joined by
+     *  `request_id`. Pre-0.6.0 records used `call_id`; the schema
+     *  preprocesses old records by aliasing `call_id` → `request_id` so
+     *  the in-memory shape is uniform. */
+    request_id: z.string().min(1),
+    /** Legacy alias retained on parsed records for trace continuity.
+     *  Optional; not written by new records. */
+    call_id: z.string().min(1).optional(),
     /** ISO 8601 timestamp. */
     ts: z.string(),
     /** Verb name (search, scrape, run, image, etc.). */
@@ -121,20 +136,20 @@ export const usageRecordSchema = z
       .strict()
       .optional(),
   })
-  .strict();
+  .strict());
 
 export type UsageRecord = z.infer<typeof usageRecordSchema>;
 
 /** Inputs accepted by recordUsage. Mirrors UsageRecord with `ts` and
- *  `call_id` optional — both are filled if missing (`ts` from now,
- *  `call_id` from a fresh UUID). */
-export type RecordUsageInput = Omit<UsageRecord, 'ts' | 'call_id'> & {
+ *  `request_id` optional — both are filled if missing (`ts` from now,
+ *  `request_id` from a fresh UUID). */
+export type RecordUsageInput = Omit<UsageRecord, 'ts' | 'request_id'> & {
   ts?: string;
-  call_id?: string;
+  request_id?: string;
 };
 
-/** Generate a fresh call id. Wraps Node's randomUUID for testability. */
-export function newCallId(): string {
+/** Generate a fresh request id. Wraps Node's randomUUID for testability. */
+export function newRequestId(): string {
   return randomUUID();
 }
 
@@ -162,7 +177,7 @@ export async function recordUsage(
     record = usageRecordSchema.parse({
       ...input,
       ts: input.ts ?? new Date().toISOString(),
-      call_id: input.call_id ?? newCallId(),
+      request_id: input.request_id ?? newRequestId(),
     });
   } catch (error) {
     // Schema rejection means caller passed something nonconforming. Swallow

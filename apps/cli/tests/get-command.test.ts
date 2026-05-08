@@ -144,7 +144,7 @@ describe('handleGetCommand', () => {
     expect(records[0]!.verb).toBe('research');
     expect(records[0]!.provider).toBe('parallel');
     expect(records[0]!.exit).toBe('ok');
-    expect(records[0]!.call_id).toBe('t_completion');
+    expect(records[0]!.request_id).toBe('t_completion');
 
     const updated = await getTaskRecord('t_completion', env);
     expect(updated!.usageLogged).toBe(true);

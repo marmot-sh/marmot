@@ -31,7 +31,7 @@ import {
   finishCall,
 } from '../lib/usage-recorder.js';
 import { resolveSessionBinding } from '../lib/session-binding.js';
-import { newCallId } from '@marmot-sh/core';
+import { newRequestId } from '@marmot-sh/core';
 
 export type CrawlCommandOptions = {
   provider?: string;
@@ -198,7 +198,7 @@ export async function handleCrawlCommand(
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
       session: sessionBinding?.name ?? null,
-      call_id: newCallId(),
+      request_id: newRequestId(),
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
     }, env);
@@ -216,14 +216,14 @@ export async function handleCrawlCommand(
   );
 
   if (options.async) {
-    // --async: log the submit only. Record uses task_id as call_id so a
+    // --async: log the submit only. Record uses task_id as request_id so a
     // later `marmot get` can append a completion record sharing the id.
     await finishCall(config, {
       verb: 'crawl', provider, preset_id: options.preset_id,
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
       session: sessionBinding?.name ?? null,
-      call_id: submission.taskId,
+      request_id: submission.taskId,
       startedAtMs, cached: false,
       quantity: { tasks: 1 },
       cost: null,
@@ -276,21 +276,21 @@ export async function handleCrawlCommand(
       flags: usageFlags, flag_presence: usagePresence,
       sensitive: usageSensitive,
       session: sessionBinding?.name ?? null,
-      call_id: submission.taskId,
+      request_id: submission.taskId,
       startedAtMs, cached: false, exit: 'error',
       error_category: categorizeError(error),
     }, env);
     throw error;
   }
   // --wait completion: log full elapsed wall-clock from submit through
-  // final poll. call_id = task_id so this row joins to any prior submit
+  // final poll. request_id = task_id so this row joins to any prior submit
   // record under the same id.
   await finishCall(config, {
     verb: 'crawl', provider, preset_id: options.preset_id,
     flags: usageFlags, flag_presence: usagePresence,
     sensitive: usageSensitive,
     session: sessionBinding?.name ?? null,
-    call_id: submission.taskId,
+    request_id: submission.taskId,
     startedAtMs, cached: false,
     quantity: { tasks: 1, pages: (finalStatus.data as { pages?: unknown[] } | undefined)?.pages?.length ?? 0 },
     cost: null,

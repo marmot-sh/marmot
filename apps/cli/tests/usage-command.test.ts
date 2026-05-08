@@ -101,12 +101,12 @@ describe('marmot usage', () => {
     const cap = captureStdout();
     await handleUsageCommand({ since: '7d', json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
-    expect(out.totals.calls).toBe(4);
+    expect(out.totals.requests).toBe(4);
     expect(out.totals.errors).toBe(1);
     expect(out.totals.errorRate).toBeCloseTo(0.25);
     expect(out.totals.costTotal).toBeCloseTo(0.06);
-    expect(out.totals.callsWithCost).toBe(2);
-    expect(out.totals.callsWithoutCost).toBe(2);
+    expect(out.totals.requestsWithCost).toBe(2);
+    expect(out.totals.requestsWithoutCost).toBe(2);
     expect(out.totals.quantityTotals.results).toBe(35);
     expect(out.totals.quantityTotals.tokens_input).toBe(700);
     expect(out.totals.quantityTotals.tokens_output).toBe(1300);
@@ -121,7 +121,7 @@ describe('marmot usage', () => {
     const out = JSON.parse(cap.text);
     expect(out.by_verb.map((r: { key: string }) => r.key).sort()).toEqual(['run', 'search']);
     const search = out.by_verb.find((r: { key: string }) => r.key === 'search')!;
-    expect(search.calls).toBe(2);
+    expect(search.requests).toBe(2);
     expect(search.cached).toBe(1);
     expect(search.quantityTotals.results).toBe(35);
   });
@@ -135,7 +135,7 @@ describe('marmot usage', () => {
       { env, stdout: cap.writer },
     );
     const out = JSON.parse(cap.text);
-    expect(out.totals.calls).toBe(2);
+    expect(out.totals.requests).toBe(2);
     expect(out.by_provider).toHaveLength(1);
     expect(out.by_provider[0].key).toBe('openrouter');
   });
@@ -149,7 +149,7 @@ describe('marmot usage', () => {
       { env, stdout: cap.writer },
     );
     const out = JSON.parse(cap.text);
-    expect(out.totals.calls).toBe(1);
+    expect(out.totals.requests).toBe(1);
     expect(out.totals.errors).toBe(1);
   });
 
@@ -158,6 +158,79 @@ describe('marmot usage', () => {
     const cap = captureStdout();
     await handleUsageCommand({ since: '7d' }, { env, stdout: cap.writer });
     expect(cap.text).toContain('No usage records');
+  });
+
+  it('renders sub-day window header with local time-of-day', async () => {
+    const { env } = await fixture();
+    await recordUsage(
+      {
+        verb: 'search',
+        provider: 'parallel',
+        cached: false,
+        duration_ms: 100,
+        exit: 'ok',
+        ts: new Date(Date.now() - 30 * 60_000).toISOString(),
+      },
+      env,
+    );
+    const cap = captureStdout();
+    await handleUsageCommand({ since: '1h' }, { env, stdout: cap.writer });
+    const firstLine = cap.text.split('\n')[0]!;
+    expect(firstLine).toMatch(/^Usage — last 1h \(/);
+    // Locale-tolerant: 12h or 24h, with or without AM/PM suffix.
+    expect(firstLine).toMatch(/\d{1,2}:\d{2}( ?[AP]M)? to \d{1,2}:\d{2}( ?[AP]M)?\)$/);
+  });
+
+  it('renders multi-day window header echoing the --since duration', async () => {
+    const { env } = await fixture();
+    await recordUsage(
+      {
+        verb: 'search',
+        provider: 'parallel',
+        cached: false,
+        duration_ms: 100,
+        exit: 'ok',
+        ts: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      },
+      env,
+    );
+    const cap = captureStdout();
+    await handleUsageCommand({ since: '7d' }, { env, stdout: cap.writer });
+    const firstLine = cap.text.split('\n')[0]!;
+    expect(firstLine).toMatch(/^Usage — last 7d \(/);
+    expect(firstLine).not.toMatch(/\d{2}:\d{2}/);
+  });
+
+  it('renders explicit --from/--to header without a "last Nd" prefix', async () => {
+    const { env } = await fixture();
+    await recordUsage(
+      {
+        verb: 'search',
+        provider: 'parallel',
+        cached: false,
+        duration_ms: 100,
+        exit: 'ok',
+        ts: '2026-05-04T12:00:00.000Z',
+      },
+      env,
+    );
+    const cap = captureStdout();
+    await handleUsageCommand(
+      { from: '2026-05-01', to: '2026-05-08' },
+      { env, stdout: cap.writer },
+    );
+    const firstLine = cap.text.split('\n')[0]!;
+    expect(firstLine).toMatch(/^Usage — /);
+    expect(firstLine).not.toMatch(/last \d/);
+  });
+
+  it('renders human totals using "requests" not "calls"', async () => {
+    const { env } = await fixture();
+    await seed(env);
+    const cap = captureStdout();
+    await handleUsageCommand({}, { env, stdout: cap.writer });
+    expect(cap.text).toMatch(/\d+ requests/);
+    expect(cap.text).not.toMatch(/\d+ calls/);
   });
 
   it('rejects --from later than --to', async () => {

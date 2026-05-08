@@ -11,7 +11,9 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 - **Stable `preset_id` UUID on every preset.** Auto-assigned at creation. Sessions and usage records reference presets by `preset_id` rather than slug; the display layer (`marmot session show`, `marmot session list`, chat-mode export) resolves `preset_id` → current slug at render time.
 - **`marmot preset rename <old> <new>`** — atomic config rewrite. Validates that the new slug is well-formed and not already taken. Because the `preset_id` stays stable, sessions and historical usage records continue to resolve correctly to the new name.
 - **`--session <name>` on every web/data verb.** `search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`, `enrich`, `lookup`, `verify`, `video` accept `--session` so a metered call can be tagged with a session for `marmot usage --session <name>` filtering. Previously only AI verbs honored `--session`; web/data verbs hardcoded `session: null` even when a session was bound.
-- **`marmot get` writes a completion usage record.** When an async task transitions to a terminal state (`done` / `failed` / `cancelled`), `marmot get` now appends a usage record using the task id as `call_id` so submit-time and completion-time rows join cleanly. Idempotent: a `usageLogged` flag on the local task record prevents double-logging across repeated `marmot get` calls.
+- **`marmot get` writes a completion usage record.** When an async task transitions to a terminal state (`done` / `failed` / `cancelled`), `marmot get` now appends a usage record using the task id as `request_id` so submit-time and completion-time rows join cleanly. Idempotent: a `usageLogged` flag on the local task record prevents double-logging across repeated `marmot get` calls.
+- **Sub-day-aware, local-time `marmot usage` window header.** The header now renders timestamps in the user's local timezone and adapts to window length: sub-day windows include time-of-day (`Usage — last 1h (May 6 09:14 to 10:14)`), multi-day `--since` windows echo the duration token (`Usage — last 7d (May 1 to May 8)`), and explicit `--from/--to` shows just the range. Storage day-files remain UTC-named.
+- **`--by day` groups records by local-TZ day** so "yesterday" matches the user's wall clock, not UTC.
 
 ### Fixed
 
@@ -23,6 +25,10 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 - **Breaking:** `usageRecordSchema` now writes `preset_id` instead of `preset` (slug). Display layer resolves the current slug at render time. Old records on disk keep their original `preset` field; the aggregator tolerates both.
 - **Breaking:** `logRecordSchema` (session log) replaces `preset` slug with `preset_id`.
 - Existing presets in `~/.marmot/config.json` without `preset_id` get a fresh UUID assigned in-memory on next read; persisted on next write. No migration sweep.
+- **Breaking:** `marmot usage` JSON envelope renames `calls` → `requests` everywhere it appears (`totals.calls`, `by_provider[].calls`, etc.). Tools that parse `.totals.calls` need to switch to `.totals.requests`.
+- **Breaking:** Usage record schema field `call_id` → `request_id`. New records write `request_id`; the schema preprocess aliases the legacy `call_id` so pre-0.6.0 records on disk still parse and aggregate without migration. Async verbs now pass `request_id: task_id` (same join semantics, new field name).
+- **Breaking:** `enrich` and `verify` write `quantity: { requests: 1 }` instead of `quantity: { calls: 1 }`. Old records keep their `calls` key; aggregation across the boundary shows both side-by-side until pruned.
+- Helper `newCallId()` renamed to `newRequestId()` in `@marmot-sh/core`.
 
 ### Notes
 

@@ -148,7 +148,7 @@ export async function handleGetCommand(
     await finishCall(config, {
       verb,
       provider,
-      call_id: taskId,
+      request_id: taskId,
       startedAtMs,
       cached: false,
       cost: null,

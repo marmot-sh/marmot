@@ -31,14 +31,14 @@ export type UsageCommandDependencies = {
 
 type GroupedRow = {
   key: string;
-  calls: number;
+  requests: number;
   errors: number;
   cached: number;
   durationTotalMs: number;
   durations: number[];
   costTotal: number;
-  callsWithCost: number;
-  callsWithoutCost: number;
+  requestsWithCost: number;
+  requestsWithoutCost: number;
   quantityTotals: Record<string, number>;
 };
 
@@ -75,8 +75,15 @@ function resolveWindow(options: UsageCommandOptions): { fromMs: number; toMs: nu
   return { fromMs, toMs };
 }
 
-function dayKey(ts: string): string {
-  return ts.slice(0, 10);
+/** Local-TZ YYYY-MM-DD for `--by day` grouping. Storage day-files are
+ *  UTC-named (consistent file boundaries) but human-facing day groups
+ *  honor the user's wall clock so "yesterday" matches expectations. */
+function localDayKey(ts: string): string {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function aggregate(records: UsageRecord[], by: UsageCommandOptions['by']): { totals: Totals; rows: GroupedRow[] } {
@@ -87,7 +94,7 @@ function aggregate(records: UsageRecord[], by: UsageCommandOptions['by']): { tot
       by === 'verb'
         ? r.verb
         : by === 'day'
-          ? dayKey(r.ts)
+          ? localDayKey(r.ts)
           : by === 'model'
             ? r.model ?? '(no-model)'
             : r.provider;
@@ -95,19 +102,19 @@ function aggregate(records: UsageRecord[], by: UsageCommandOptions['by']): { tot
     if (!row) {
       row = {
         key,
-        calls: 0,
+        requests: 0,
         errors: 0,
         cached: 0,
         durationTotalMs: 0,
         durations: [],
         costTotal: 0,
-        callsWithCost: 0,
-        callsWithoutCost: 0,
+        requestsWithCost: 0,
+        requestsWithoutCost: 0,
         quantityTotals: {},
       };
       groups.set(key, row);
     }
-    row.calls += 1;
+    row.requests += 1;
     if (r.exit === 'error') row.errors += 1;
     if (r.cached) row.cached += 1;
     row.durationTotalMs += r.duration_ms;
@@ -115,9 +122,9 @@ function aggregate(records: UsageRecord[], by: UsageCommandOptions['by']): { tot
     totalDurations.push(r.duration_ms);
     if (typeof r.cost === 'number') {
       row.costTotal += r.cost;
-      row.callsWithCost += 1;
+      row.requestsWithCost += 1;
     } else {
-      row.callsWithoutCost += 1;
+      row.requestsWithoutCost += 1;
     }
     if (r.quantity) {
       for (const [k, v] of Object.entries(r.quantity)) {
@@ -126,7 +133,7 @@ function aggregate(records: UsageRecord[], by: UsageCommandOptions['by']): { tot
     }
   }
 
-  const rows = Array.from(groups.values()).sort((a, b) => b.calls - a.calls);
+  const rows = Array.from(groups.values()).sort((a, b) => b.requests - a.requests);
   const totals = combineRows(rows, totalDurations);
   return { totals, rows };
 }
@@ -139,13 +146,13 @@ function percentile(values: number[], p: number): number {
 }
 
 function combineRows(rows: GroupedRow[], durations: number[]): Totals {
-  const calls = rows.reduce((acc, r) => acc + r.calls, 0);
+  const requests = rows.reduce((acc, r) => acc + r.requests, 0);
   const errors = rows.reduce((acc, r) => acc + r.errors, 0);
   const cached = rows.reduce((acc, r) => acc + r.cached, 0);
   const durationTotalMs = rows.reduce((acc, r) => acc + r.durationTotalMs, 0);
   const costTotal = rows.reduce((acc, r) => acc + r.costTotal, 0);
-  const callsWithCost = rows.reduce((acc, r) => acc + r.callsWithCost, 0);
-  const callsWithoutCost = rows.reduce((acc, r) => acc + r.callsWithoutCost, 0);
+  const requestsWithCost = rows.reduce((acc, r) => acc + r.requestsWithCost, 0);
+  const requestsWithoutCost = rows.reduce((acc, r) => acc + r.requestsWithoutCost, 0);
   const quantityTotals: Record<string, number> = {};
   for (const r of rows) {
     for (const [k, v] of Object.entries(r.quantityTotals)) {
@@ -153,21 +160,62 @@ function combineRows(rows: GroupedRow[], durations: number[]): Totals {
     }
   }
   return {
-    calls,
+    requests,
     errors,
     cached,
     durationTotalMs,
     costTotal,
-    callsWithCost,
-    callsWithoutCost,
+    requestsWithCost,
+    requestsWithoutCost,
     quantityTotals,
-    errorRate: calls > 0 ? errors / calls : 0,
-    cacheHitRate: calls > 0 ? cached / calls : 0,
-    durationAvgMs: calls > 0 ? Math.round(durationTotalMs / calls) : 0,
+    errorRate: requests > 0 ? errors / requests : 0,
+    cacheHitRate: requests > 0 ? cached / requests : 0,
+    durationAvgMs: requests > 0 ? Math.round(durationTotalMs / requests) : 0,
     durationP50Ms: percentile(durations, 50),
     durationP95Ms: percentile(durations, 95),
-    costAvgUsd: callsWithCost > 0 ? costTotal / callsWithCost : 0,
+    costAvgUsd: requestsWithCost > 0 ? costTotal / requestsWithCost : 0,
   };
+}
+
+/** Human-friendly window header. Renders all timestamps in the user's
+ *  local TZ (storage stays UTC). Three shapes:
+ *
+ *  - `--since 1h`  → "Usage — last 1h (May 6 09:14 to 19:14)"
+ *  - `--since 7d`  → "Usage — last 7d (May 1 to May 8)"
+ *  - `--from/--to` → "Usage — May 1 to May 8"
+ *
+ *  Sub-day windows include time-of-day; multi-day windows show date only.
+ *  When the user typed `--since`, the duration token is echoed back so
+ *  they can read the window without doing the math themselves. */
+function formatWindowHeader(
+  window: { fromMs: number; toMs: number },
+  options: UsageCommandOptions,
+): string {
+  const from = new Date(window.fromMs);
+  const to = new Date(window.toMs);
+  const subDay = window.toMs - window.fromMs <= 24 * 60 * 60 * 1000;
+
+  const dateOnly: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const timeOnly: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
+
+  const wasSince = !options.from && !options.to;
+  const sinceLabel = wasSince ? `last ${options.since ?? '7d'} ` : '';
+
+  if (subDay) {
+    const fromLabel = `${from.toLocaleString(undefined, dateOnly)} ${from.toLocaleString(undefined, timeOnly)}`;
+    const toLabel = to.toLocaleString(undefined, timeOnly);
+    return `Usage — ${sinceLabel}(${fromLabel} to ${toLabel})`;
+  }
+
+  // Inclusive end-of-window day for display: subtract 1ms so the label
+  // says "May 7" instead of "May 8" for a window that ends at midnight.
+  const inclusiveTo = new Date(window.toMs - 1);
+  const fromLabel = from.toLocaleString(undefined, dateOnly);
+  const toLabel = inclusiveTo.toLocaleString(undefined, dateOnly);
+  if (wasSince) {
+    return `Usage — last ${options.since ?? '7d'} (${fromLabel} to ${toLabel})`;
+  }
+  return `Usage — ${fromLabel} to ${toLabel}`;
 }
 
 function formatHumanReadable(
@@ -175,21 +223,19 @@ function formatHumanReadable(
   totals: Totals,
   rows: GroupedRow[],
   by: UsageCommandOptions['by'],
+  options: UsageCommandOptions,
 ): string {
-  const fromIso = new Date(window.fromMs).toISOString().slice(0, 10);
-  const toIso = new Date(window.toMs - 1).toISOString().slice(0, 10);
-
   const lines: string[] = [];
-  lines.push(`Usage — ${fromIso} to ${toIso}`);
+  lines.push(formatWindowHeader(window, options));
   lines.push('');
 
   // Totals
   lines.push('Totals');
   const errPct = (totals.errorRate * 100).toFixed(1);
-  lines.push(`  ${totals.calls} calls    ${totals.errors} errors (${errPct}%)    avg ${formatMs(totals.durationAvgMs)}`);
-  if (totals.callsWithCost > 0) {
+  lines.push(`  ${totals.requests} requests    ${totals.errors} errors (${errPct}%)    avg ${formatMs(totals.durationAvgMs)}`);
+  if (totals.requestsWithCost > 0) {
     lines.push(
-      `  $${totals.costTotal.toFixed(4)} reported across ${totals.callsWithCost} of ${totals.calls} calls (${totals.callsWithoutCost} without cost data)`,
+      `  $${totals.costTotal.toFixed(4)} reported across ${totals.requestsWithCost} of ${totals.requests} requests (${totals.requestsWithoutCost} without cost data)`,
     );
   } else {
     lines.push(`  cost: not reported by any provider in this window`);
@@ -207,14 +253,14 @@ function formatHumanReadable(
   lines.push(groupLabel);
   for (const row of rows) {
     const errLabel = row.errors > 0 ? `  ${row.errors} errors` : '';
-    const costLabel = row.callsWithCost > 0 ? `    $${row.costTotal.toFixed(4)}` : '';
+    const costLabel = row.requestsWithCost > 0 ? `    $${row.costTotal.toFixed(4)}` : '';
     const qtyLabel = Object.keys(row.quantityTotals).length > 0
       ? '    ' + Object.entries(row.quantityTotals)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([k, v]) => `${formatNumber(v)} ${k}`)
           .join(' · ')
       : '';
-    lines.push(`  ${row.key.padEnd(16)} ${String(row.calls).padStart(5)} calls${qtyLabel}${costLabel}${errLabel}`);
+    lines.push(`  ${row.key.padEnd(16)} ${String(row.requests).padStart(5)} requests${qtyLabel}${costLabel}${errLabel}`);
   }
   return lines.join('\n');
 }
@@ -291,7 +337,7 @@ export async function handleUsageCommand(
     return;
   }
 
-  writeLine(stdout, formatHumanReadable({ fromMs, toMs }, totals, rows, by));
+  writeLine(stdout, formatHumanReadable({ fromMs, toMs }, totals, rows, by, options));
 }
 
 export async function handleUsagePruneCommand(

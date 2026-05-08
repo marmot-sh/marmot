@@ -101,10 +101,10 @@ export type UsageExtras = {
   /** USD cost when the provider reported it (OpenRouter `costCredits`,
    *  AI Gateway, etc.). null if not reported. */
   cost?: number | null;
-  /** Stable id for joining records on the same call/task. AI verbs let
-   *  this default to a fresh UUID; async verbs pass the provider's
+  /** Stable id for joining records on the same request/task. AI verbs
+   *  let this default to a fresh UUID; async verbs pass the provider's
    *  task id so submit/poll/completion records share one identifier. */
-  call_id?: string;
+  request_id?: string;
   /** Opt-in audit payload. Persisted only when
    *  `config.logging.recordSensitive = true` (or
    *  `MARMOT_RECORD_SENSITIVE=1` is set). Caller always builds it; the
@@ -146,7 +146,7 @@ export async function recordCall(
 
   await recordUsage(
     {
-      call_id: extras.call_id,
+      request_id: extras.request_id,
       verb: input.verb,
       provider: input.provider,
       model: input.model,
