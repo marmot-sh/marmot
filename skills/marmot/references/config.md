@@ -447,6 +447,13 @@ marmot preset create deep-research \
   --mode text --provider anthropic --model claude-opus-4-7 \
   --system "Be terse and cite sources."
 
+# 0.7.1+: bare invocation enters an interactive walkthrough that
+# prompts for each preset-able field (TTY only). Same for `update`
+# when no field flags are passed.
+marmot preset create                          # interactive: name → mode → fields
+marmot preset create my-name                  # interactive: skips the name prompt
+marmot preset update deep-research            # interactive: current values shown as defaults
+
 marmot preset list                # JSON: [{name, mode, provider, model}]
 marmot preset show deep-research  # JSON: full preset body (includes preset_id)
 marmot preset update deep-research --model claude-sonnet-4-6

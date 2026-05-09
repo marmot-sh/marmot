@@ -298,6 +298,7 @@ export async function handleSearchCommand(
             config,
             env,
             noCache: options.cache === false,
+            forceCache: options.cache === true,
             refresh: options.refresh,
             fetcher: () =>
               runWithRetries(

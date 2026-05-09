@@ -19,8 +19,22 @@ export type WithResponseCacheOptions<T> = {
   query?: string;
   config: MarmotConfig | null;
   env?: NodeJS.ProcessEnv;
-  /** When true, skip cache read AND skip cache write entirely. */
+  /**
+   * Explicit per-call opt-out. When true, skip cache read AND skip cache
+   * write entirely. Wins over both `forceCache` and the provider's
+   * config — explicit-bypass is always honored.
+   */
   noCache?: boolean;
+  /**
+   * Explicit per-call opt-in. When true, run the cache path regardless of
+   * the provider's `cache.enabled` config. Set by callers when the user
+   * explicitly chose `cache: true` on a preset or passed `--cache` at
+   * runtime — preset truth wins so `cache: true` on a preset turns
+   * caching on for that call without the user also having to flip
+   * `providers.<slug>.cache.enabled`. The provider's `enabled` flag
+   * remains the default for calls with no explicit opinion.
+   */
+  forceCache?: boolean;
   /** When true, skip cache read but still write the response. Forces a fresh
    *  call and overwrites any existing entry. */
   refresh?: boolean;
@@ -40,8 +54,18 @@ export async function withResponseCache<T>(
   const env = options.env ?? process.env;
   const settings = resolveProviderCache(options.provider, options.config);
 
-  // Caching disabled (the default) or explicit --no-cache → straight fetch.
-  if (!settings.enabled || options.noCache) {
+  // Explicit opt-out always wins.
+  if (options.noCache) {
+    const response = await options.fetcher();
+    return { response, cached: false };
+  }
+
+  // Caching is active when the provider's config says so OR the call site
+  // forced it on (preset `cache: true` / runtime `--cache`). This lets a
+  // preset author opt into caching without separately flipping
+  // `providers.<slug>.cache.enabled` — preset truth wins.
+  const cacheActive = settings.enabled || Boolean(options.forceCache);
+  if (!cacheActive) {
     const response = await options.fetcher();
     return { response, cached: false };
   }

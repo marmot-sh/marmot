@@ -59,7 +59,9 @@ Because the `preset_id` is stable, sessions that bound to the old slug continue 
 ## Create
 
 ```bash
-marmot preset create <name> --mode <mode> [flags…]
+marmot preset create <name> --mode <mode> [flags…]   # flag-driven
+marmot preset create                                  # interactive walkthrough
+marmot preset create <name>                           # interactive, name pre-filled
 ```
 
 Names follow the slug regex `^[a-z0-9]+([-_][a-z0-9]+)*$` — lowercase letters and digits with single `-` or `_` separators (no leading, trailing, or consecutive separators).
@@ -67,10 +69,52 @@ Names follow the slug regex `^[a-z0-9]+([-_][a-z0-9]+)*$` — lowercase letters 
 ## Update
 
 ```bash
-marmot preset update <name> [flags…]
+marmot preset update <name> [flags…]   # flag-driven (patches the supplied fields)
+marmot preset update <name>            # interactive walkthrough — current values shown as defaults
 ```
 
 Patches the supplied flags onto an existing preset. A preset's mode is fixed; delete and recreate it if the mode needs to change.
+
+## Interactive walkthrough
+
+Run `marmot preset create` (no args) or `marmot preset create <name>` (name only) to enter an interactive walk that prompts for each preset-able field. Same for `marmot preset update <name>` with no field flags.
+
+The walk:
+
+1. **Name** — only on `create`, only if not passed positionally. Validates the slug regex on the fly; re-prompts on invalid.
+2. **Mode** — only on `create`. Pick from the 15 modes; render shows the verb each mode dispatches to (`text → marmot run`, `speech → marmot speak`, …).
+3. **Provider, model, retries, timeout** — common to every mode. Skip any to use the configured default.
+4. **Mode-specific fields** — the walker iterates the field list for the chosen mode in declaration order. Each field type has its own prompt:
+
+   | Field type | Prompt |
+   | --- | --- |
+   | string / path | text input; empty input = skip (or "keep current" on update) |
+   | number | text input; re-prompts on parse failure |
+   | bool | three-way select: enable / disable / skip-or-keep |
+   | enum | select from the enum members |
+   | list (file, image, stop, urls) | on `create`: loop until empty input; on `update`: Keep / Append / Replace |
+
+5. **Mutually-exclusive groups** — for fields like text mode's `schema | schemaFile | schemaModule`, the walker asks which one (if any) once and only walks the chosen branch.
+6. **Review** — pretty-prints the assembled preset. Confirm to save, or cancel to discard.
+
+The flow only triggers on a TTY. Piping `marmot preset create < /dev/null` or running it in a non-interactive environment errors clearly: pass `--mode` and field flags directly instead.
+
+```bash
+$ marmot preset create
+◆  Preset name
+│  ▍ tech-search
+│
+◆  Mode (which verb is this preset for?)
+│  ● search → marmot search
+│
+◆  Provider
+│  ▍ parallel
+…
+◆  Save this preset?
+│  ● Yes
+│
+└  Saved preset "tech-search".
+```
 
 ## Modes and their preset-shaped flags
 

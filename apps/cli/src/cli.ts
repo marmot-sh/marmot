@@ -58,6 +58,34 @@ import {
   handlePresetUpdate,
   type PresetWriteOptions,
 } from './commands/preset/index.js';
+import { runInteractiveCreate, runInteractiveUpdate } from './commands/preset/interactive.js';
+import { MODE_FIELDS } from './commands/preset/field-descriptors.js';
+import { AICliError, PRESET_MODES, getPreset } from '@marmot-sh/core';
+
+/**
+ * Detect whether the user supplied any preset field flag at runtime. Used
+ * to choose between the flag-driven path and the interactive walkthrough.
+ * Commander defaults repeatable flags to `[]`; treat empty arrays as
+ * unset.
+ */
+const PRESET_FIELD_KEYS: Set<string> = (() => {
+  const set = new Set<string>(['mode']);
+  for (const m of PRESET_MODES) {
+    for (const f of MODE_FIELDS[m]) set.add(f.key);
+  }
+  return set;
+})();
+
+function hasAnyFieldFlag(opts: Record<string, unknown>): boolean {
+  for (const k of Object.keys(opts)) {
+    if (!PRESET_FIELD_KEYS.has(k)) continue;
+    const v = opts[k];
+    if (v === undefined) continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    return true;
+  }
+  return false;
+}
 import {
   handleSessionCompact,
   handleSessionContext,
@@ -305,20 +333,35 @@ function buildPresetCommand(): Command {
   addPresetWriteOptions(
     presetCommand
       .command('create')
-      .description('Create a new preset.')
-      .argument('<name>', 'Preset name (slug: lowercase, digits, - or _).')
-      .requiredOption('--mode <mode>', 'Preset mode: text, image, speech, transcription.'),
-  ).action(async (name: string, options: PresetWriteOptions) => {
+      .description('Create a new preset. Run with no arguments for an interactive walkthrough.')
+      .argument('[name]', 'Preset name (slug: lowercase, digits, - or _). Interactive prompt if omitted.')
+      .option('--mode <mode>', 'Preset mode: text, image, speech, transcription, etc. Interactive if omitted.'),
+  ).action(async (name: string | undefined, options: PresetWriteOptions) => {
+    if (!hasAnyFieldFlag(options)) {
+      await runInteractiveCreate(name);
+      return;
+    }
+    if (!name) {
+      throw new AICliError(
+        'validation',
+        'Preset name is required when supplying flags. Pass it positionally, or run `marmot preset create` (no args) for interactive mode.',
+      );
+    }
     await handlePresetCreate(name, options);
   });
 
   addPresetWriteOptions(
     presetCommand
       .command('update')
-      .description('Update fields on an existing preset (mode is fixed).')
+      .description('Update fields on an existing preset (mode is fixed). Pass no field flags for an interactive walkthrough.')
       .argument('<name>', 'Preset name.')
       .option('--mode <mode>', 'Must match existing mode (otherwise rejected).'),
   ).action(async (name: string, options: PresetWriteOptions) => {
+    if (!hasAnyFieldFlag(options)) {
+      const current = await getPreset(name);
+      await runInteractiveUpdate(name, current);
+      return;
+    }
     await handlePresetUpdate(name, options);
   });
 
