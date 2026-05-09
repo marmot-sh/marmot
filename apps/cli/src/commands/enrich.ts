@@ -278,6 +278,7 @@ export async function handleEnrichCommand(
               config,
               env,
               noCache: options.cache === false,
+              forceCache: options.cache === true,
               refresh: options.refresh,
               fetcher: () =>
                 runWithRetries(
@@ -340,6 +341,7 @@ export async function handleEnrichCommand(
             config,
             env,
             noCache: options.cache === false,
+            forceCache: options.cache === true,
             refresh: options.refresh,
             fetcher: () =>
               runWithRetries(

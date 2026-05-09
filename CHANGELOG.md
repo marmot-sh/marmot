@@ -6,6 +6,10 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 
 ## [Unreleased]
 
+### Changed
+
+- **Preset truth wins for cache control** (web/data verbs: `search`, `scrape`, `answer`, `map`, `enrich`, `lookup`, `verify`). Previously a preset's `cache: true` was a no-op when the provider's `providers.<slug>.cache.enabled` was `false`; the only way to actually enable caching was to flip the provider-level master switch separately. Now an explicit `cache: true` on a preset (or `--cache` at runtime) forces caching on for that call regardless of the provider's master switch — matching the 0.7.0 framing that "preset is a complete configuration surface." The provider-level `cache.enabled` remains the default for calls with no explicit opinion. Explicit opt-out (`cache: false` / `--no-cache`) still wins over both. Implemented via a new `forceCache` field threaded through `withResponseCache`.
+
 ### Added
 
 - **Interactive `marmot preset create` and `marmot preset update`.** Bare invocation (no field flags, on a TTY) enters a guided walkthrough that prompts for each preset-able field per mode. `create` walks: name (regex-validated, re-prompts on invalid) → mode (with verb labels) → provider (select; readiness markers — ✓/⚠ no key/⏸ disabled — pulled from `listProviderReadiness`; mode-scoped — text/image/speech/transcription/video filtered by adapter capability, web verbs by `providersForVerb`, data verbs by `DATA_PROVIDERS`) → model (select from the provider's modality-specific cache, fallback to free text if cache empty) → mode-specific fields. `update <name>` walks the existing preset's fields with current values shown as defaults; list fields offer Keep / Append / Replace; mode is locked. Per-field validation re-prompts on bad input: numeric ranges (e.g. `retries` ≥ 0, `topP` 0–1, `n` 1–10), date pattern (`YYYY-MM-DD` for `afterDate`/`beforeDate`), and a soft existence check on absolute / `~`-expanded paths (proceed-anyway for cwd-dependent paths). The flag-driven path (current behavior) is preserved unchanged. Errors clearly when stdin/stdout isn't a TTY.
