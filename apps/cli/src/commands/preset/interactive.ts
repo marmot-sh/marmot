@@ -290,9 +290,14 @@ async function promptList(desc: FieldDescriptor, currentValue?: string[]): Promi
   }
 
   const collected: string[] = listMode === 'append' && currentValue ? [...currentValue] : [];
+  // Mention "one per entry" only on the first prompt — once is enough; the
+  // pattern is obvious by entry 2.
   for (let i = 1; ; i++) {
+    const suffix = i === 1
+      ? '— entry 1 (one per entry; press Enter on an empty entry to finish)'
+      : `— entry ${i}`;
     const result = await text({
-      message: buildMessage(desc, `— entry ${i} (empty to finish)`),
+      message: buildMessage(desc, suffix),
       placeholder: desc.placeholder,
       initialValue: '',
     });
