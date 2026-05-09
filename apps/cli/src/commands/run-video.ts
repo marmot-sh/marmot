@@ -58,6 +58,7 @@ export type VideoRunCommandOptions = {
   model?: string;
   apiKey?: string;
   output?: string;
+  prompt?: string;
   promptFile?: string;
   aspect?: string;
   resolution?: string;
@@ -131,7 +132,11 @@ export async function handleVideoRunCommand(
   const stderr = dependencies.stderr ?? process.stderr;
   const resolveProvider = dependencies.resolveProvider ?? getProviderAdapter;
   const sessionBinding = await resolveSessionBinding(options, env);
-  const inlinePrompt = promptParts.join(' ');
+  // Preset-supplied `prompt` (concat rule in engine) prepends positional args.
+  const positionalPrompt = promptParts.join(' ');
+  const inlinePrompt = options.prompt
+    ? [options.prompt, positionalPrompt].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalPrompt;
 
   const promptFile = options.promptFile
     ? await readPromptFile(options.promptFile)

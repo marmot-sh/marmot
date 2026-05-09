@@ -26,6 +26,9 @@ export type PresetWriteOptions = {
   model?: string;
   retries?: string | number;
   timeout?: string | number;
+  output?: string;
+  session?: string;
+  promptFile?: string;
   // text
   system?: string;
   systemFile?: string;
@@ -47,11 +50,16 @@ export type PresetWriteOptions = {
   style?: string;
   negative?: string;
   n?: string | number;
+  binary?: boolean;
+  b64?: boolean;
+  preview?: boolean;
   // speech
   voice?: string;
   format?: string;
   speed?: string | number;
   instructions?: string;
+  play?: boolean;
+  wait?: boolean;
   // transcription
   language?: string;
   prompt?: string;
@@ -137,6 +145,7 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
     case 'text':
       candidate = {
         ...base,
+        promptFile: opts.promptFile,
         system: opts.system,
         systemFile: opts.systemFile,
         schema: opts.schema,
@@ -149,13 +158,16 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         stop: nonEmptyArray(opts.stop),
         reasoning: opts.reasoning,
         providerOption: nonEmptyArray(opts.providerOption),
+        output: opts.output,
         stream: opts.stream,
         json: opts.json,
+        session: opts.session,
       };
       break;
     case 'image':
       candidate = {
         ...base,
+        promptFile: opts.promptFile,
         size: opts.size,
         quality: opts.quality,
         style: opts.style,
@@ -163,16 +175,28 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         negative: opts.negative,
         providerOption: nonEmptyArray(opts.providerOption),
         n: parseIntField('n', opts.n),
+        output: opts.output,
+        binary: opts.binary,
+        b64: opts.b64,
+        preview: opts.preview,
+        session: opts.session,
       };
       break;
     case 'speech':
       candidate = {
         ...base,
+        promptFile: opts.promptFile,
         voice: opts.voice,
         format: opts.format,
         speed: parseFloatField('speed', opts.speed),
         instructions: opts.instructions,
         providerOption: nonEmptyArray(opts.providerOption),
+        output: opts.output,
+        binary: opts.binary,
+        b64: opts.b64,
+        play: opts.play,
+        wait: opts.wait,
+        session: opts.session,
       };
       break;
     case 'transcription':
@@ -182,11 +206,14 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         format: opts.format,
         prompt: opts.prompt,
         providerOption: nonEmptyArray(opts.providerOption),
+        output: opts.output,
+        session: opts.session,
       };
       break;
     case 'video':
       candidate = {
         ...base,
+        promptFile: opts.promptFile,
         aspect: opts.aspect,
         resolution: opts.resolution,
         duration: parseIntField('duration', opts.duration),
@@ -195,6 +222,10 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         n: parseIntField('n', opts.n),
         seed: parseIntField('seed', opts.seed),
         providerOption: nonEmptyArray(opts.providerOption),
+        output: opts.output,
+        binary: opts.binary,
+        b64: opts.b64,
+        session: opts.session,
       };
       break;
     case 'search':

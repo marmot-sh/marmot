@@ -58,12 +58,23 @@ For cross-cutting flags see [Common flags](/docs/reference/commands/common-flags
 | `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche TTS params. |
 | `-o, --output <path>` | Output audio path. |
 | `-p, --prompt-file <path>` | Read text from a file. |
-| `--play` | Play through speakers. Default on a TTY. When piped, also emits bytes downstream. |
-| `--wait` | With `--play`, block until playback finishes. |
-| `--binary` | Force raw audio bytes to stdout. |
-| `--b64` | JSON envelope with inline base64. |
-| `--json` | JSON envelope on stdout (instead of just the path). |
+| `--play` / `--no-play` | Play through speakers. Default on a TTY. When piped, also emits bytes downstream. `--no-play` overrides a preset's `play: true`. |
+| `--wait` / `--no-wait` | With `--play`, block until playback finishes. |
+| `--binary` / `--no-binary` | Force raw audio bytes to stdout. |
+| `--b64` / `--no-b64` | JSON envelope with inline base64. |
+| `--json` / `--no-json` | JSON envelope on stdout (instead of just the path). |
 
 <Callout>
 `--binary` and `--b64` are mutually exclusive. `--play` can combine with binary/pipe — that's the documented "play AND continue piping" mode.
 </Callout>
+
+## Presets
+
+`speech`-mode presets accept `text` (positional), `promptFile`, `voice`, `format`, `speed`, `instructions`, `providerOption`, `output`, `binary`, `b64`, `json`, `play`, `wait`, `retries`, `timeout`, `session`. The preset's `text` concatenates with the runtime positional text. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create narrator --mode speech --provider openai \
+  --voice nova --format mp3 --no-play
+marmot @narrator "Welcome to the show."
+marmot @narrator --play "Now playing through speakers."   # override preset
+```

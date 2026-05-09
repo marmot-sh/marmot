@@ -95,9 +95,20 @@ For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) se
 | `--image <path>` | Reference image. Repeatable up to 2: position 1 = first-frame conditioning (or single-image-to-video), position 2 = last-frame for models that support it. A piped image on stdin is auto-detected and slotted into position 1, pushing explicit `--image` flags one position over (so `cat first.png \| marmot video --image last.png` works). |
 | `--n <count>` | Number of clips. Most models cap at 1 per call; the AI SDK batches when needed. |
 | `--seed <int>` | Reproducibility seed. |
-| `--binary` | Force raw video bytes to stdout. Requires `--n 1`. |
-| `--b64` | JSON envelope with inline base64; no file written. |
-| `--json` | Emit JSON envelope on stdout (default prints just the path). |
+| `--binary` / `--no-binary` | Force raw video bytes to stdout. Requires `--n 1`. |
+| `--b64` / `--no-b64` | JSON envelope with inline base64; no file written. |
+| `--json` / `--no-json` | Emit JSON envelope on stdout (default prints just the path). |
+
+## Presets
+
+`video`-mode presets accept `prompt`, `promptFile`, `image` (list — first-frame, last-frame conditioning), `aspect`, `resolution`, `duration`, `fps`, `audio`, `n`, `seed`, `providerOption`, `output`, `binary`, `b64`, `json`, `retries`, `timeout`, `session`. The preset's `prompt` concatenates with the runtime positional prompt; `image` lists append. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create reel --mode video --provider openrouter \
+  --aspect 9:16 --resolution 1080p --duration 8
+marmot @reel "drone shot over alps at sunrise"
+marmot @reel --image ./first-frame.png "with closing logo"
+```
 
 ## Provider notes
 

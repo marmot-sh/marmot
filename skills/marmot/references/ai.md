@@ -160,6 +160,10 @@ marmot image 'fox at dusk' --provider cloudflare --seed 42 --negative 'blurry'
 marmot image 'a marmot in space' | imgcat
 ```
 
+### Presets (image mode)
+
+`prompt`, `promptFile`, `size`, `quality`, `style`, `negative`, `seed`, `n`, `providerOption`, `output`, `binary`, `b64`, `json`, `preview`, `retries`, `timeout`, `session`. Preset `prompt` concatenates with runtime positional. New runtime negations: `--no-binary`, `--no-b64`, `--no-json`, `--preview`/`--no-preview`.
+
 ## `speak`
 
 ```bash
@@ -215,13 +219,17 @@ marmot speak 'welcome aboard' --model gpt-4o-mini-tts --voice ash \
 marmot speak 'hello' --play | marmot transcribe
 ```
 
+### Presets (speech mode)
+
+`text` (positional), `promptFile`, `voice`, `format`, `speed`, `instructions`, `providerOption`, `output`, `binary`, `b64`, `json`, `play`, `wait`, `retries`, `timeout`, `session`. Preset `text` concatenates with runtime positional. New runtime negations: `--no-binary`, `--no-b64`, `--no-json`, `--no-play`, `--no-wait`.
+
 ## `transcribe`
 
 ```bash
 marmot transcribe <audio> [flags…]
 ```
 
-Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. Audio source priority: positional path, `--input`, piped binary stdin. At least one is required.
+Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. Audio source priority: positional path, preset `audio` field, piped binary stdin. At least one is required. The legacy `-i, --input` flag was removed in 0.7.0.
 
 ### Flags
 
@@ -230,14 +238,13 @@ Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. Audio source priority
 | `--provider <slug>` | Transcription-capable provider. |
 | `--model <id>` | STT model. |
 | `--api-key <key>` | Override env key. |
-| `-i, --input <path>` | Audio file path (alternative to positional). |
 | `-o, --output <path>` | Write rendered output to file. |
 | `--language <code>` | ISO-639-1 hint (e.g. `en`, `es`). |
-| `--prompt <text>` | Bias prompt to guide transcription (names, jargon). |
+| `--prompt <text>` | Bias prompt to guide transcription (names, jargon). **Concatenates** with a preset's `prompt` field when both are set. |
 | `--format <fmt>` | `text` (default), `json`, `srt`, `vtt`, `verbose-json`. |
 | `--provider-option <key=value>` | Generic passthrough. Repeatable. For niche STT params (`timestamp_granularities`, etc.). |
-| `--text` | Plain text. Kept for back-compat (now the default). |
-| `--json` | Alias for `--format json`. |
+| `--text` / `--no-text` | Plain text. Kept for back-compat (now the default). `--no-text` overrides preset `text: true`. |
+| `--json` / `--no-json` | Alias for `--format json`. |
 | `--retries <n>` | Retry attempts. |
 | `--timeout <seconds>` | Per-attempt timeout. |
 | `--session <name>` | Session binding. |
@@ -286,6 +293,12 @@ marmot video 'cheap test clip' --model minimax/hailuo-2.3
 marmot 'write a vivid one-line video prompt' | marmot video
 marmot image 'a marmot waving' | marmot video 'gentle waving, slight breeze'
 ```
+
+### Presets (transcription / video modes)
+
+**Transcription:** `audio` (positional), `language`, `format`, `prompt` (concat), `providerOption`, `output`, `text`, `json`, `retries`, `timeout`, `session`. New runtime negations: `--no-text`, `--no-json`. Note: `transcribe --prompt` switches replace → concatenate when also set in a preset (Breaking, 0.7.0).
+
+**Video:** `prompt`, `promptFile`, `image` (list), `aspect`, `resolution`, `duration`, `fps`, `audio`, `n`, `seed`, `providerOption`, `output`, `binary`, `b64`, `json`, `retries`, `timeout`, `session`. Preset `prompt` concatenates with runtime; `image` list-appends. New runtime negations: `--no-binary`, `--no-b64`, `--no-json`.
 
 ## Streaming, retry, timeout
 

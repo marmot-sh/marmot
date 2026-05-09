@@ -167,6 +167,8 @@ const presetImageSchema = z
     preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
+    prompt: z.string().optional(),
+    promptFile: z.string().trim().min(1).optional(),
     size: z.string().trim().min(1).optional(),
     quality: z.string().trim().min(1).optional(),
     style: z.string().trim().min(1).optional(),
@@ -174,8 +176,14 @@ const presetImageSchema = z
     negative: z.string().optional(),
     providerOption: z.array(z.string().min(1)).optional(),
     n: z.number().int().min(1).max(10).optional(),
+    output: z.string().trim().min(1).optional(),
+    binary: z.boolean().optional(),
+    b64: z.boolean().optional(),
+    json: z.boolean().optional(),
+    preview: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -185,13 +193,22 @@ const presetSpeechSchema = z
     preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
+    text: z.string().optional(),
+    promptFile: z.string().trim().min(1).optional(),
     voice: z.string().trim().min(1).optional(),
     format: z.string().trim().min(1).optional(),
     speed: z.number().positive().optional(),
     instructions: z.string().optional(),
     providerOption: z.array(z.string().min(1)).optional(),
+    output: z.string().trim().min(1).optional(),
+    binary: z.boolean().optional(),
+    b64: z.boolean().optional(),
+    json: z.boolean().optional(),
+    play: z.boolean().optional(),
+    wait: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -201,12 +218,17 @@ const presetTranscriptionSchema = z
     preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
+    audio: z.string().trim().min(1).optional(),
     language: z.string().trim().min(1).optional(),
     format: z.string().trim().min(1).optional(),
     prompt: z.string().optional(),
     providerOption: z.array(z.string().min(1)).optional(),
+    output: z.string().trim().min(1).optional(),
+    text: z.boolean().optional(),
+    json: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -216,6 +238,9 @@ const presetVideoSchema = z
     preset_id: z.string().uuid().optional(),
     provider: providerSlugSchema.optional(),
     model: z.string().trim().min(1).optional(),
+    prompt: z.string().optional(),
+    promptFile: z.string().trim().min(1).optional(),
+    image: z.array(z.string().trim().min(1)).optional(),
     aspect: z.string().trim().min(1).optional(),
     resolution: z.string().trim().min(1).optional(),
     duration: z.number().int().positive().optional(),
@@ -224,8 +249,13 @@ const presetVideoSchema = z
     n: z.number().int().min(1).max(10).optional(),
     seed: z.number().int().optional(),
     providerOption: z.array(z.string().min(1)).optional(),
+    output: z.string().trim().min(1).optional(),
+    binary: z.boolean().optional(),
+    b64: z.boolean().optional(),
+    json: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 

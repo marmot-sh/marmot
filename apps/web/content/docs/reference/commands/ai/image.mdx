@@ -54,10 +54,22 @@ For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) se
 | `--seed <n>` | Reproducibility seed (Cloudflare, some Vercel models). |
 | `--negative <prompt>` | Negative prompt (Cloudflare). |
 | `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche image params (gpt-image-1 `background`, `output_format`, `moderation`, etc.). |
-| `--binary` | Force raw bytes to stdout. Requires `--n 1`. |
-| `--b64` | JSON envelope with inline base64; no file written. |
-| `--json` | Emit JSON envelope on stdout. Default prints just the path. |
+| `--binary` / `--no-binary` | Force raw bytes to stdout. Requires `--n 1`. `--no-binary` overrides a preset's `binary: true`. |
+| `--b64` / `--no-b64` | JSON envelope with inline base64; no file written. |
+| `--json` / `--no-json` | Emit JSON envelope on stdout. Default prints just the path. |
+| `--preview` / `--no-preview` | Inline image preview on supported terminals. `--no-preview` disables it; `--preview` overrides a preset's `preview: false`. |
 
 <Callout>
 `--binary`, `--b64`, `--json`, and `-o` are independent — pick the one that matches your workflow. `--binary` requires `--n 1`.
 </Callout>
+
+## Presets
+
+`image`-mode presets accept `prompt`, `promptFile`, `size`, `quality`, `style`, `negative`, `seed`, `n`, `providerOption`, `output`, `binary`, `b64`, `json`, `preview`, `retries`, `timeout`, `session`. The preset's `prompt` concatenates with the runtime positional prompt. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create square-hd --mode image --provider openai \
+  --size 1024x1024 --quality hd --no-preview
+marmot @square-hd "a marmot in the alps, oil painting"
+marmot @square-hd --preview "with cinematic lighting"   # override preset preview false
+```

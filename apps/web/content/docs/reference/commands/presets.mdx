@@ -81,10 +81,10 @@ Common to every mode: `--provider`, `--retries`, `--timeout`. AI modes also acce
 | Mode | Verb | Mode-specific flags |
 | --- | --- | --- |
 | `text` | (default) | `--prompt`, `--prompt-file`, `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--file` (list), `--image` (list), `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop` (list), `--reasoning`, `--provider-option`, `--output`, `--stream`, `--text`, `--json`, `--session` |
-| `image` | `image` | `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n`, `--provider-option` |
-| `video` | `video` | `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio` / `--no-audio`, `--n`, `--seed`, `--provider-option` |
-| `speech` | `speak` | `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option` |
-| `transcription` | `transcribe` | `--language`, `--format`, `--prompt`, `--provider-option` |
+| `image` | `image` | `--prompt`, `--prompt-file`, `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n`, `--provider-option`, `--output`, `--binary`, `--b64`, `--json`, `--preview`, `--session` |
+| `video` | `video` | `--prompt`, `--prompt-file`, `--image` (list), `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio` / `--no-audio`, `--n`, `--seed`, `--provider-option`, `--output`, `--binary`, `--b64`, `--json`, `--session` |
+| `speech` | `speak` | `--text` (positional), `--prompt-file`, `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option`, `--output`, `--binary`, `--b64`, `--json`, `--play`, `--wait`, `--session` |
+| `transcription` | `transcribe` | `--audio` (positional), `--language`, `--format`, `--prompt` (concat), `--provider-option`, `--output`, `--text`, `--json`, `--session` |
 
 ### Web modes
 

@@ -58,6 +58,7 @@ export type ImageRunCommandOptions = {
   model?: string;
   apiKey?: string;
   output?: string;
+  prompt?: string;
   promptFile?: string;
   n?: string | number;
   size?: string;
@@ -112,7 +113,11 @@ export async function handleImageRunCommand(
   const startedAtMs = Date.now();
   const stderr = dependencies.stderr ?? process.stderr;
   const resolveProvider = dependencies.resolveProvider ?? getProviderAdapter;
-  const inlinePrompt = promptParts.join(' ');
+  // Preset-supplied `prompt` (concat rule in engine) prepends positional args.
+  const positionalPrompt = promptParts.join(' ');
+  const inlinePrompt = options.prompt
+    ? [options.prompt, positionalPrompt].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalPrompt;
 
   const promptFile = options.promptFile
     ? await readPromptFile(options.promptFile)
