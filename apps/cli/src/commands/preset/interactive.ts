@@ -17,15 +17,29 @@ import {
 
 import {
   AICliError,
+  DATA_PROVIDERS,
   PRESET_MODES,
+  PROVIDERS,
+  listProviderReadiness,
   presetSchema,
+  readMarmotConfig,
+  readProviderCache,
+  readProviderImageCache,
+  readProviderSpeechCache,
+  readProviderTranscriptionCache,
+  readProviderVideoCache,
   upsertPreset,
   validatePresetName,
   writeLine,
+  type DataProviderSlug,
   type OutputWriter,
   type Preset,
   type PresetMode,
+  type ProviderSlug,
+  type WebProviderSlug,
 } from '@marmot-sh/core';
+import { getProviderAdapter } from '../../providers/index.js';
+import { providersForVerb } from '../../providers/web-capabilities.js';
 
 import { MODE_FIELDS, type FieldDescriptor } from './field-descriptors.js';
 
@@ -166,12 +180,195 @@ async function promptList(desc: FieldDescriptor, currentValue?: string[]): Promi
   return collected;
 }
 
+/**
+ * Valid provider slugs for the given preset mode. AI modes filter
+ * PROVIDERS by `adapter.capabilities.<modality>`. Web modes use
+ * providersForVerb. Data modes return the full DATA_PROVIDERS pool —
+ * fine-grained filtering happens later via the `type` field.
+ */
+function validProvidersForMode(
+  mode: PresetMode,
+): readonly (ProviderSlug | WebProviderSlug | DataProviderSlug)[] {
+  switch (mode) {
+    case 'text':
+      return PROVIDERS.filter((p) => getProviderAdapter(p).capabilities.text);
+    case 'image':
+      return PROVIDERS.filter((p) => getProviderAdapter(p).capabilities.image);
+    case 'speech':
+      return PROVIDERS.filter((p) => getProviderAdapter(p).capabilities.speech);
+    case 'transcription':
+      return PROVIDERS.filter((p) => getProviderAdapter(p).capabilities.transcription);
+    case 'video':
+      return PROVIDERS.filter((p) => Boolean(getProviderAdapter(p).capabilities.video));
+    case 'search':
+    case 'scrape':
+    case 'answer':
+    case 'map':
+    case 'crawl':
+    case 'research':
+    case 'findall':
+      return providersForVerb(mode) as readonly WebProviderSlug[];
+    case 'enrich':
+    case 'lookup':
+    case 'verify':
+      return DATA_PROVIDERS;
+  }
+}
+
+/** Read the appropriate model cache for an AI mode + provider, or null. */
+async function readModelsForMode(
+  mode: PresetMode,
+  provider: ProviderSlug,
+  env: NodeJS.ProcessEnv,
+): Promise<{ id: string; name: string }[] | null> {
+  let cache;
+  switch (mode) {
+    case 'text':
+      cache = await readProviderCache(provider, env).catch(() => null);
+      break;
+    case 'image':
+      cache = await readProviderImageCache(provider, env).catch(() => null);
+      break;
+    case 'speech':
+      cache = await readProviderSpeechCache(provider, env).catch(() => null);
+      break;
+    case 'transcription':
+      cache = await readProviderTranscriptionCache(provider, env).catch(() => null);
+      break;
+    case 'video':
+      cache = await readProviderVideoCache(provider, env).catch(() => null);
+      break;
+    default:
+      return null;
+  }
+  if (!cache || !cache.models?.length) return null;
+  return cache.models.map((m) => ({ id: m.id, name: m.name }));
+}
+
+/** Provider select with readiness indicators. */
+async function promptProvider(
+  mode: PresetMode,
+  current: string | undefined,
+  env: NodeJS.ProcessEnv,
+): Promise<string | undefined> {
+  const valid = validProvidersForMode(mode);
+  const config = await readMarmotConfig(env).catch(() => null);
+  const readiness = listProviderReadiness(config, env);
+
+  type Option = { value: string; label: string; hint?: string };
+  const options: Option[] = [
+    {
+      value: '__skip__',
+      label: current ? `Keep current (${current})` : 'Skip (use configured default)',
+    },
+  ];
+  // Sort: ready first, then unready, alphabetically within each group.
+  const ready = valid.filter((p) => readiness.get(p)?.ready);
+  const unready = valid.filter((p) => !readiness.get(p)?.ready);
+  for (const p of [...ready, ...unready].sort()) {
+    const r = readiness.get(p);
+    let marker = '';
+    if (r?.ready) marker = '✓';
+    else if (r && !r.enabled) marker = '⏸ disabled';
+    else if (r && r.keys.some((k) => !k.set)) {
+      const missing = r.keys.filter((k) => !k.set).map((k) => k.env).join(', ');
+      marker = `⚠ no ${missing}`;
+    } else marker = '⚠ not ready';
+    options.push({ value: p, label: `${p}`, hint: marker });
+  }
+  options.push({ value: '__custom__', label: 'Other / type a custom value' });
+
+  const result = await select({
+    message: 'Provider',
+    options,
+    initialValue: current && valid.includes(current as ProviderSlug & WebProviderSlug & DataProviderSlug) ? current : '__skip__',
+  });
+  if (isCancel(result)) bail('Cancelled.');
+  if (result === '__skip__') return current;
+  if (result === '__custom__') {
+    const free = await text({
+      message: 'Provider slug (custom)',
+      initialValue: '',
+    });
+    if (isCancel(free)) bail('Cancelled.');
+    const trimmed = (free as string).trim();
+    return trimmed.length > 0 ? trimmed : current;
+  }
+  return result as string;
+}
+
+/** Model select from the provider's cached model list, or fallback to text. */
+async function promptModel(
+  mode: PresetMode,
+  provider: string | undefined,
+  current: string | undefined,
+  env: NodeJS.ProcessEnv,
+): Promise<string | undefined> {
+  // Without a provider chosen we can't load the cache. Fall back to text.
+  if (!provider || !PROVIDERS.includes(provider as ProviderSlug)) {
+    return promptString(
+      { key: 'model', flag: 'model', type: 'string', label: 'Model id', help: '' } as FieldDescriptor,
+      current,
+    );
+  }
+  const models = await readModelsForMode(mode, provider as ProviderSlug, env);
+  if (!models || models.length === 0) {
+    note(
+      `No cached models for "${provider}". Run \`marmot cache refresh ${provider}\` to populate, or type the model id below.`,
+    );
+    return promptString(
+      { key: 'model', flag: 'model', type: 'string', label: 'Model id', help: '' } as FieldDescriptor,
+      current,
+    );
+  }
+
+  const options = [
+    {
+      value: '__skip__',
+      label: current ? `Keep current (${current})` : 'Skip (use provider default)',
+    },
+    ...models.map((m) => ({
+      value: m.id,
+      label: m.id,
+      hint: m.name && m.name !== m.id ? m.name : undefined,
+    })),
+    { value: '__custom__', label: 'Other / type a custom value' },
+  ];
+
+  const result = await select({
+    message: 'Model',
+    options,
+    initialValue: current && models.some((m) => m.id === current) ? current : '__skip__',
+  });
+  if (isCancel(result)) bail('Cancelled.');
+  if (result === '__skip__') return current;
+  if (result === '__custom__') {
+    const free = await text({ message: 'Model id (custom)', initialValue: '' });
+    if (isCancel(free)) bail('Cancelled.');
+    const trimmed = (free as string).trim();
+    return trimmed.length > 0 ? trimmed : current;
+  }
+  return result as string;
+}
+
 /** Run one field's prompt based on its descriptor type. */
 async function runFieldPrompt(
   desc: FieldDescriptor,
   current: Record<string, unknown>,
+  ctx: { mode: PresetMode; env: NodeJS.ProcessEnv },
 ): Promise<unknown> {
   const cur = current[desc.key];
+
+  // Provider and model are dynamic-list selects, not free-text.
+  if (desc.key === 'provider') {
+    return promptProvider(ctx.mode, typeof cur === 'string' ? cur : undefined, ctx.env);
+  }
+  if (desc.key === 'model') {
+    const provider =
+      typeof current.provider === 'string' ? (current.provider as string) : undefined;
+    return promptModel(ctx.mode, provider, typeof cur === 'string' ? cur : undefined, ctx.env);
+  }
+
   switch (desc.type) {
     case 'string':
     case 'path':
@@ -200,6 +397,7 @@ async function runGroup(
   members: FieldDescriptor[],
   current: Record<string, unknown>,
   out: Record<string, unknown>,
+  ctx: { mode: PresetMode; env: NodeJS.ProcessEnv },
 ): Promise<void> {
   const currentMember = members.find((m) => current[m.key] !== undefined);
   const choice = await select({
@@ -229,7 +427,7 @@ async function runGroup(
   for (const m of members) {
     if (m.key !== picked.key) delete out[m.key];
   }
-  const value = await runFieldPrompt(picked, current);
+  const value = await runFieldPrompt(picked, out, ctx);
   if (value !== undefined) out[picked.key] = value;
 }
 
@@ -241,6 +439,7 @@ async function runGroup(
 async function walkMode(
   mode: PresetMode,
   current: Record<string, unknown>,
+  env: NodeJS.ProcessEnv,
 ): Promise<Record<string, unknown>> {
   const fields = MODE_FIELDS[mode];
   const out: Record<string, unknown> = { mode };
@@ -250,6 +449,8 @@ async function walkMode(
     if (k === 'mode' || k === 'preset_id') continue;
     out[k] = current[k];
   }
+
+  const ctx = { mode, env };
 
   // Group fields by their `group` (if any) to support mutual exclusion.
   const groups = new Map<string, FieldDescriptor[]>();
@@ -264,15 +465,14 @@ async function walkMode(
     }
   }
 
-  // Walk ungrouped fields in declaration order.
+  // Walk ungrouped fields in declaration order. Pass `out` as the live
+  // state so prompts that depend on earlier choices (e.g. `model` on the
+  // chosen `provider`) see the user's just-picked value.
   for (const f of ungrouped) {
-    const value = await runFieldPrompt(f, current);
+    const value = await runFieldPrompt(f, out, ctx);
     if (value === undefined) {
       // For create, undefined means "skip — drop the field".
-      // For update, undefined could also mean "user cleared an existing value";
-      // we approximate by leaving the existing carry-over in place. The walker
-      // can't distinguish "skip" from "clear" via the same affordance — we
-      // bias toward keep, matching the placeholder-based prompt UX.
+      // For update, undefined keeps the carried-over value already in `out`.
       continue;
     }
     out[f.key] = value;
@@ -280,7 +480,7 @@ async function walkMode(
 
   // Walk groups (currently just structured-output).
   for (const [groupKey, members] of groups) {
-    await runGroup(groupKey, members, current, out);
+    await runGroup(groupKey, members, current, out, ctx);
   }
 
   // Strip undefined.
@@ -356,7 +556,7 @@ export async function runInteractiveCreate(
 
     note(`Walking ${mode}-mode fields. Press Enter on any prompt to skip.`);
 
-    const candidate = await walkMode(mode, {});
+    const candidate = await walkMode(mode, {}, env);
 
     const parsed = presetSchema.safeParse(candidate);
     if (!parsed.success) {
@@ -402,6 +602,7 @@ export async function runInteractiveUpdate(
     const candidate = await walkMode(
       current.mode,
       current as unknown as Record<string, unknown>,
+      env,
     );
 
     // preset_id stays stable across updates.

@@ -110,6 +110,8 @@ const reasoningEnum = ['low', 'medium', 'high'] as const;
 const depthEnum = ['basic', 'standard', 'deep'] as const;
 const freshnessEnum = ['day', 'week', 'month', 'year'] as const;
 const scrapeFormatEnum = ['markdown', 'text', 'html'] as const;
+const speechFormatEnum = ['mp3', 'wav', 'flac', 'aac', 'opus'] as const;
+const transcriptionFormatEnum = ['text', 'json', 'srt', 'vtt', 'verbose-json'] as const;
 const enrichTypeEnum = ['person', 'org'] as const;
 const lookupTypeEnum = ['person', 'org', 'email'] as const;
 
@@ -364,7 +366,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
     {
       key: 'format',
       flag: 'format',
-      type: 'string',
+      type: 'enum',
+      enumValues: speechFormatEnum,
       label: 'Audio format',
       help: 'mp3, wav, flac, aac, opus.',
     },
@@ -460,7 +463,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
     {
       key: 'format',
       flag: 'format',
-      type: 'string',
+      type: 'enum',
+      enumValues: transcriptionFormatEnum,
       label: 'Output format',
       help: 'text (default), json, srt, vtt, verbose-json.',
     },
