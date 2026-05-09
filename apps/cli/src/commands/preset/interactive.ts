@@ -93,10 +93,33 @@ function buildMessage(desc: FieldDescriptor, suffix?: string): string {
   return `${head}\n  ${ansis.dim(desc.help)}`;
 }
 
-/** Pick a useful placeholder: explicit example > current value > "skip". */
+/**
+ * True when this descriptor's `appliesTo` allows the currently-chosen
+ * provider. When `appliesTo` is undefined, the field applies universally
+ * for the mode. When the provider hasn't been chosen yet (user skipped),
+ * we err on the side of showing the field — they may still want to bake
+ * the value, even if the matrix annotation isn't relevant yet.
+ */
+function fieldAppliesToCurrentProvider(
+  desc: FieldDescriptor,
+  out: Record<string, unknown>,
+): boolean {
+  if (!desc.appliesTo) return true;
+  const provider = typeof out.provider === 'string' ? out.provider : undefined;
+  if (!provider) return true;
+  return desc.appliesTo.includes(provider);
+}
+
+/**
+ * Pick a useful placeholder. Precedence:
+ * 1. `current: <value>` when updating an existing preset — the user
+ *    needs to see what they have so they can choose to keep it.
+ * 2. Explicit example placeholder (e.g. "site:linkedin.com").
+ * 3. Generic "skip" hint.
+ */
 function placeholderFor(desc: FieldDescriptor, currentValue?: string): string {
-  if (desc.placeholder) return desc.placeholder;
   if (currentValue) return `current: ${currentValue}`;
+  if (desc.placeholder) return desc.placeholder;
   return 'skip (press Enter)';
 }
 
@@ -134,9 +157,12 @@ async function promptNumber(
           : desc.max !== undefined
             ? `(≤ ${desc.max})`
             : '';
+    // Same precedence as placeholderFor: current value wins, then example,
+    // then generic skip hint.
     const placeholder =
-      desc.placeholder ??
-      (currentValue !== undefined ? `current: ${currentValue}` : 'skip (press Enter)');
+      currentValue !== undefined
+        ? `current: ${currentValue}`
+        : (desc.placeholder ?? 'skip (press Enter)');
     const result = await text({
       message: buildMessage(desc, rangeHint),
       placeholder,
@@ -567,8 +593,11 @@ async function walkMode(
 
   // Walk ungrouped fields in declaration order. Pass `out` as the live
   // state so prompts that depend on earlier choices (e.g. `model` on the
-  // chosen `provider`) see the user's just-picked value.
+  // chosen `provider`) see the user's just-picked value. Skip fields
+  // whose `appliesTo` excludes the currently-chosen provider — showing a
+  // freshness select for a Parallel preset would just be misleading.
   for (const f of ungrouped) {
+    if (!fieldAppliesToCurrentProvider(f, out)) continue;
     const value = await runFieldPrompt(f, out, ctx);
     if (value === undefined) {
       // For create, undefined means "skip — drop the field".
@@ -578,9 +607,13 @@ async function walkMode(
     out[f.key] = value;
   }
 
-  // Walk groups (currently just structured-output).
+  // Walk groups (currently just structured-output). Groups inherit the
+  // same provider-applicability filter — if every member is filtered out,
+  // skip the group selector too.
   for (const [groupKey, members] of groups) {
-    await runGroup(groupKey, members, current, out, ctx);
+    const applicable = members.filter((m) => fieldAppliesToCurrentProvider(m, out));
+    if (applicable.length === 0) continue;
+    await runGroup(groupKey, applicable, current, out, ctx);
   }
 
   // Strip undefined.

@@ -54,6 +54,15 @@ export type FieldDescriptor = {
    */
   placeholder?: string;
   /**
+   * Provider slugs this field actually has an effect on. When set, the
+   * interactive walk skips this field entirely if the user picked a
+   * provider not in the list. Leave undefined for fields that apply to
+   * every provider for the mode. Use this for fields where we know the
+   * underlying provider matrix ignores or doesn't honor a given flag —
+   * showing it would just confuse the user.
+   */
+  appliesTo?: readonly string[];
+  /**
    * Mutually-exclusive group. Within a group, the interactive flow asks
    * "which one (if any)?" once and only walks the chosen branch. The
    * flag-driven builder ignores this field — passing two members of the
@@ -671,7 +680,10 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       type: 'enum',
       enumValues: freshnessEnum,
       label: 'Freshness window',
-      help: 'Relative recency filter. Brave/Tavily honor natively; Exa/Firecrawl emulate; Parallel ignores (use --after-date instead).',
+      help: 'Relative recency filter. Brave/Tavily honor natively; Exa/Firecrawl emulate.',
+      // Parallel ignores --freshness (its API has no equivalent); use
+      // --after-date instead.
+      appliesTo: ['brave', 'exa', 'firecrawl', 'tavily'],
     },
     {
       key: 'afterDate',
@@ -681,7 +693,10 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       patternHint: 'Use YYYY-MM-DD (e.g. 2026-01-15).',
       placeholder: 'e.g. 2026-01-15',
       label: 'After date',
-      help: 'Only return results on or after this absolute date. Honored by Exa, Firecrawl, Parallel; ignored by Brave and Tavily.',
+      help: 'Only return results on or after this absolute date.',
+      // Brave and Tavily lack absolute date filtering on their search
+      // endpoints; Exa, Firecrawl, and Parallel honor it.
+      appliesTo: ['exa', 'firecrawl', 'parallel'],
     },
     {
       key: 'beforeDate',
@@ -691,7 +706,10 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       patternHint: 'Use YYYY-MM-DD (e.g. 2026-12-31).',
       placeholder: 'e.g. 2026-12-31',
       label: 'Before date',
-      help: 'Only return results on or before this absolute date. Honored by Exa and Firecrawl.',
+      help: 'Only return results on or before this absolute date.',
+      // Brave/Tavily lack date filtering; Parallel only supports a lower
+      // bound. Only Exa and Firecrawl honor before-date.
+      appliesTo: ['exa', 'firecrawl'],
     },
     {
       key: 'includeDomains',
@@ -749,7 +767,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'query',
       type: 'string',
       label: 'Reranking intent',
-      help: 'Tavily-style reranking query.',
+      help: 'Reranking query (Tavily reorders chunks against this).',
+      appliesTo: ['tavily'],
     },
     ...sharedCacheControl,
     {
@@ -810,7 +829,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'search',
       type: 'string',
       label: 'Relevance query',
-      help: 'Optional relevance ordering query.',
+      help: 'Optional relevance ordering query (Firecrawl-only).',
+      appliesTo: ['firecrawl'],
     },
     {
       key: 'limit',
@@ -861,7 +881,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'instructions',
       type: 'string',
       label: 'Instructions',
-      help: 'Natural-language guidance. Concatenates with runtime --instructions.',
+      help: 'Natural-language guidance for the crawler agent. Concatenates with runtime --instructions. Tavily-only — doubles the per-call cost.',
+      appliesTo: ['tavily'],
     },
     {
       key: 'includePaths',
@@ -1009,14 +1030,16 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'entity-type',
       type: 'string',
       label: 'Entity type',
-      help: 'Required by Parallel; ignored by Exa.',
+      help: 'What kind of thing you\'re finding (e.g. "Person", "Company"). Required by Parallel.',
+      appliesTo: ['parallel'],
     },
     {
       key: 'matchConditions',
       flag: 'match-conditions',
       type: 'string',
       label: 'Match conditions',
-      help: 'JSON array of {name, description} (Parallel-rich; Exa auto-derives).',
+      help: 'JSON array of {name, description} predicates (Parallel-only — Exa auto-derives from the objective).',
+      appliesTo: ['parallel'],
     },
     {
       key: 'schema',
