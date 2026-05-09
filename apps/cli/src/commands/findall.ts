@@ -38,6 +38,7 @@ import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 export type FindallCommandOptions = {
   provider?: string;
   apiKey?: string;
+  objective?: string;
   limit?: string | number;
   schema?: string;
   schemaFile?: string;
@@ -78,7 +79,11 @@ export async function handleFindallCommand(
     );
   }
   const piped = await readQueryStdin(deps);
-  const objective = mergeQueries(deps, objectiveParts.join(' '), piped, 'Findall');
+  const positionalObjective = objectiveParts.join(' ');
+  const inlineObjective = options.objective
+    ? [options.objective, positionalObjective].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalObjective;
+  const objective = mergeQueries(deps, inlineObjective, piped, 'Findall');
 
   const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
@@ -313,8 +318,11 @@ export function buildFindallCommand(
     .option('--entity-type <name>', 'Entity type for the search (required by Parallel; ignored by Exa).')
     .option('--match-conditions <json>', 'JSON array of {name, description} conditions (Parallel-rich; Exa auto-derives).')
     .option('--wait', 'Block until done (default).')
+    .option('--no-wait', 'Disable wait (overrides preset wait: true).')
     .option('--async', 'Return the task id immediately.')
+    .option('--no-async', 'Disable async (overrides preset async: true).')
     .option('--raw', "Emit the provider's native response under `raw`.")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')

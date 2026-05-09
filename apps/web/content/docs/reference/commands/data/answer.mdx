@@ -34,6 +34,16 @@ marmot answer <query> [flags…]
 
 Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
 
+## Presets
+
+`answer`-mode presets accept `query` (concat), `maxCitations`, `includeSearch`, `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. New negation flags: `--cache`, `--no-include-search`, `--no-refresh`, `--no-raw`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create cited --mode answer --provider tavily \
+  --query "Cite reputable sources for" --include-search
+marmot @cited "the origins of the marmot"
+```
+
 ## Config keys
 
 ```json

@@ -37,6 +37,7 @@ import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 export type ResearchCommandOptions = {
   provider?: string;
   apiKey?: string;
+  query?: string;
   schema?: string;
   schemaFile?: string;
   depth?: 'basic' | 'standard' | 'deep';
@@ -130,7 +131,11 @@ export async function handleResearchCommand(
   }
 
   const piped = await readQueryStdin(deps);
-  const query = mergeQueries(deps, queryParts.join(' '), piped, 'Research');
+  const positionalQuery = queryParts.join(' ');
+  const inlineQuery = options.query
+    ? [options.query, positionalQuery].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalQuery;
+  const query = mergeQueries(deps, inlineQuery, piped, 'Research');
 
   const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
@@ -348,10 +353,13 @@ export function buildResearchCommand(
     .option('--depth <tier>', 'Depth: basic, standard (default), deep.')
     .option('--instructions <text>', 'Optional system instructions.')
     .option('--wait', 'Block until done (default).')
+    .option('--no-wait', 'Disable wait (overrides preset wait: true).')
     .option('--async', 'Return the task id immediately and exit.')
+    .option('--no-async', 'Disable async (overrides preset async: true).')
     .option('--poll-interval <s>', 'Override the poll cadence in seconds (advanced). Single value or csv (e.g. "5,10,30") for backoff steps.')
     .option('--max-wait <s>', 'Maximum total wait time in seconds. Default 900 (15 minutes).')
     .option('--raw', "Emit the provider's native response under `raw` (only on completion).")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')

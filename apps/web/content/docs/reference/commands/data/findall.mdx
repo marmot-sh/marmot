@@ -41,6 +41,18 @@ Default is `--wait`. Pass `--async` to get the task id and follow up with `marmo
 
 See [Async tasks](/docs/reference/commands/async-tasks).
 
+## Presets
+
+`findall`-mode presets accept `objective` (concat), `limit`, `schema`, `schemaFile`, `entityType`, `matchConditions`, `wait`, `async`, `output`, `raw`, `retries`, `timeout`, `session`. The preset's `objective` concatenates with the runtime positional. New negation flags: `--no-wait`, `--no-async`, `--no-raw`.
+
+```bash
+marmot preset create yc-engineers --mode findall --provider parallel \
+  --entity-type Person --objective "Senior engineers at YC startups"
+marmot @yc-engineers "with React experience"
+```
+
+See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
 ## Config keys
 
 ```json

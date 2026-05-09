@@ -208,8 +208,6 @@ function addPresetWriteOptions(command: Command): Command {
     .option('--instructions <text>', 'Steering text for steerable voices (speech mode).')
     .option('--play', 'Default to speaker playback (speech mode).')
     .option('--no-play', 'Disable speaker playback default (speech mode).')
-    .option('--wait', 'Default to blocking until playback finishes (speech mode).')
-    .option('--no-wait', 'Disable wait default (speech mode).')
     // Speech / Transcription share --format
     .option('--format <format>', 'Output format (speech / transcription mode).')
     // Transcription
@@ -225,6 +223,19 @@ function addPresetWriteOptions(command: Command): Command {
     // Web/data shared
     .option('--limit <n>', 'Max results (search / map / findall / lookup mode).')
     .option('--depth <tier>', 'Depth tier: basic, standard, deep (search / research mode).')
+    .option('--cache', 'Use the response cache by default (web/data modes).')
+    .option('--no-cache', 'Bypass the response cache by default (web/data modes).')
+    .option('--refresh', 'Skip cache read but write fresh response by default (web/data modes).')
+    .option('--no-refresh', 'Disable refresh default (web/data modes).')
+    .option('--raw', "Emit the provider's native response under `raw` by default (web/data modes).")
+    .option('--no-raw', 'Disable raw default (web/data modes).')
+    .option('--wait', 'Block until done (speech playback / crawl / research / findall mode).')
+    .option('--no-wait', 'Disable wait default (speech / crawl / research / findall mode).')
+    .option('--async', 'Return task id immediately by default (crawl / research / findall mode).')
+    .option('--no-async', 'Disable async default (crawl / research / findall mode).')
+    .option('--url <url>', 'Root URL (map / crawl mode).')
+    .option('--urls <url>', 'URLs to scrape. Repeatable. (scrape mode).', collectStop, [] as string[])
+    .option('--objective <text>', 'Natural-language description of the list (findall mode).')
     // Search
     .option('--freshness <range>', 'Relative freshness window: day, week, month, year (search mode).')
     .option('--after-date <YYYY-MM-DD>', 'Lower bound absolute date (search mode).')
@@ -232,11 +243,13 @@ function addPresetWriteOptions(command: Command): Command {
     .option('--include-domains <csv>', 'Comma-separated domains to include (search mode).')
     .option('--exclude-domains <csv>', 'Comma-separated domains to exclude (search mode).')
     .option('--include-content', 'Inline full page content where supported (search mode).')
+    .option('--no-include-content', 'Disable include-content default (search mode).')
     // Scrape
     .option('--query <text>', 'Tavily-style chunk reranking intent (scrape mode).')
     // Answer
     .option('--max-citations <n>', 'Cap citations included (answer mode).')
     .option('--include-search', 'Also return underlying search results (answer mode).')
+    .option('--no-include-search', 'Disable include-search default (answer mode).')
     // Map
     .option('--search <text>', 'Relevance ordering query (map mode).')
     // Crawl
@@ -245,6 +258,7 @@ function addPresetWriteOptions(command: Command): Command {
     .option('--include-paths <csv>', 'Regex patterns of paths to include (crawl mode).')
     .option('--exclude-paths <csv>', 'Regex patterns of paths to exclude (crawl mode).')
     .option('--allow-external', 'Follow off-domain links (crawl mode).')
+    .option('--no-allow-external', 'Disable allow-external default (crawl mode).')
     // Research
     .option('--poll-interval <s>', 'Override poll cadence in seconds, or csv backoff steps (research mode).')
     .option('--max-wait <s>', 'Maximum total wait time in seconds (research mode).')

@@ -37,6 +37,7 @@ import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 export type CrawlCommandOptions = {
   provider?: string;
   apiKey?: string;
+  url?: string;
   maxPages?: string | number;
   maxDepth?: string | number;
   instructions?: string;
@@ -77,7 +78,9 @@ export async function handleCrawlCommand(
   const stderr = deps.stderr ?? process.stderr;
   const fetchFn = deps.fetchFn ?? fetch;
 
-  if (!url) throw new AICliError('validation', 'A URL is required.');
+  // Fall back to preset's `url` field if the positional was not given.
+  const resolvedUrl = url ?? options.url;
+  if (!resolvedUrl) throw new AICliError('validation', 'A URL is required.');
   if (options.wait && options.async) {
     throw new AICliError('validation', '--wait and --async are mutually exclusive.');
   }
@@ -100,7 +103,7 @@ export async function handleCrawlCommand(
   const onRetry = makeRetryNotifier(stderr, provider, 'crawl', retries);
 
   const input: WebCrawlInput = {
-    url,
+    url: resolvedUrl,
     maxPages: parseIntFlag('max-pages', options.maxPages),
     maxDepth: parseIntFlag('max-depth', options.maxDepth),
     instructions: options.instructions,
@@ -121,7 +124,7 @@ export async function handleCrawlCommand(
     excludePaths: Boolean(options.excludePaths),
   };
   const usageSensitive = {
-    urls: [url],
+    urls: [resolvedUrl],
     flags: {
       ...(options.instructions ? { instructions: options.instructions } : {}),
       ...(options.includePaths ? { includePaths: options.includePaths } : {}),
@@ -135,7 +138,7 @@ export async function handleCrawlCommand(
         verb: 'crawl',
         provider,
         request: {
-          url,
+          url: resolvedUrl,
           max_pages: input.maxPages,
           max_depth: input.maxDepth,
           include_paths: Boolean(input.includePaths),
@@ -158,7 +161,7 @@ export async function handleCrawlCommand(
     let result: Awaited<ReturnType<NonNullable<typeof adapter.crawl>>>;
     try {
       result = await withSpinner(
-        `Crawling ${url} with ${provider}…`,
+        `Crawling ${resolvedUrl} with ${provider}…`,
         () =>
           runWithRetries(
             (abortSignal) => adapter.crawl!({ ...input, abortSignal }),
@@ -234,7 +237,7 @@ export async function handleCrawlCommand(
       provider: provider as WebProviderSlug,
       verb: 'crawl',
       status: 'queued',
-      label: url.slice(0, 256),
+      label: resolvedUrl.slice(0, 256),
     },
     env,
   );
@@ -344,7 +347,7 @@ export function buildCrawlCommand(
 ): Command {
   return new Command('crawl')
     .description('Crawl a domain. Firecrawl is async (polls); Tavily is sync (capped at 150s).')
-    .argument('<url>', 'Root URL to crawl.')
+    .argument('[url]', 'Root URL to crawl. Optional when a preset supplies it.')
     .option('--provider <slug>', 'Web provider: firecrawl, tavily.')
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--max-pages <n>', 'Cap pages crawled.')
@@ -353,15 +356,19 @@ export function buildCrawlCommand(
     .option('--include-paths <csv>', 'Regex patterns of paths to include.')
     .option('--exclude-paths <csv>', 'Regex patterns of paths to exclude.')
     .option('--allow-external', 'Follow off-domain links.')
+    .option('--no-allow-external', 'Disable off-domain following (overrides preset allowExternal: true).')
     .option('--wait', 'Block until done (default for Firecrawl).')
+    .option('--no-wait', 'Disable wait (overrides preset wait: true).')
     .option('--async', 'Return the task id immediately (Firecrawl only).')
+    .option('--no-async', 'Disable async (overrides preset async: true).')
     .option('--raw', "Emit the provider's native response under `raw`.")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved crawl preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
-    .action(async (url: string, options: CrawlCommandOptions) => {
+    .action(async (url: string | undefined, options: CrawlCommandOptions) => {
       const merged = await withPreset(options, 'crawl');
       await handleCrawlCommand(url, merged, deps);
     });

@@ -355,3 +355,177 @@ describe('withPreset merge rules for AI verbs (image / speak / transcribe / vide
     expect(merged.image).toEqual(['./brand.png', './last.png']);
   });
 });
+
+describe('withPreset merge rules for web verbs', () => {
+  it('search preset query concatenates with runtime --query (engine concat)', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'tech-search',
+      { mode: 'search', provider: 'parallel', query: 'site:linkedin.com' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'tech-search', query: 'engineering manager' } as {
+        preset?: string;
+        query?: string;
+      },
+      'search',
+    );
+    expect(merged.query).toBe('site:linkedin.com\n\nengineering manager');
+  });
+
+  it('search preset cache: false, runtime --cache true → cache true', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'fresh-news',
+      { mode: 'search', provider: 'tavily', cache: false },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'fresh-news', cache: true } as {
+        preset?: string;
+        cache?: boolean;
+      },
+      'search',
+    );
+    expect(merged.cache).toBe(true);
+  });
+
+  it('scrape preset urls list-appends with runtime urls', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'fixed-pages',
+      { mode: 'scrape', provider: 'firecrawl', urls: ['https://a.com'] },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'fixed-pages', urls: ['https://b.com'] } as {
+        preset?: string;
+        urls?: string[];
+      },
+      'scrape',
+    );
+    expect(merged.urls).toEqual(['https://a.com', 'https://b.com']);
+  });
+
+  it('answer preset query concatenates and includeSearch overrides via --no-include-search', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'cited-answer',
+      { mode: 'answer', provider: 'tavily', query: 'cite reputable sources for', includeSearch: true },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      {
+        preset: 'cited-answer',
+        query: 'origins of XYZ',
+        includeSearch: false,
+      } as {
+        preset?: string;
+        query?: string;
+        includeSearch?: boolean;
+      },
+      'answer',
+    );
+    expect(merged.query).toBe('cite reputable sources for\n\norigins of XYZ');
+    expect(merged.includeSearch).toBe(false);
+  });
+
+  it('map preset url fills positional, runtime overrides', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'home-map',
+      { mode: 'map', provider: 'firecrawl', url: 'https://example.com' },
+      {},
+      env,
+    );
+
+    const presetOnly = await withPreset(
+      { preset: 'home-map' } as { preset?: string; url?: string },
+      'map',
+    );
+    expect(presetOnly.url).toBe('https://example.com');
+
+    const runtimeWins = await withPreset(
+      { preset: 'home-map', url: 'https://other.com' } as {
+        preset?: string;
+        url?: string;
+      },
+      'map',
+    );
+    expect(runtimeWins.url).toBe('https://other.com');
+  });
+
+  it('crawl preset instructions concatenates with runtime --instructions (Breaking change)', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'docs-crawl',
+      { mode: 'crawl', provider: 'tavily', instructions: 'Focus on technical content.' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'docs-crawl', instructions: 'Specifically about React 19.' } as {
+        preset?: string;
+        instructions?: string;
+      },
+      'crawl',
+    );
+    expect(merged.instructions).toBe('Focus on technical content.\n\nSpecifically about React 19.');
+  });
+
+  it('research preset instructions concatenates with runtime (Breaking change)', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'deep-fintech',
+      { mode: 'research', provider: 'parallel', instructions: 'Cite authoritative sources.' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'deep-fintech', instructions: 'Compare YoY metrics.' } as {
+        preset?: string;
+        instructions?: string;
+      },
+      'research',
+    );
+    expect(merged.instructions).toBe('Cite authoritative sources.\n\nCompare YoY metrics.');
+  });
+
+  it('findall preset objective concatenates with runtime', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'engineers-list',
+      { mode: 'findall', provider: 'parallel', objective: 'Senior engineers' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'engineers-list', objective: 'at YC startups' } as {
+        preset?: string;
+        objective?: string;
+      },
+      'findall',
+    );
+    expect(merged.objective).toBe('Senior engineers\n\nat YC startups');
+  });
+});

@@ -33,6 +33,17 @@ marmot map <url> [flags…]
 
 Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
 
+## Presets
+
+`map`-mode presets accept `url`, `search`, `limit`, `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. The positional URL is now optional when the preset supplies it. New negation flags: `--cache`, `--no-refresh`, `--no-raw`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create site-map --mode map --provider firecrawl \
+  --url https://example.com --limit 200
+marmot @site-map                  # uses preset url
+marmot @site-map https://other.com   # runtime overrides
+```
+
 ## Config keys
 
 ```json

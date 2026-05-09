@@ -90,13 +90,13 @@ Common to every mode: `--provider`, `--retries`, `--timeout`. AI modes also acce
 
 | Mode | Verb | Mode-specific flags |
 | --- | --- | --- |
-| `search` | `search` | `--limit`, `--depth`, `--freshness`, `--after-date`, `--before-date`, `--include-domains`, `--exclude-domains`, `--include-content` |
-| `scrape` | `scrape` | `--format`, `--query` |
-| `answer` | `answer` | `--max-citations`, `--include-search` |
-| `map` | `map` | `--search`, `--limit` |
-| `crawl` | `crawl` | `--max-pages`, `--max-depth`, `--instructions`, `--include-paths`, `--exclude-paths`, `--allow-external` |
-| `research` | `research` | `--depth`, `--schema`, `--schema-file`, `--instructions`, `--poll-interval`, `--max-wait` |
-| `findall` | `findall` | `--limit`, `--schema`, `--schema-file`, `--entity-type`, `--match-conditions` |
+| `search` | `search` | `--query`, `--limit`, `--depth`, `--freshness`, `--after-date`, `--before-date`, `--include-domains`, `--exclude-domains`, `--include-content`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `scrape` | `scrape` | `--urls` (list), `--format`, `--query`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `answer` | `answer` | `--query`, `--max-citations`, `--include-search`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `map` | `map` | `--url`, `--search`, `--limit`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `crawl` | `crawl` | `--url`, `--max-pages`, `--max-depth`, `--instructions` (concat), `--include-paths`, `--exclude-paths`, `--allow-external`, `--wait`, `--async`, `--output`, `--raw`, `--session` |
+| `research` | `research` | `--query`, `--depth`, `--schema`, `--schema-file`, `--instructions` (concat), `--wait`, `--async`, `--poll-interval`, `--max-wait`, `--output`, `--raw`, `--session` |
+| `findall` | `findall` | `--objective`, `--limit`, `--schema`, `--schema-file`, `--entity-type`, `--match-conditions`, `--wait`, `--async`, `--output`, `--raw`, `--session` |
 
 ### Data modes
 
