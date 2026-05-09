@@ -6,6 +6,7 @@
  */
 import { stat as fsStat } from 'node:fs/promises';
 
+import ansis from 'ansis';
 import {
   cancel,
   confirm,
@@ -76,13 +77,35 @@ class InteractiveCancelled extends Error {
   }
 }
 
+/**
+ * Build a clack `message` from a descriptor. Format:
+ *
+ *   <Label> [(suffix)]
+ *     <help text>
+ *
+ * The help line is dimmed-italic via terminal-friendly styling so it
+ * reads as guidance, not a heading. Setup commands use the same shape.
+ */
+function buildMessage(desc: FieldDescriptor, suffix?: string): string {
+  const head = suffix ? `${desc.label} ${suffix}` : desc.label;
+  if (!desc.help) return head;
+  // Indented dimmed help line under the label.
+  return `${head}\n  ${ansis.dim(desc.help)}`;
+}
+
+/** Pick a useful placeholder: explicit example > current value > "skip". */
+function placeholderFor(desc: FieldDescriptor, currentValue?: string): string {
+  if (desc.placeholder) return desc.placeholder;
+  if (currentValue) return `current: ${currentValue}`;
+  return 'skip (press Enter)';
+}
+
 /** Prompt a string. Empty input means "skip" (returns undefined). */
 async function promptString(desc: FieldDescriptor, currentValue?: string): Promise<string | undefined> {
   while (true) {
-    const placeholder = currentValue ? `current: ${currentValue}` : 'skip';
     const result = await text({
-      message: desc.label,
-      placeholder,
+      message: buildMessage(desc),
+      placeholder: placeholderFor(desc, currentValue),
       initialValue: '',
     });
     if (isCancel(result)) bail('Cancelled.');
@@ -105,15 +128,18 @@ async function promptNumber(
   while (true) {
     const rangeHint =
       desc.min !== undefined && desc.max !== undefined
-        ? ` (${desc.min}–${desc.max})`
+        ? `(${desc.min}–${desc.max})`
         : desc.min !== undefined
-          ? ` (≥ ${desc.min})`
+          ? `(≥ ${desc.min})`
           : desc.max !== undefined
-            ? ` (≤ ${desc.max})`
+            ? `(≤ ${desc.max})`
             : '';
+    const placeholder =
+      desc.placeholder ??
+      (currentValue !== undefined ? `current: ${currentValue}` : 'skip (press Enter)');
     const result = await text({
-      message: `${desc.label}${rangeHint}`,
-      placeholder: currentValue !== undefined ? `current: ${currentValue}` : 'skip',
+      message: buildMessage(desc, rangeHint),
+      placeholder,
       initialValue: '',
     });
     if (isCancel(result)) bail('Cancelled.');
@@ -149,10 +175,9 @@ async function promptNumber(
  */
 async function promptPath(desc: FieldDescriptor, currentValue?: string): Promise<string | undefined> {
   while (true) {
-    const placeholder = currentValue ? `current: ${currentValue}` : 'skip';
     const result = await text({
-      message: desc.label,
-      placeholder,
+      message: buildMessage(desc),
+      placeholder: placeholderFor(desc, currentValue),
       initialValue: '',
     });
     if (isCancel(result)) bail('Cancelled.');
@@ -186,7 +211,7 @@ async function promptPath(desc: FieldDescriptor, currentValue?: string): Promise
 async function promptBool(desc: FieldDescriptor, currentValue?: boolean): Promise<boolean | undefined> {
   const skipLabel = currentValue === undefined ? 'Skip (use runtime default)' : `Keep current (${currentValue})`;
   const result = await select({
-    message: desc.label,
+    message: buildMessage(desc),
     options: [
       { value: 'true', label: 'Enable (true)' },
       { value: 'false', label: 'Disable (false)' },
@@ -207,7 +232,7 @@ async function promptEnum(desc: FieldDescriptor, currentValue?: string): Promise
     ...(desc.enumValues ?? []).map((v) => ({ value: v, label: v })),
   ];
   const result = await select({
-    message: desc.label,
+    message: buildMessage(desc),
     options,
     initialValue: '__skip__',
   });
@@ -225,7 +250,7 @@ async function promptList(desc: FieldDescriptor, currentValue?: string[]): Promi
   let listMode: ListMode = 'replace';
   if (currentValue && currentValue.length > 0) {
     const choice = await select({
-      message: `${desc.label} (currently ${currentValue.length} entries)`,
+      message: buildMessage(desc, `(currently ${currentValue.length} entries)`),
       options: [
         { value: 'keep', label: `Keep current (${currentValue.length})` },
         { value: 'append', label: 'Append more entries' },
@@ -241,7 +266,8 @@ async function promptList(desc: FieldDescriptor, currentValue?: string[]): Promi
   const collected: string[] = listMode === 'append' && currentValue ? [...currentValue] : [];
   for (let i = 1; ; i++) {
     const result = await text({
-      message: `${desc.label} — entry ${i} (empty to finish)`,
+      message: buildMessage(desc, `— entry ${i} (empty to finish)`),
+      placeholder: desc.placeholder,
       initialValue: '',
     });
     if (isCancel(result)) bail('Cancelled.');
@@ -352,7 +378,7 @@ async function promptProvider(
   options.push({ value: '__custom__', label: 'Other / type a custom value' });
 
   const result = await select({
-    message: 'Provider',
+    message: `Provider\n  ${ansis.dim('Which API service this preset uses. Ready providers (✓) have credentials configured; ⚠ ones don\'t.')}`,
     options,
     initialValue: current && valid.includes(current as ProviderSlug & WebProviderSlug & DataProviderSlug) ? current : '__skip__',
   });
@@ -409,7 +435,7 @@ async function promptModel(
   ];
 
   const result = await select({
-    message: 'Model',
+    message: `Model\n  ${ansis.dim('Picked from the cached model list for this provider. Pick "Other" to type a custom id.')}`,
     options,
     initialValue: current && models.some((m) => m.id === current) ? current : '__skip__',
   });

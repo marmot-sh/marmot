@@ -47,6 +47,13 @@ export type FieldDescriptor = {
   /** Friendly description of `pattern` shown when validation fails. */
   patternHint?: string;
   /**
+   * Optional placeholder example shown in the prompt input area. Helps
+   * answer "what does this look like?" — particularly useful for paths,
+   * dates, and CSV-shaped fields. Falls back to a generic "skip" or
+   * "current: …" hint when not set.
+   */
+  placeholder?: string;
+  /**
    * Mutually-exclusive group. Within a group, the interactive flow asks
    * "which one (if any)?" once and only walks the chosen branch. The
    * flag-driven builder ignores this field — passing two members of the
@@ -95,14 +102,16 @@ const sharedOutput: FieldDescriptor[] = [
     flag: 'output',
     type: 'path',
     label: 'Output path',
-    help: 'Where to write the result. Skip to use the verb default.',
+    help: 'Where to write the result. Use {i} for batch outputs (e.g. ./out-{i}.png). Skip to use the verb default.',
+    placeholder: 'e.g. ~/results.json or ./out-{i}.png',
   },
   {
     key: 'session',
     flag: 'session',
     type: 'string',
     label: 'Session binding',
-    help: 'Bind calls using this preset to a session for usage filtering.',
+    help: 'Tag every call with this session name so it shows up in `marmot session show <name>` and filters in `marmot usage`.',
+    placeholder: 'e.g. research-q2',
   },
 ];
 
@@ -112,14 +121,14 @@ const sharedCacheControl: FieldDescriptor[] = [
     flag: 'cache',
     type: 'bool',
     label: 'Use response cache',
-    help: 'true = cache reads and writes (default); false = bypass for every call.',
+    help: 'When the provider has caching enabled, reuse cached responses instead of re-hitting the API. true = use cache (default), false = bypass and always make a fresh call.',
   },
   {
     key: 'refresh',
     flag: 'refresh',
     type: 'bool',
     label: 'Force refresh',
-    help: 'Skip cache reads but write fresh responses.',
+    help: 'Always re-fetch from the provider but still write the result to the cache (overwrites any stale entry). Useful when you know the upstream content has changed.',
   },
 ];
 
@@ -637,7 +646,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'query',
       type: 'string',
       label: 'Query prefix',
-      help: 'Text prepended to every runtime search query.',
+      help: 'Text prepended (with `\\n\\n`) to every runtime search query, e.g. baked-in operators like `site:linkedin.com`. Leave blank if you want the runtime query alone.',
+      placeholder: 'e.g. site:linkedin.com',
     },
     {
       key: 'limit',
@@ -645,7 +655,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       type: 'number-int',
       min: 1,
       label: 'Result limit',
-      help: 'Max results to return (1 or more).',
+      help: 'How many results to return per call. Each provider has its own cap (typically 10–100).',
     },
     {
       key: 'depth',
@@ -653,7 +663,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       type: 'enum',
       enumValues: depthEnum,
       label: 'Search depth',
-      help: 'basic, standard, or deep.',
+      help: 'How thoroughly the provider explores. basic = fast/cheap, standard = balanced (default), deep = slower/more thorough.',
     },
     {
       key: 'freshness',
@@ -661,7 +671,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       type: 'enum',
       enumValues: freshnessEnum,
       label: 'Freshness window',
-      help: 'Relative window: day, week, month, year.',
+      help: 'Relative recency filter. Brave/Tavily honor natively; Exa/Firecrawl emulate; Parallel ignores (use --after-date instead).',
     },
     {
       key: 'afterDate',
@@ -669,8 +679,9 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       type: 'string',
       pattern: /^\d{4}-\d{2}-\d{2}$/,
       patternHint: 'Use YYYY-MM-DD (e.g. 2026-01-15).',
+      placeholder: 'e.g. 2026-01-15',
       label: 'After date',
-      help: 'YYYY-MM-DD lower bound.',
+      help: 'Only return results on or after this absolute date. Honored by Exa, Firecrawl, Parallel; ignored by Brave and Tavily.',
     },
     {
       key: 'beforeDate',
@@ -678,22 +689,25 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       type: 'string',
       pattern: /^\d{4}-\d{2}-\d{2}$/,
       patternHint: 'Use YYYY-MM-DD (e.g. 2026-12-31).',
+      placeholder: 'e.g. 2026-12-31',
       label: 'Before date',
-      help: 'YYYY-MM-DD upper bound.',
+      help: 'Only return results on or before this absolute date. Honored by Exa and Firecrawl.',
     },
     {
       key: 'includeDomains',
       flag: 'include-domains',
       type: 'string',
       label: 'Include domains',
-      help: 'Comma-separated allow-list.',
+      help: 'Comma-separated allow-list — only return results from these domains.',
+      placeholder: 'e.g. linkedin.com,github.com',
     },
     {
       key: 'excludeDomains',
       flag: 'exclude-domains',
       type: 'string',
       label: 'Exclude domains',
-      help: 'Comma-separated block-list.',
+      help: 'Comma-separated block-list — drop results from these domains.',
+      placeholder: 'e.g. pinterest.com,quora.com',
     },
     {
       key: 'includeContent',
@@ -708,7 +722,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -743,7 +757,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -777,7 +791,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -812,7 +826,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -889,7 +903,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -968,7 +982,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -1039,7 +1053,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -1173,7 +1187,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -1286,7 +1300,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
@@ -1306,7 +1320,7 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       flag: 'raw',
       type: 'bool',
       label: 'Raw provider response',
-      help: 'Emit the provider native response under `raw`.',
+      help: 'Skip normalization — emit the provider\'s native response shape under a `raw` key. Useful for debugging or when you need provider-specific fields the normalized envelope drops.',
     },
     ...sharedOutput,
   ],
