@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/exa",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "@marmot-sh adapter for Exa — AI-powered web search.",
   "type": "module",
   "private": true,
