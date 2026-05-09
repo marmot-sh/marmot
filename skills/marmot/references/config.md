@@ -418,13 +418,13 @@ Presets exist for every verb category. Common to every mode: `--provider`, `--re
 
 | Mode | Verb | Extra fields |
 | --- | --- | --- |
-| `search` | `search` | `--limit`, `--depth`, `--freshness`, `--after-date`, `--before-date`, `--include-domains`, `--exclude-domains`, `--include-content` |
-| `scrape` | `scrape` | `--format`, `--query` |
-| `answer` | `answer` | `--max-citations`, `--include-search` |
-| `map` | `map` | `--search`, `--limit` |
-| `crawl` | `crawl` | `--max-pages`, `--max-depth`, `--instructions`, `--include-paths`, `--exclude-paths`, `--allow-external` |
-| `research` | `research` | `--depth`, `--schema`, `--schema-file`, `--instructions`, `--poll-interval`, `--max-wait` |
-| `findall` | `findall` | `--limit`, `--schema`, `--schema-file`, `--entity-type`, `--match-conditions` |
+| `search` | `search` | `--query` (concat), `--limit`, `--depth`, `--freshness`, `--after-date`, `--before-date`, `--include-domains`, `--exclude-domains`, `--include-content`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `scrape` | `scrape` | `--urls` (list), `--format`, `--query`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `answer` | `answer` | `--query` (concat), `--max-citations`, `--include-search`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `map` | `map` | `--url`, `--search`, `--limit`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `crawl` | `crawl` | `--url`, `--max-pages`, `--max-depth`, `--instructions` (concat), `--include-paths`, `--exclude-paths`, `--allow-external`, `--wait`, `--async`, `--output`, `--raw`, `--session` |
+| `research` | `research` | `--query` (concat), `--depth`, `--schema`, `--schema-file`, `--instructions` (concat), `--wait`, `--async`, `--poll-interval`, `--max-wait`, `--output`, `--raw`, `--session` |
+| `findall` | `findall` | `--objective` (concat), `--limit`, `--schema`, `--schema-file`, `--entity-type`, `--match-conditions`, `--wait`, `--async`, `--output`, `--raw`, `--session` |
 
 **Data modes**
 
@@ -489,9 +489,9 @@ When both a preset and a runtime flag set the same field, three rules dispatch b
 
 - **Scalar** (default) — runtime replaces preset. `--provider`, `--model`, `--temperature`, booleans like `--stream`, etc.
 - **List append** — preset list followed by runtime list. `--file`, `--image`, `--stop`. (Note: `--provider-option` is list-shaped but stays as scalar replace by design.)
-- **Concat** — joined with `\n\n`. Prompt-like text fields: `--system`, `prompt` (text/image/video positional), `text` (speech positional), `--prompt-file` content, transcribe `--prompt` (bias hint). Future: `--instructions` for crawl/research (when those features land).
+- **Concat** — joined with `\n\n`. Prompt-like text fields: `--system`, `prompt` (text/image/video positional), `text` (speech positional), `--prompt-file` content, transcribe `--prompt` (bias hint), search/answer/research `--query` (positional), crawl/research `--instructions`, findall `--objective`.
 
-Boolean override: a preset field set to `true` is flipped by the matching `--no-<flag>` runtime flag (e.g. `--no-stream` overrides preset `stream: true`). Negation pairs added in 0.7.0+: `text` mode — `--no-stream`, `--no-text`, `--no-json`. AI verbs — `--no-binary`, `--no-b64`, `--no-json`, `--no-text` (transcribe), `--no-play`, `--no-wait` (speech), `--preview` / `--no-preview` (image).
+Boolean override: a preset field set to `true` is flipped by the matching `--no-<flag>` runtime flag (e.g. `--no-stream` overrides preset `stream: true`). Negation pairs added in 0.7.0+: `text` mode — `--no-stream`, `--no-text`, `--no-json`. AI verbs — `--no-binary`, `--no-b64`, `--no-json`, `--no-text` (transcribe), `--no-play`, `--no-wait` (speech), `--preview` / `--no-preview` (image). Web verbs — `--cache` (paired with `--no-cache`), `--no-refresh`, `--no-raw` everywhere; `--no-include-content` (search), `--no-include-search` (answer), `--no-allow-external` (crawl), `--no-wait`, `--no-async` (crawl/research/findall).
 
 **Permanent exclusions** (rejected at preset parse time): `--api-key`, `--preset`, stdin-only modifiers (`--file-mime`, `--image-mime`, `--text-stdin`).
 

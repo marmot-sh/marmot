@@ -48,6 +48,17 @@ Not every provider's API exposes every filter. The CLI accepts the flags uniform
 
 When both `--after-date` and `--freshness` are passed, the explicit absolute date wins on every provider that honors both. `--after-date` and `--before-date` together produce a closed range on Exa and Firecrawl; on Parallel only the lower bound applies.
 
+## Presets
+
+`search`-mode presets accept `query`, `limit`, `depth`, `freshness`, `afterDate`, `beforeDate`, `includeDomains`, `excludeDomains`, `includeContent`, `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. Preset `query` concatenates with the runtime positional. New negation flags: `--cache` / `--no-cache` paired (so a preset's `cache: false` can be flipped at runtime), plus `--no-include-content`, `--no-refresh`, `--no-raw`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create linkedin-people --mode search --provider parallel \
+  --include-domains linkedin.com --limit 25 --no-cache
+marmot @linkedin-people "Daniel Francis Abel Police"
+marmot @linkedin-people --cache "with caching for this call"
+```
+
 ## Config keys
 
 ```json

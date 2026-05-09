@@ -39,6 +39,20 @@ When Firecrawl is the provider, the call is async. Default is `--wait` (poll unt
 
 See [Async tasks](/docs/reference/commands/async-tasks).
 
+## Presets
+
+`crawl`-mode presets accept `url`, `maxPages`, `maxDepth`, `instructions` (concat), `includePaths`, `excludePaths`, `allowExternal`, `wait`, `async`, `output`, `raw`, `retries`, `timeout`, `session`. The positional URL is optional when the preset supplies it. New negation flags: `--no-allow-external`, `--no-wait`, `--no-async`, `--no-raw`.
+
+`--instructions` switches **replace → concatenate** (Breaking, 0.7.0): a preset's `instructions` plus a runtime `--instructions` now compose with `\n\n` instead of dropping the preset value.
+
+```bash
+marmot preset create site-crawl --mode crawl --provider firecrawl \
+  --max-pages 100 --instructions "Skip auth pages"
+marmot @site-crawl https://example.com --instructions "and skip /admin"
+```
+
+See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
 ## Config keys
 
 ```json

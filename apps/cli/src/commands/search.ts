@@ -35,6 +35,7 @@ import type { StdinReader } from '@marmot-sh/core';
 export type SearchCommandOptions = {
   provider?: string;
   apiKey?: string;
+  query?: string;
   limit?: string | number;
   depth?: 'basic' | 'standard' | 'deep';
   freshness?: 'day' | 'week' | 'month' | 'year';
@@ -174,7 +175,12 @@ export async function handleSearchCommand(
   const fetchFn = deps.fetchFn ?? fetch;
 
   const piped = await readQueryStdin(deps);
-  const query = mergeQueries(deps, queryParts.join(' '), piped, 'Search');
+  // Preset-supplied `query` (concat rule in engine) prepends positional args.
+  const positionalQuery = queryParts.join(' ');
+  const inlineQuery = options.query
+    ? [options.query, positionalQuery].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalQuery;
+  const query = mergeQueries(deps, inlineQuery, piped, 'Search');
 
   const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
@@ -345,9 +351,13 @@ export function buildSearchCommand(
     .option('--include-domains <csv>', 'Comma-separated domains to include.')
     .option('--exclude-domains <csv>', 'Comma-separated domains to exclude.')
     .option('--include-content', 'Inline full page content where supported.')
+    .option('--no-include-content', 'Disable include-content (overrides preset includeContent: true).')
     .option('--raw', "Emit the provider's native response under `raw` instead of normalized data.")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
+    .option('--cache', 'Use the response cache (default; overrides a preset that sets cache: false).')
     .option('--no-cache', 'Bypass the response cache for this call (skip read and write).')
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
+    .option('--no-refresh', 'Disable refresh (overrides preset refresh: true).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')

@@ -33,6 +33,7 @@ import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 export type AnswerCommandOptions = {
   provider?: string;
   apiKey?: string;
+  query?: string;
   maxCitations?: string | number;
   includeSearch?: boolean;
   raw?: boolean;
@@ -64,7 +65,11 @@ export async function handleAnswerCommand(
   const fetchFn = deps.fetchFn ?? fetch;
 
   const piped = await readQueryStdin(deps);
-  const query = mergeQueries(deps, queryParts.join(' '), piped, 'Answer');
+  const positionalQuery = queryParts.join(' ');
+  const inlineQuery = options.query
+    ? [options.query, positionalQuery].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalQuery;
+  const query = mergeQueries(deps, inlineQuery, piped, 'Answer');
 
   const sessionBinding = await resolveSessionBinding(options, env);
   const config = await readMarmotConfig(env);
@@ -191,9 +196,13 @@ export function buildAnswerCommand(
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--max-citations <n>', 'Cap citations included (default 8).')
     .option('--include-search', 'Also return underlying search results alongside the answer.')
+    .option('--no-include-search', 'Disable include-search (overrides preset includeSearch: true).')
     .option('--raw', "Emit the provider's native response under `raw`.")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
+    .option('--cache', 'Use the response cache (default; overrides a preset that sets cache: false).')
     .option('--no-cache', 'Bypass the response cache for this call (skip read and write).')
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
+    .option('--no-refresh', 'Disable refresh (overrides preset refresh: true).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')

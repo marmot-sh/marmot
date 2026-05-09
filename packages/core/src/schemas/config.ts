@@ -274,6 +274,7 @@ const presetSearchSchema = z
     mode: z.literal('search'),
     preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
+    query: z.string().optional(),
     limit: z.number().int().positive().optional(),
     depth: z.enum(['basic', 'standard', 'deep']).optional(),
     freshness: z.enum(['day', 'week', 'month', 'year']).optional(),
@@ -282,8 +283,13 @@ const presetSearchSchema = z
     includeDomains: z.string().min(1).optional(),
     excludeDomains: z.string().min(1).optional(),
     includeContent: z.boolean().optional(),
+    cache: z.boolean().optional(),
+    refresh: z.boolean().optional(),
+    output: z.string().trim().min(1).optional(),
+    raw: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -292,10 +298,16 @@ const presetScrapeSchema = z
     mode: z.literal('scrape'),
     preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
+    urls: z.array(z.string().trim().min(1)).optional(),
     format: z.enum(['markdown', 'text', 'html']).optional(),
     query: z.string().min(1).optional(),
+    cache: z.boolean().optional(),
+    refresh: z.boolean().optional(),
+    output: z.string().trim().min(1).optional(),
+    raw: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -304,10 +316,16 @@ const presetAnswerSchema = z
     mode: z.literal('answer'),
     preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
+    query: z.string().optional(),
     maxCitations: z.number().int().positive().optional(),
     includeSearch: z.boolean().optional(),
+    cache: z.boolean().optional(),
+    refresh: z.boolean().optional(),
+    output: z.string().trim().min(1).optional(),
+    raw: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -316,10 +334,16 @@ const presetMapSchema = z
     mode: z.literal('map'),
     preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
+    url: z.string().trim().min(1).optional(),
     search: z.string().min(1).optional(),
     limit: z.number().int().positive().optional(),
+    cache: z.boolean().optional(),
+    refresh: z.boolean().optional(),
+    output: z.string().trim().min(1).optional(),
+    raw: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -328,14 +352,20 @@ const presetCrawlSchema = z
     mode: z.literal('crawl'),
     preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
+    url: z.string().trim().min(1).optional(),
     maxPages: z.number().int().positive().optional(),
     maxDepth: z.number().int().min(0).optional(),
     instructions: z.string().min(1).optional(),
     includePaths: z.string().min(1).optional(),
     excludePaths: z.string().min(1).optional(),
     allowExternal: z.boolean().optional(),
+    wait: z.boolean().optional(),
+    async: z.boolean().optional(),
+    output: z.string().trim().min(1).optional(),
+    raw: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -344,14 +374,20 @@ const presetResearchSchema = z
     mode: z.literal('research'),
     preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
+    query: z.string().optional(),
     depth: z.enum(['basic', 'standard', 'deep']).optional(),
     schema: z.string().min(1).optional(),
     schemaFile: z.string().trim().min(1).optional(),
     instructions: z.string().min(1).optional(),
+    wait: z.boolean().optional(),
+    async: z.boolean().optional(),
     pollInterval: z.string().min(1).optional(),
     maxWait: z.number().int().positive().optional(),
+    output: z.string().trim().min(1).optional(),
+    raw: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 
@@ -360,13 +396,19 @@ const presetFindallSchema = z
     mode: z.literal('findall'),
     preset_id: z.string().uuid().optional(),
     provider: webProviderSlugSchema.optional(),
+    objective: z.string().optional(),
     limit: z.number().int().positive().optional(),
     schema: z.string().min(1).optional(),
     schemaFile: z.string().trim().min(1).optional(),
     entityType: z.string().min(1).optional(),
     matchConditions: z.string().min(1).optional(),
+    wait: z.boolean().optional(),
+    async: z.boolean().optional(),
+    output: z.string().trim().min(1).optional(),
+    raw: z.boolean().optional(),
     retries: z.number().int().min(0).optional(),
     timeout: z.number().int().min(1).optional(),
+    session: z.string().trim().min(1).optional(),
   })
   .strict();
 

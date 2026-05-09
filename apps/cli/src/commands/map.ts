@@ -28,6 +28,7 @@ import { isDryRun, emitDryRun } from '../lib/dry-run.js';
 export type MapCommandOptions = {
   provider?: string;
   apiKey?: string;
+  url?: string;
   search?: string;
   limit?: string | number;
   raw?: boolean;
@@ -58,7 +59,9 @@ export async function handleMapCommand(
   const stderr = deps.stderr ?? process.stderr;
   const fetchFn = deps.fetchFn ?? fetch;
 
-  if (!url) {
+  // Fall back to preset's `url` field if the positional was not given.
+  const resolvedUrl = url ?? options.url;
+  if (!resolvedUrl) {
     throw new AICliError('validation', 'A URL is required.');
   }
 
@@ -92,7 +95,7 @@ export async function handleMapCommand(
         : Number.parseInt(options.limit, 10))
     : undefined;
   const input: WebMapInput = {
-    url,
+    url: resolvedUrl,
     search: options.search,
     limit,
     apiKey,
@@ -108,7 +111,7 @@ export async function handleMapCommand(
         verb: 'map',
         provider,
         request: {
-          url,
+          url: resolvedUrl,
           limit,
           search: Boolean(options.search),
         },
@@ -130,19 +133,19 @@ export async function handleMapCommand(
       flag_presence: { search: Boolean(options.search) },
       session: sessionBinding?.name ?? null,
       sensitive: {
-        urls: [url],
+        urls: [resolvedUrl],
         ...(options.search ? { flags: { search: options.search } } : {}),
       },
     },
     async () => {
       const out = await withSpinner(
-        `Mapping ${url} with ${provider}…`,
+        `Mapping ${resolvedUrl} with ${provider}…`,
         () =>
           withResponseCache({
             provider,
             verb: 'map',
             input,
-            query: url,
+            query: resolvedUrl,
             config,
             env,
             noCache: options.cache === false,
@@ -181,20 +184,23 @@ export function buildMapCommand(
 ): Command {
   return new Command('map')
     .description('Enumerate URLs on a domain.')
-    .argument('<url>', 'Root URL to map.')
+    .argument('[url]', 'Root URL to map. Optional when a preset supplies it.')
     .option('--provider <slug>', 'Web provider: firecrawl, tavily.')
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--search <query>', 'Optional relevance ordering query (Firecrawl).')
     .option('--limit <n>', 'Max URLs returned.')
     .option('--raw', "Emit the provider's native response under `raw`.")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
+    .option('--cache', 'Use the response cache (default; overrides a preset that sets cache: false).')
     .option('--no-cache', 'Bypass the response cache for this call (skip read and write).')
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
+    .option('--no-refresh', 'Disable refresh (overrides preset refresh: true).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
     .option('--preset <name>', 'Apply a saved map preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
-    .action(async (url: string, options: MapCommandOptions) => {
+    .action(async (url: string | undefined, options: MapCommandOptions) => {
       const merged = await withPreset(options, 'map');
       await handleMapCommand(url, merged, deps);
     });

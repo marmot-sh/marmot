@@ -276,6 +276,24 @@ Apply only to sync verbs (`search`, `scrape`, `answer`, `map`). Async verbs are 
 
 Caching is opt-in per provider via `providers.<slug>.cache.enabled` in config. When disabled the flags are no-ops. The envelope's `cached: true|false` reports the result.
 
+## Presets (0.7.0+)
+
+All seven web verbs accept presets with mode-specific fields:
+
+- **search** / **answer** / **research**: `query` (positional, concatenates with runtime), `cache`, `refresh`, `output`, `raw`, `session`.
+- **scrape**: `urls` (list — appends with runtime positional), plus the same shared fields.
+- **map** / **crawl**: `url` (positional, scalar — preset can supply the required URL), plus shared fields.
+- **findall**: `objective` (positional, concatenates), plus shared fields.
+- **crawl** / **research**: `instructions` switches **replace → concatenate** in 0.7.0 (Breaking — preset + runtime instructions compose with `\n\n`).
+
+Cache toggling: `--cache` is paired with `--no-cache` so a preset's `cache: false` can be flipped at runtime. Per-verb negation flags listed under each verb.
+
+```bash
+marmot preset create linkedin-people --mode search --provider parallel \
+  --query "site:linkedin.com" --include-domains linkedin.com --no-cache
+marmot @linkedin-people "engineering manager"
+```
+
 ## Session binding (0.6.0+)
 
 Every web verb (sync and async) accepts `--session <name>`. The bound name flows into the usage record so `marmot usage --session <name>` filters work on web traffic, and the call appears under `marmot session show <name>` alongside any AI calls in the same session. Pre-0.6.0 web verbs hardcoded `session: null` even when a session was active — fixed in 0.6.0.

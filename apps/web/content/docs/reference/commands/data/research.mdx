@@ -36,6 +36,20 @@ Default is `--wait` (poll until done). Pass `--async` to get the task id and fol
 
 See [Async tasks](/docs/reference/commands/async-tasks).
 
+## Presets
+
+`research`-mode presets accept `query` (concat), `depth`, `schema`, `schemaFile`, `instructions` (concat), `wait`, `async`, `pollInterval`, `maxWait`, `output`, `raw`, `retries`, `timeout`, `session`. New negation flags: `--no-wait`, `--no-async`, `--no-raw`.
+
+`--instructions` switches **replace → concatenate** (Breaking, 0.7.0): preset and runtime instructions compose with `\n\n`.
+
+```bash
+marmot preset create deep-fintech --mode research --provider parallel \
+  --depth deep --instructions "Cite authoritative sources."
+marmot @deep-fintech "competitive analysis on stripe vs adyen"
+```
+
+See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
 ## Config keys
 
 ```json

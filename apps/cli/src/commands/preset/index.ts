@@ -59,7 +59,6 @@ export type PresetWriteOptions = {
   speed?: string | number;
   instructions?: string;
   play?: boolean;
-  wait?: boolean;
   // transcription
   language?: string;
   prompt?: string;
@@ -72,6 +71,14 @@ export type PresetWriteOptions = {
   // web/data shared
   limit?: string | number;
   depth?: string;
+  url?: string;
+  urls?: string[];
+  objective?: string;
+  cache?: boolean;
+  refresh?: boolean;
+  raw?: boolean;
+  wait?: boolean;
+  async?: boolean;
   // search
   freshness?: string;
   afterDate?: string;
@@ -235,6 +242,7 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        query: opts.query,
         limit: parseIntField('limit', opts.limit),
         depth: opts.depth,
         freshness: opts.freshness,
@@ -243,6 +251,11 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         includeDomains: opts.includeDomains,
         excludeDomains: opts.excludeDomains,
         includeContent: opts.includeContent,
+        cache: opts.cache,
+        refresh: opts.refresh,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'scrape':
@@ -251,8 +264,14 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        urls: nonEmptyArray(opts.urls),
         format: opts.format,
         query: opts.query,
+        cache: opts.cache,
+        refresh: opts.refresh,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'answer':
@@ -261,8 +280,14 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        query: opts.query,
         maxCitations: parseIntField('max-citations', opts.maxCitations),
         includeSearch: opts.includeSearch,
+        cache: opts.cache,
+        refresh: opts.refresh,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'map':
@@ -271,8 +296,14 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        url: opts.url,
         search: opts.search,
         limit: parseIntField('limit', opts.limit),
+        cache: opts.cache,
+        refresh: opts.refresh,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'crawl':
@@ -281,12 +312,18 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        url: opts.url,
         maxPages: parseIntField('max-pages', opts.maxPages),
         maxDepth: parseIntField('max-depth', opts.maxDepth),
         instructions: opts.instructions,
         includePaths: opts.includePaths,
         excludePaths: opts.excludePaths,
         allowExternal: opts.allowExternal,
+        wait: opts.wait,
+        async: opts.async,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'research':
@@ -295,12 +332,18 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        query: opts.query,
         depth: opts.depth,
         schema: opts.schema,
         schemaFile: opts.schemaFile,
         instructions: opts.instructions,
+        wait: opts.wait,
+        async: opts.async,
         pollInterval: opts.pollInterval,
         maxWait: parseIntField('max-wait', opts.maxWait),
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'findall':
@@ -309,11 +352,17 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        objective: opts.objective,
         limit: parseIntField('limit', opts.limit),
         schema: opts.schema,
         schemaFile: opts.schemaFile,
         entityType: opts.entityType,
         matchConditions: opts.matchConditions,
+        wait: opts.wait,
+        async: opts.async,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'enrich':

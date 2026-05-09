@@ -28,6 +28,15 @@ marmot scrape <url> [<url> …] [flags…]
 
 Cache flags only apply when caching is enabled for this provider via `providers.<slug>.cache.enabled`. See [Caching](/docs/reference/caching).
 
+## Presets
+
+`scrape`-mode presets accept `urls` (list — appends with runtime), `format`, `query`, `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. New negation flags: `--cache`, `--no-refresh`, `--no-raw`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create md-scrape --mode scrape --provider firecrawl --format markdown
+marmot @md-scrape https://example.com https://other.com
+```
+
 ## Config keys
 
 ```json
