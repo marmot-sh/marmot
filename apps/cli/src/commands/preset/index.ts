@@ -14,6 +14,8 @@ import {
   type PresetMode,
 } from '@marmot-sh/core';
 
+import { MODE_FIELDS, type FieldDescriptor } from './field-descriptors.js';
+
 export type PresetCommandDependencies = {
   env?: NodeJS.ProcessEnv;
   stdout?: OutputWriter;
@@ -163,311 +165,50 @@ function nonEmptyArray(arr: string[] | undefined): string[] | undefined {
   return arr;
 }
 
-function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Preset {
-  const base = {
-    mode,
-    provider: opts.provider,
-    model: opts.model,
-    retries: parseIntField('retries', opts.retries),
-    timeout: parseIntField('timeout', opts.timeout),
-  };
+/**
+ * Apply a single field descriptor: read the matching key off `opts`, parse
+ * per its type, and write to the candidate object. Empty arrays from
+ * Commander default to `[]` for repeatable flags — we treat absence as
+ * undefined (via nonEmptyArray) so they don't fight schema defaults.
+ */
+function applyDescriptor(
+  desc: FieldDescriptor,
+  opts: PresetWriteOptions,
+  candidate: Record<string, unknown>,
+): void {
+  const value = (opts as Record<string, unknown>)[desc.key];
+  if (value === undefined) return;
 
-  let candidate: Record<string, unknown>;
-  switch (mode) {
-    case 'text':
-      candidate = {
-        ...base,
-        promptFile: opts.promptFile,
-        system: opts.system,
-        systemFile: opts.systemFile,
-        schema: opts.schema,
-        schemaFile: opts.schemaFile,
-        schemaModule: opts.schemaModule,
-        temperature: parseFloatField('temperature', opts.temperature),
-        maxTokens: parseIntField('max-tokens', opts.maxTokens),
-        topP: parseFloatField('top-p', opts.topP),
-        seed: parseIntField('seed', opts.seed),
-        stop: nonEmptyArray(opts.stop),
-        reasoning: opts.reasoning,
-        providerOption: nonEmptyArray(opts.providerOption),
-        output: opts.output,
-        stream: opts.stream,
-        json: opts.json,
-        session: opts.session,
-      };
+  switch (desc.type) {
+    case 'number-int':
+      candidate[desc.key] = parseIntField(desc.flag, value as string | number);
       break;
-    case 'image':
-      candidate = {
-        ...base,
-        promptFile: opts.promptFile,
-        size: opts.size,
-        quality: opts.quality,
-        style: opts.style,
-        seed: parseIntField('seed', opts.seed),
-        negative: opts.negative,
-        providerOption: nonEmptyArray(opts.providerOption),
-        n: parseIntField('n', opts.n),
-        output: opts.output,
-        binary: opts.binary,
-        b64: opts.b64,
-        preview: opts.preview,
-        session: opts.session,
-      };
+    case 'number-float':
+      candidate[desc.key] = parseFloatField(desc.flag, value as string | number);
       break;
-    case 'speech':
-      candidate = {
-        ...base,
-        promptFile: opts.promptFile,
-        voice: opts.voice,
-        format: opts.format,
-        speed: parseFloatField('speed', opts.speed),
-        instructions: opts.instructions,
-        providerOption: nonEmptyArray(opts.providerOption),
-        output: opts.output,
-        binary: opts.binary,
-        b64: opts.b64,
-        play: opts.play,
-        wait: opts.wait,
-        session: opts.session,
-      };
+    case 'list-string': {
+      const arr = nonEmptyArray(value as string[] | undefined);
+      if (arr !== undefined) candidate[desc.key] = arr;
       break;
-    case 'transcription':
-      candidate = {
-        ...base,
-        language: opts.language,
-        format: opts.format,
-        prompt: opts.prompt,
-        providerOption: nonEmptyArray(opts.providerOption),
-        output: opts.output,
-        session: opts.session,
-      };
-      break;
-    case 'video':
-      candidate = {
-        ...base,
-        promptFile: opts.promptFile,
-        aspect: opts.aspect,
-        resolution: opts.resolution,
-        duration: parseIntField('duration', opts.duration),
-        fps: parseIntField('fps', opts.fps),
-        audio: opts.audio,
-        n: parseIntField('n', opts.n),
-        seed: parseIntField('seed', opts.seed),
-        providerOption: nonEmptyArray(opts.providerOption),
-        output: opts.output,
-        binary: opts.binary,
-        b64: opts.b64,
-        session: opts.session,
-      };
-      break;
-    case 'search':
-      // search has no model field — drop it from base.
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        query: opts.query,
-        limit: parseIntField('limit', opts.limit),
-        depth: opts.depth,
-        freshness: opts.freshness,
-        afterDate: opts.afterDate,
-        beforeDate: opts.beforeDate,
-        includeDomains: opts.includeDomains,
-        excludeDomains: opts.excludeDomains,
-        includeContent: opts.includeContent,
-        cache: opts.cache,
-        refresh: opts.refresh,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'scrape':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        urls: nonEmptyArray(opts.urls),
-        format: opts.format,
-        query: opts.query,
-        cache: opts.cache,
-        refresh: opts.refresh,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'answer':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        query: opts.query,
-        maxCitations: parseIntField('max-citations', opts.maxCitations),
-        includeSearch: opts.includeSearch,
-        cache: opts.cache,
-        refresh: opts.refresh,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'map':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        url: opts.url,
-        search: opts.search,
-        limit: parseIntField('limit', opts.limit),
-        cache: opts.cache,
-        refresh: opts.refresh,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'crawl':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        url: opts.url,
-        maxPages: parseIntField('max-pages', opts.maxPages),
-        maxDepth: parseIntField('max-depth', opts.maxDepth),
-        instructions: opts.instructions,
-        includePaths: opts.includePaths,
-        excludePaths: opts.excludePaths,
-        allowExternal: opts.allowExternal,
-        wait: opts.wait,
-        async: opts.async,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'research':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        query: opts.query,
-        depth: opts.depth,
-        schema: opts.schema,
-        schemaFile: opts.schemaFile,
-        instructions: opts.instructions,
-        wait: opts.wait,
-        async: opts.async,
-        pollInterval: opts.pollInterval,
-        maxWait: parseIntField('max-wait', opts.maxWait),
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'findall':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        objective: opts.objective,
-        limit: parseIntField('limit', opts.limit),
-        schema: opts.schema,
-        schemaFile: opts.schemaFile,
-        entityType: opts.entityType,
-        matchConditions: opts.matchConditions,
-        wait: opts.wait,
-        async: opts.async,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'enrich':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        type: opts.type,
-        email: opts.email,
-        emailHash: opts.emailHash,
-        linkedin: opts.linkedin,
-        phone: opts.phone,
-        name: opts.name,
-        firstName: opts.firstName,
-        lastName: opts.lastName,
-        middleName: opts.middleName,
-        company: opts.company,
-        providerId: opts.providerId,
-        domain: opts.domain,
-        website: opts.website,
-        ticker: opts.ticker,
-        minLikelihood: parseIntField('min-likelihood', opts.minLikelihood),
-        require: opts.require,
-        fields: opts.fields,
-        cache: opts.cache,
-        refresh: opts.refresh,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'lookup':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        type: opts.type,
-        q: opts.q,
-        limit: parseIntField('limit', opts.limit),
-        cursor: opts.cursor,
-        title: opts.title,
-        seniority: opts.seniority,
-        location: opts.location,
-        domain: opts.domain,
-        industry: opts.industry,
-        employees: opts.employees,
-        tech: opts.tech,
-        emailType: opts.emailType,
-        department: opts.department,
-        company: opts.company,
-        cache: opts.cache,
-        refresh: opts.refresh,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
-    case 'verify':
-      candidate = {
-        mode,
-        provider: opts.provider,
-        retries: parseIntField('retries', opts.retries),
-        timeout: parseIntField('timeout', opts.timeout),
-        email: opts.email,
-        cache: opts.cache,
-        refresh: opts.refresh,
-        output: opts.output,
-        raw: opts.raw,
-        session: opts.session,
-      };
-      break;
+    }
+    case 'string':
+    case 'path':
+    case 'enum':
+    case 'bool':
+    default:
+      candidate[desc.key] = value;
   }
+}
 
-  // Strip undefined keys so zod's strict() unions match cleanly.
+function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Preset {
+  const candidate: Record<string, unknown> = { mode };
+  for (const desc of MODE_FIELDS[mode]) {
+    applyDescriptor(desc, opts, candidate);
+  }
+  // Drop empties so zod's strict() unions match cleanly.
   for (const k of Object.keys(candidate)) {
     if (candidate[k] === undefined) delete candidate[k];
   }
-
   const parsed = presetSchema.safeParse(candidate);
   if (!parsed.success) {
     const detail = parsed.error.issues
@@ -477,6 +218,7 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
   }
   return parsed.data;
 }
+
 
 function assertMode(value: string | undefined): PresetMode {
   if (!value) {

@@ -4,6 +4,14 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Added
+
+- **Interactive `marmot preset create` and `marmot preset update`.** Bare invocation (no field flags, on a TTY) enters a guided walkthrough that prompts for each preset-able field per mode. `create` walks: name (regex-validated, re-prompts on invalid) → mode (with verb labels) → provider → model → mode-specific fields. `update <name>` walks the existing preset's fields with current values shown as defaults; list fields offer Keep / Append / Replace; mode is locked. The flag-driven path (current behavior) is preserved unchanged. Errors clearly when stdin/stdout isn't a TTY.
+- **Per-mode field descriptor table** — single source of truth at `apps/cli/src/commands/preset/field-descriptors.ts`. The flag-driven `buildPresetFromFlags` and the new interactive walks both consume the same table, so adding a new preset field only touches one place. Internal refactor; no user-visible behavior change.
+- **Mutually-exclusive group support in the interactive walk.** Text mode's `schema | schemaFile | schemaModule` triad (and the same triad on `research` and `findall`) is asked as a single "structured output? pick one or none" question; only the chosen branch is walked.
+
 ## [0.7.0] — 2026-05-09
 
 A presets release. Presets become a complete configuration surface for every verb: any positional argument and most flags are now preset-able, runtime values compose with preset values via consistent merge rules (scalars replace, lists append, prompt-like text concatenates), and runtime gets boolean negation flags so preset booleans aren't sticky. Schema additions are purely additive — every existing preset continues to validate. The release does carry five documented runtime-semantics shifts and removes two redundant CLI flags; see Changed and Removed below for migration guidance. The realistic shape of a preset is now "bake the persistent context, supply the per-call detail at runtime" — bake `--company acme.com` in an enrich preset and add `--first-name` per call; bake `--system` and `--file standards.md` in a run preset and add the runtime prompt and `--file code.ts`; bake `--query "site:linkedin.com"` in a search preset and append the per-call query.
