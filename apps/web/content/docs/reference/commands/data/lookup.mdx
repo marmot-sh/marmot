@@ -108,6 +108,16 @@ Pass `--cursor <nextCursor>` from a prior response to fetch the next page. Curso
 
 Set via `marmot setup` (Configure data verb defaults) or `marmot config set lookup.provider <slug>`.
 
+## Presets
+
+`lookup`-mode presets accept `type`, `q`, `limit`, `cursor`, `title`, `seniority`, `location`, `domain`, `industry`, `employees`, `tech`, `emailType`, `department`, `company`, `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. All filter values are scalar-replace. New negation flags: `--cache`, `--no-refresh`, `--no-raw`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create yc-engs --mode lookup --provider apollo --type person \
+  --title "Engineering Manager" --seniority manager
+marmot @yc-engs --location "San Francisco" --limit 50
+```
+
 ## Plan-tier notes
 
 - **Apollo `lookup --type person`** uses `/mixed_people/api_search` (master-key, no credit). Free-tier keys 403. Apollo `lookup --type org` uses `/mixed_companies/search`, also master-key gated.

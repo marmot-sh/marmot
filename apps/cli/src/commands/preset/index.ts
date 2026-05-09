@@ -110,6 +110,31 @@ export type PresetWriteOptions = {
   minLikelihood?: string | number;
   require?: string;
   fields?: string;
+  // enrich identifiers
+  email?: string;
+  emailHash?: string;
+  linkedin?: string;
+  phone?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  company?: string;
+  providerId?: string;
+  domain?: string;
+  website?: string;
+  ticker?: string;
+  // lookup filters
+  q?: string;
+  cursor?: string;
+  title?: string;
+  seniority?: string;
+  location?: string;
+  industry?: string;
+  employees?: string;
+  tech?: string;
+  emailType?: string;
+  department?: string;
 };
 
 function parseIntField(name: string, value: string | number | undefined): number | undefined {
@@ -372,9 +397,27 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
         type: opts.type,
+        email: opts.email,
+        emailHash: opts.emailHash,
+        linkedin: opts.linkedin,
+        phone: opts.phone,
+        name: opts.name,
+        firstName: opts.firstName,
+        lastName: opts.lastName,
+        middleName: opts.middleName,
+        company: opts.company,
+        providerId: opts.providerId,
+        domain: opts.domain,
+        website: opts.website,
+        ticker: opts.ticker,
         minLikelihood: parseIntField('min-likelihood', opts.minLikelihood),
         require: opts.require,
         fields: opts.fields,
+        cache: opts.cache,
+        refresh: opts.refresh,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'lookup':
@@ -384,7 +427,24 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
         type: opts.type,
+        q: opts.q,
         limit: parseIntField('limit', opts.limit),
+        cursor: opts.cursor,
+        title: opts.title,
+        seniority: opts.seniority,
+        location: opts.location,
+        domain: opts.domain,
+        industry: opts.industry,
+        employees: opts.employees,
+        tech: opts.tech,
+        emailType: opts.emailType,
+        department: opts.department,
+        company: opts.company,
+        cache: opts.cache,
+        refresh: opts.refresh,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
     case 'verify':
@@ -393,6 +453,12 @@ function buildPresetFromFlags(mode: PresetMode, opts: PresetWriteOptions): Prese
         provider: opts.provider,
         retries: parseIntField('retries', opts.retries),
         timeout: parseIntField('timeout', opts.timeout),
+        email: opts.email,
+        cache: opts.cache,
+        refresh: opts.refresh,
+        output: opts.output,
+        raw: opts.raw,
+        session: opts.session,
       };
       break;
   }

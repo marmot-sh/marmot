@@ -430,11 +430,11 @@ Presets exist for every verb category. Common to every mode: `--provider`, `--re
 
 | Mode | Verb | Extra fields |
 | --- | --- | --- |
-| `enrich` | `enrich` | `--type` (person/org), `--min-likelihood`, `--require`, `--fields` |
-| `lookup` | `lookup` | `--type` (person/org/email), `--limit` |
-| `verify` | `verify` | (provider, retries, timeout only) |
+| `enrich` | `enrich` | `--type` (person/org), all 13 identifier fields (email, emailHash, linkedin, phone, name, firstName, lastName, middleName, company, providerId, domain, website, ticker), `--min-likelihood`, `--require`, `--fields`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `lookup` | `lookup` | `--type` (person/org/email), `--q`, `--limit`, `--cursor`, plus filters: `--title`, `--seniority`, `--location`, `--domain`, `--industry`, `--employees`, `--tech`, `--email-type`, `--department`, `--company`. Plus shared `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `verify` | `verify` | `--email`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
 
-Per-call identifiers (`--email`, `--linkedin`, `--query`, etc.) intentionally stay as call-time flags, not preset-shaped, because they vary per invocation.
+As of 0.7.0 every data-verb identifier and filter is preset-able (scalar-replace). Realistic use is partial baking — bake the company in a preset, supply the person at runtime. The legacy `verify --email` flag was removed; pass email positionally or via preset.
 
 ### Naming
 

@@ -103,6 +103,18 @@ echo 'alice@acme.com' | xargs marmot verify
 
 Set via `marmot setup` (Configure data verb defaults) or `marmot config set verify.provider hunter`.
 
+## Presets
+
+`verify`-mode presets accept `email` (positional), `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. The positional email is now optional when a preset supplies one. New negation flags: `--cache`, `--no-refresh`, `--no-raw`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create verify-team --mode verify --provider hunter --email team@example.com
+marmot @verify-team                   # uses preset email
+marmot @verify-team other@example.com   # runtime positional overrides
+```
+
+The legacy `--email <addr>` flag was removed in 0.7.0 — pass the email positionally or set it on a preset.
+
 ## Counter
 
 Hunter and Tomba both charge email verification against a separate `verifications` counter (distinct from `searches` and `credits`). Run `marmot config show` or hit each provider's `/account` (`/me` for Tomba) for current quota.

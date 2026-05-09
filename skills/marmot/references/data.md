@@ -168,6 +168,15 @@ marmot enrich --type org --domain stripe.com --provider pdl
 marmot enrich --type org --domain stripe.com --provider apollo --raw
 ```
 
+### Presets (enrich mode)
+
+All 13 identifier fields are preset-able as of 0.7.0 (scalar replace): `email`, `emailHash`, `linkedin`, `phone`, `name`, `firstName`, `lastName`, `middleName`, `company`, `providerId`, `domain`, `website`, `ticker`. Plus `type`, `minLikelihood`, `require`, `fields`, `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. Realistic pattern is partial baking — preset bakes the persistent context (company, domain, type), runtime supplies the per-call identifier.
+
+```bash
+marmot preset create acme-people --mode enrich --provider pdl --type person --company acme.com
+marmot @acme-people --first-name Jane
+```
+
 ## `lookup`
 
 ```
@@ -263,12 +272,23 @@ marmot lookup --type email --domain acme.com --department engineering --provider
 marmot lookup --type email --company "Acme Corp" --email-type personal --provider tomba
 ```
 
+### Presets (lookup mode)
+
+All filter fields are preset-able as of 0.7.0: `type`, `q`, `limit`, `cursor`, `title`, `seniority`, `location`, `domain`, `industry`, `employees`, `tech`, `emailType`, `department`, `company`. Plus `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. All scalar-replace.
+
+```bash
+marmot preset create yc-engs --mode lookup --provider apollo --type person \
+  --title "Engineering Manager" --seniority manager
+marmot @yc-engs --location "San Francisco" --limit 50
+```
+
 ## `verify`
 
 ```
 marmot verify <email> [--provider <slug>]
-marmot verify --email <email> [--provider <slug>]
 ```
+
+The legacy `--email <addr>` flag was removed in 0.7.0. Pass the email positionally or set it on a verify-mode preset.
 
 Email deliverability across six providers. Same normalized `{deliverable, status, score, checks{...}}` envelope so callers don't special-case the provider.
 
@@ -334,8 +354,18 @@ Email deliverability across six providers. Same normalized `{deliverable, status
 ```bash
 marmot verify alice@acme.com --provider hunter
 marmot verify alice@acme.com --provider zerobounce
-marmot verify --email alice@acme.com --provider bouncer
+marmot verify alice@acme.com --provider bouncer
 echo 'alice@acme.com' | xargs marmot verify --provider kickbox
+```
+
+### Presets (verify mode)
+
+`email` (positional, scalar), `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. The positional email becomes optional when a preset supplies it.
+
+```bash
+marmot preset create verify-team --mode verify --provider hunter --email team@example.com
+marmot @verify-team
+marmot @verify-team other@example.com   # runtime overrides preset
 ```
 
 ## Per-provider quirks

@@ -529,3 +529,112 @@ describe('withPreset merge rules for web verbs', () => {
     expect(merged.objective).toBe('Senior engineers\n\nat YC startups');
   });
 });
+
+describe('withPreset merge rules for data verbs', () => {
+  it('enrich preset can bake company; runtime adds firstName', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'enrich-acme',
+      { mode: 'enrich', provider: 'pdl', type: 'person', company: 'acme.com' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'enrich-acme', firstName: 'Jane' } as {
+        preset?: string;
+        firstName?: string;
+        company?: string;
+      },
+      'enrich',
+    );
+    expect(merged.company).toBe('acme.com');
+    expect(merged.firstName).toBe('Jane');
+  });
+
+  it('enrich preset email is overridden by runtime --email (scalar replace)', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'enrich-default-email',
+      { mode: 'enrich', provider: 'pdl', email: 'default@x.com' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'enrich-default-email', email: 'override@y.com' } as {
+        preset?: string;
+        email?: string;
+      },
+      'enrich',
+    );
+    expect(merged.email).toBe('override@y.com');
+  });
+
+  it('lookup preset with title + seniority is filled by preset; runtime can override scalars', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'lookup-eng-mgr',
+      {
+        mode: 'lookup',
+        provider: 'apollo',
+        type: 'person',
+        title: 'Engineering Manager',
+        seniority: 'manager',
+      },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'lookup-eng-mgr', seniority: 'director' } as {
+        preset?: string;
+        title?: string;
+        seniority?: string;
+      },
+      'lookup',
+    );
+    expect(merged.title).toBe('Engineering Manager');
+    expect(merged.seniority).toBe('director');
+  });
+
+  it('verify preset email fills options.email for positional fallback', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'verify-default',
+      { mode: 'verify', provider: 'hunter', email: 'team@example.com' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'verify-default' } as { preset?: string; email?: string },
+      'verify',
+    );
+    expect(merged.email).toBe('team@example.com');
+  });
+
+  it('verify preset cache: false + runtime --cache true → cache true', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'fresh-verify',
+      { mode: 'verify', provider: 'hunter', cache: false },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'fresh-verify', cache: true } as {
+        preset?: string;
+        cache?: boolean;
+      },
+      'verify',
+    );
+    expect(merged.cache).toBe(true);
+  });
+});
