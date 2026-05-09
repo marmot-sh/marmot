@@ -195,6 +195,7 @@ export type RunCommandOptions = {
   schemaModule?: string;
   system?: string;
   systemFile?: string;
+  prompt?: string;
   promptFile?: string;
   image?: string[];
   imageMime?: string;
@@ -801,7 +802,13 @@ async function prepareRunExecution(
   const env = dependencies.env ?? process.env;
   const stdout = dependencies.stdout ?? process.stdout;
   const resolveProvider = dependencies.resolveProvider ?? getProviderAdapter;
-  const inlinePrompt = promptParts.join(' ');
+  // Preset-supplied `prompt` (from `applyPreset`) prepends positional args.
+  // mergePromptSources downstream filters empties and joins with \n\n, so
+  // assemble both halves and let it dedupe rather than concatenating here.
+  const positionalPrompt = promptParts.join(' ');
+  const inlinePrompt = options.prompt
+    ? [options.prompt, positionalPrompt].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalPrompt;
   const systemFile = options.systemFile
     ? await readPromptFile(options.systemFile)
     : undefined;

@@ -161,21 +161,104 @@ export async function deletePreset(
 }
 
 /**
- * Merge a preset's saved values into a CLI options object. Existing
- * (explicit) option values always win; preset values only fill `undefined`
- * slots. The `mode` discriminator and `preset_id` are dropped so they
- * never collide with subcommand options.
+ * Per-field merge rule. Default for any unlisted field is `scalar`
+ * (CLI replaces preset). Lists explicitly opted into `list-append` (file,
+ * image, stop, urls). Text fields where compositional intent is the rule
+ * (preset establishes baseline, runtime adds context) opt into `concat`.
+ *
+ * Field names overlap across modes (`prompt` in run is positional text;
+ * `prompt` in transcribe is a bias hint), so the registry is keyed by
+ * mode → field name.
+ */
+type MergeRule = 'scalar' | 'list-append' | 'concat';
+
+const MERGE_RULE_OVERRIDES: Partial<Record<PresetMode, Record<string, MergeRule>>> = {
+  text: {
+    system: 'concat',
+    prompt: 'concat',
+    file: 'list-append',
+    image: 'list-append',
+    stop: 'list-append',
+  },
+  image: {
+    prompt: 'concat',
+  },
+  speech: {
+    text: 'concat',
+  },
+  transcription: {
+    prompt: 'concat',
+  },
+  video: {
+    prompt: 'concat',
+    image: 'list-append',
+  },
+  search: {
+    query: 'concat',
+  },
+  scrape: {
+    urls: 'list-append',
+  },
+  answer: {
+    query: 'concat',
+  },
+  crawl: {
+    instructions: 'concat',
+  },
+  research: {
+    query: 'concat',
+    instructions: 'concat',
+  },
+  findall: {
+    objective: 'concat',
+  },
+};
+
+function mergeText(presetText: unknown, optionsText: unknown): string | undefined {
+  const a = typeof presetText === 'string' ? presetText : '';
+  const b = typeof optionsText === 'string' ? optionsText : '';
+  if (a && b) return `${a}\n\n${b}`;
+  if (a) return a;
+  if (b) return b;
+  return undefined;
+}
+
+function mergeList(presetList: unknown, optionsList: unknown): unknown[] {
+  const a = Array.isArray(presetList) ? presetList : [];
+  const b = Array.isArray(optionsList) ? optionsList : [];
+  return [...a, ...b];
+}
+
+/**
+ * Merge a preset's saved values into a CLI options object.
+ *
+ * Per-field merge rule (looked up via {@link MERGE_RULE_OVERRIDES}):
+ * - `scalar` (default): CLI wins if defined; preset fills undefined slots.
+ * - `list-append`: preset list + CLI list, in that order.
+ * - `concat`: both string values, joined with `\n\n`. Either side alone
+ *   passes through.
+ *
+ * The `mode` discriminator and `preset_id` are dropped so they never
+ * collide with subcommand options.
  */
 export function applyPreset<T extends Record<string, unknown>>(
   preset: PresetInput | Preset,
   options: T,
 ): T {
   const out: Record<string, unknown> = { ...options };
+  const overrides = MERGE_RULE_OVERRIDES[preset.mode] ?? {};
   for (const [key, value] of Object.entries(preset)) {
     if (key === 'mode' || key === 'preset_id') continue;
     if (value === undefined) continue;
-    if (out[key] === undefined) {
-      out[key] = value;
+    const rule: MergeRule = overrides[key] ?? 'scalar';
+    if (rule === 'list-append') {
+      out[key] = mergeList(value, out[key]);
+    } else if (rule === 'concat') {
+      const merged = mergeText(value, out[key]);
+      if (merged !== undefined) out[key] = merged;
+    } else {
+      // scalar: CLI wins if defined.
+      if (out[key] === undefined) out[key] = value;
     }
   }
   return out as T;
