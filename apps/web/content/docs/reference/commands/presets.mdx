@@ -80,7 +80,7 @@ Common to every mode: `--provider`, `--retries`, `--timeout`. AI modes also acce
 
 | Mode | Verb | Mode-specific flags |
 | --- | --- | --- |
-| `text` | (default) | `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop`, `--reasoning`, `--provider-option`, `--stream`, `--json` |
+| `text` | (default) | `--prompt`, `--prompt-file`, `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--file` (list), `--image` (list), `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop` (list), `--reasoning`, `--provider-option`, `--output`, `--stream`, `--text`, `--json`, `--session` |
 | `image` | `image` | `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n`, `--provider-option` |
 | `video` | `video` | `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio` / `--no-audio`, `--n`, `--seed`, `--provider-option` |
 | `speech` | `speak` | `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option` |
@@ -115,11 +115,46 @@ marmot search --preset <name> "..."
 marmot @<name> "..."
 ```
 
-Explicit flags always win over preset values. The preset only fills slots the user hasn't set. So this call uses the saved provider but bumps the limit:
+Explicit flags interact with preset values via three rules — see [Merge rules](#merge-rules) below for details. In short: scalars replace, lists append, prompt-like text concatenates. So this call uses the saved provider but bumps the limit:
 
 ```bash
 marmot @linkedin "Daniel Francis Abel Police" --limit 50
 ```
+
+## Merge rules
+
+When both a preset and a runtime flag set the same field, the value is merged according to the field's shape:
+
+| Shape | Behavior | Examples |
+| --- | --- | --- |
+| **Scalar** | Runtime flag replaces preset value. | `--provider`, `--model`, `--temperature`, `--seed`, `--stream` (all booleans). |
+| **List** | Preset list followed by runtime list (append). | `--file`, `--image`, `--stop`. |
+| **Prompt-like text** | Joined with `\n\n` so preset + runtime compose. | `--system`, positional prompt, preset's `prompt` field. |
+
+Two intentional asymmetries:
+
+- `--provider-option` is list-shaped (`key=value` repeatable) but stays as **scalar replace** — the runtime list replaces the preset list entirely. Append would silently produce duplicate keys.
+- For a preset boolean set to `true`, the matching `--no-X` runtime flag flips it to `false`. (E.g. `--no-stream` overrides a preset's `stream: true`.) For positive overrides of `--no-X`-only flags like `--no-cache`, web/data verbs accept a `--cache` partner.
+
+### Permanent exclusions
+
+A preset cannot set:
+
+- `--api-key` — security; provider keys live in `~/.marmot/config.json` under `providers.<slug>.apiKeyEnvVar`, not in presets.
+- `--preset` — recursion would let a preset apply itself.
+- Stdin-only modifiers (`--file-mime`, `--image-mime`, `--text-stdin`) — they only have meaning when stdin is piped at runtime.
+
+Schemas validate this with strict mode: writing one of these into a preset errors at parse.
+
+### Path resolution for preset paths
+
+Preset fields holding filesystem paths (`systemFile`, `promptFile`, `schemaFile`, `schemaModule`, `file`, `image`, `output`) resolve at use time:
+
+- Absolute paths used as-is.
+- `~` expanded to the user's home directory.
+- Relative paths resolved against the **invocation cwd**, not against the config file's directory.
+
+So a preset stored in `~/.marmot/config.json` with `systemFile: "./prompts/coding.md"` looks for `./prompts/coding.md` from wherever you ran `marmot`. For portability, prefer `~/...` or absolute paths in global presets.
 
 ## Examples
 

@@ -4,6 +4,21 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Added
+
+- **Universal preset/runtime merge engine.** `applyPreset()` now dispatches per field by merge rule: scalar (replace), list-append (preset list + runtime list), or concat (`\n\n` join for prompt-like text). Rules are registered per `PresetMode` so subsequent verb features wire up without engine changes. `--provider-option` is intentionally kept as scalar replace despite being list-shaped — append would silently produce duplicate keys.
+- **Expanded `text`-mode preset fields for `run`.** `presetTextSchema` now accepts `prompt`, `promptFile`, `file` (list), `image` (list), `output`, `text` (boolean), and `session`. Combined with the merge engine, presets can bake in a prompt prefix, a system prompt file, default attachments, an output path, and a session binding; runtime values compose with them rather than fully replacing.
+- **`run` boolean negation flags: `--no-stream`, `--no-text`, `--no-json`.** Each is paired with the existing positive flag so a preset's `stream: true` / `text: true` / `json: true` can be flipped to `false` for a single call.
+- **Documented permanent preset exclusions.** `--api-key`, `--preset`, and stdin-only modifiers (`--file-mime`, `--image-mime`, `--text-stdin`) are rejected at preset parse time via Zod `.strict()`. Reasons: security, recursion, and runtime-only context.
+- **Documented preset path-resolution semantics.** Path-shaped preset fields (`systemFile`, `promptFile`, `file`, `image`, `output`, `schemaFile`, `schemaModule`) resolve at use time: absolute as-is, `~` expanded to home, relative against the invocation cwd. Global presets in `~/.marmot/config.json` should prefer absolute or `~/...` paths.
+
+### Changed
+
+- **Breaking: `run --stop` switches from replace to append.** A preset with `stop: ["\`\`\`"]` plus a runtime `--stop "###"` previously produced `["###"]`; it now produces `["\`\`\`", "###"]`. This makes presets compositional — preset establishes baseline stops, runtime adds case-specific ones — but anyone who relied on the runtime list fully replacing the preset list will see different behavior. Workaround: define a separate preset, or omit `stop` from the preset.
+- **Concat semantics for `--system` (text mode).** A preset with `system: "..."` plus runtime `--system "..."` previously dropped the preset value; now the two are joined with `\n\n` and both apply. Same logic applies to the new `prompt` field at the handler boundary.
+
 ## [0.6.1] — 2026-05-08
 
 A papercut release. AI generation no longer aborts at 120s in the middle of legitimately long-running calls (image HD, reasoning models, long-form TTS, multi-minute Whisper transcription) — defaults are now per-verb. Users on stale Node 18 (typically: nvm not loaded in a non-interactive shell) get a one-line diagnostic naming the detected version and binary path, instead of a cryptic `util.styleText is not a function` crash. Plus a lint cleanup.

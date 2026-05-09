@@ -408,7 +408,7 @@ Presets exist for every verb category. Common to every mode: `--provider`, `--re
 
 | Mode | Verb | Extra fields |
 | --- | --- | --- |
-| `text` | (default) | `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop`, `--reasoning`, `--provider-option`, `--stream`, `--json` |
+| `text` | (default) | `--prompt`, `--prompt-file`, `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--file` (list), `--image` (list), `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop` (list), `--reasoning`, `--provider-option`, `--output`, `--stream`, `--text`, `--json`, `--session` |
 | `image` | `image` | `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n` (1..10), `--provider-option` |
 | `video` | `video` | `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio`/`--no-audio`, `--n`, `--seed`, `--provider-option` |
 | `speech` | `speak` | `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option` |
@@ -482,6 +482,20 @@ Mode mismatch is rejected when an explicit verb conflicts with the preset's mode
 ```
 explicit flag > preset > defaults.<mode> > first-run auto-config (AI verbs only) > error
 ```
+
+### Merge rules (preset × runtime)
+
+When both a preset and a runtime flag set the same field, three rules dispatch by field shape:
+
+- **Scalar** (default) — runtime replaces preset. `--provider`, `--model`, `--temperature`, booleans like `--stream`, etc.
+- **List append** — preset list followed by runtime list. `--file`, `--image`, `--stop`. (Note: `--provider-option` is list-shaped but stays as scalar replace by design.)
+- **Concat** — joined with `\n\n`. Prompt-like text fields: `--system` (text mode), preset's `prompt` field plus positional prompt, `--prompt-file` content. Future: `--instructions` for crawl/research, transcribe `--prompt` (when those features land).
+
+Boolean override: a preset field set to `true` is flipped by the matching `--no-<flag>` runtime flag (e.g. `--no-stream` overrides preset `stream: true`). The `text` mode pairs added in 0.7.0+: `--no-stream`, `--no-text`, `--no-json`.
+
+**Permanent exclusions** (rejected at preset parse time): `--api-key`, `--preset`, stdin-only modifiers (`--file-mime`, `--image-mime`, `--text-stdin`).
+
+**Path resolution** for preset path fields (`systemFile`, `promptFile`, `file`, `image`, `output`, `schemaFile`, `schemaModule`): absolute → as-is, `~` → home, relative → invocation cwd. Global presets in `~/.marmot/config.json` should prefer absolute or `~/...` paths.
 
 **First-run auto-config (AI verbs only):** if no default is set for `text`/`image`/`speech`/`transcription`, marmot detects available API keys in the environment and picks the first ready provider in this order: `ollama` (local) → `openrouter` → `vercel` → `cloudflare` → `openai` → `anthropic`. The choice is persisted to `~/.marmot/config.json` so subsequent calls hit step 3 directly. Web/data verbs have no auto-config — they error if no default is set.
 

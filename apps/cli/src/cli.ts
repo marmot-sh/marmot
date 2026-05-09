@@ -156,8 +156,11 @@ function addRunOptions(command: Command): Command {
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt generation timeout in seconds (default: 120).')
     .option('--stream', 'Stream text output and imply text mode.')
+    .option('--no-stream', 'Disable streaming (overrides a preset that sets stream true).')
     .option('--text', 'Print only the generated text (no JSON envelope).')
+    .option('--no-text', 'Disable plain-text output (overrides a preset that sets text true).')
     .option('--json', 'Print structured JSON output (default).')
+    .option('--no-json', 'Disable JSON envelope output (overrides a preset that sets json true).')
     .option('--preset <name>', 'Apply a saved preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session for logging (overrides current-session pointer).');
 }

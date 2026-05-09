@@ -122,3 +122,115 @@ describe('withPreset for web/data verbs', () => {
     });
   });
 });
+
+describe('withPreset merge rules for text mode', () => {
+  it('concatenates preset and runtime system prompts with double newline', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'helpful-base',
+      { mode: 'text', system: 'You are a helpful assistant.' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'helpful-base', system: 'Be terse.' } as {
+        preset?: string;
+        system?: string;
+      },
+      'text',
+    );
+    expect(merged.system).toBe('You are a helpful assistant.\n\nBe terse.');
+  });
+
+  it('appends preset file list before runtime --file paths', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'with-standards',
+      { mode: 'text', file: ['./standards.md'] },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'with-standards', file: ['./code.ts'] } as {
+        preset?: string;
+        file?: string[];
+      },
+      'text',
+    );
+    expect(merged.file).toEqual(['./standards.md', './code.ts']);
+  });
+
+  it('appends preset stop sequences before runtime ones', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'with-stops',
+      { mode: 'text', stop: ['```'] },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'with-stops', stop: ['###'] } as {
+        preset?: string;
+        stop?: string[];
+      },
+      'text',
+    );
+    expect(merged.stop).toEqual(['```', '###']);
+  });
+
+  it('runtime --no-stream (stream: false) overrides preset stream: true', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'streaming',
+      { mode: 'text', stream: true },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'streaming', stream: false } as {
+        preset?: string;
+        stream?: boolean;
+      },
+      'text',
+    );
+    expect(merged.stream).toBe(false);
+  });
+
+  it('preset prompt fills options.prompt for handler-side concat with positional', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'translator',
+      { mode: 'text', prompt: 'Translate to French:' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'translator' } as { preset?: string; prompt?: string },
+      'text',
+    );
+    expect(merged.prompt).toBe('Translate to French:');
+  });
+
+  it('rejects preset with apiKey field (security exclusion via .strict())', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await expect(
+      upsertPreset(
+        'badpreset',
+        { mode: 'text', apiKey: 'sk-leaked' } as never,
+        {},
+        env,
+      ),
+    ).rejects.toThrow();
+  });
+});

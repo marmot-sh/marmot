@@ -557,12 +557,12 @@ describe('applyPreset', () => {
     expect(merged.provider).toBe('anthropic');
   });
 
-  it('does not overwrite an explicit value (even falsy ones like empty string)', () => {
+  it('does not overwrite an explicit scalar value (even falsy ones like empty string)', () => {
     const merged = applyPreset(
-      { mode: 'text', system: 'preset-system' },
-      { system: '' },
+      { mode: 'text', model: 'preset-model' },
+      { model: '' },
     );
-    expect(merged.system).toBe('');
+    expect(merged.model).toBe('');
   });
 
   it('skips undefined preset fields', () => {
@@ -572,5 +572,90 @@ describe('applyPreset', () => {
     );
     expect(merged.provider).toBe('anthropic');
     expect(merged.model).toBeUndefined();
+  });
+
+  describe('concat rule', () => {
+    it('concatenates preset and runtime system with double newline', () => {
+      const merged = applyPreset(
+        { mode: 'text', system: 'You are helpful.' },
+        { system: 'Be concise.' },
+      );
+      expect(merged.system).toBe('You are helpful.\n\nBe concise.');
+    });
+
+    it('keeps preset value when runtime is undefined', () => {
+      const merged = applyPreset(
+        { mode: 'text', system: 'preset' },
+        {} as Record<string, unknown>,
+      );
+      expect(merged.system).toBe('preset');
+    });
+
+    it('keeps preset value when runtime is empty string', () => {
+      const merged = applyPreset(
+        { mode: 'text', system: 'preset' },
+        { system: '' },
+      );
+      expect(merged.system).toBe('preset');
+    });
+
+    it('keeps runtime value when preset is empty', () => {
+      const merged = applyPreset(
+        { mode: 'text' },
+        { system: 'runtime' } as Record<string, unknown>,
+      );
+      expect(merged.system).toBe('runtime');
+    });
+
+    it('applies concat to prompt for text mode', () => {
+      const merged = applyPreset(
+        { mode: 'text', prompt: 'Translate to French:' },
+        { prompt: 'Hello world' },
+      );
+      expect(merged.prompt).toBe('Translate to French:\n\nHello world');
+    });
+  });
+
+  describe('list-append rule', () => {
+    it('appends preset list before runtime list for stop sequences', () => {
+      const merged = applyPreset(
+        { mode: 'text', stop: ['```'] },
+        { stop: ['###'] },
+      );
+      expect(merged.stop).toEqual(['```', '###']);
+    });
+
+    it('appends file paths from preset and runtime', () => {
+      const merged = applyPreset(
+        { mode: 'text', file: ['./standards.md'] },
+        { file: ['./code.ts'] },
+      );
+      expect(merged.file).toEqual(['./standards.md', './code.ts']);
+    });
+
+    it('appends image paths', () => {
+      const merged = applyPreset(
+        { mode: 'text', image: ['./bg.png'] },
+        { image: ['./photo.jpg'] },
+      );
+      expect(merged.image).toEqual(['./bg.png', './photo.jpg']);
+    });
+
+    it('keeps preset list when runtime list is empty', () => {
+      const merged = applyPreset(
+        { mode: 'text', file: ['a.md', 'b.md'] },
+        { file: [] },
+      );
+      expect(merged.file).toEqual(['a.md', 'b.md']);
+    });
+
+    it('does NOT list-append for providerOption (kept as scalar replace)', () => {
+      const merged = applyPreset(
+        { mode: 'text', providerOption: ['cache_control=ephemeral'] },
+        { providerOption: ['top_k=40'] },
+      );
+      // Scalar rule: runtime wins; preset's providerOption is dropped.
+      expect(merged.providerOption).toEqual(['top_k=40']);
+    });
   });
 });

@@ -34,7 +34,7 @@ Default verb. `marmot "..."` is sugar for `marmot run "..."`. Plain text on stdo
 
 ### Prompt sources
 
-Concatenated, joined by blank lines, in this order: positional args, `--prompt-file`, piped stdin (when not a TTY). Stdin can instead carry image bytes (`--image -`) or file bytes (`--file -`) — only one binary stdin role at a time.
+Concatenated, joined by blank lines, in this order: preset `prompt` field (when `--preset`/`@<name>` is in use), positional args, `--prompt-file`, piped stdin (when not a TTY). Stdin can instead carry image bytes (`--image -`) or file bytes (`--file -`) — only one binary stdin role at a time.
 
 ### Flags
 
@@ -53,9 +53,9 @@ Concatenated, joined by blank lines, in this order: positional args, `--prompt-f
 | `--schema <json>` | Inline JSON Schema. Switches to object mode. |
 | `--schema-file <path>` | JSON Schema from file. |
 | `--schema-module <path>` | Local module exporting a Zod schema (default export or `schema`). **Trusted-code only:** the module is executed with full Node privileges — do not point it at code you didn't write or audit. |
-| `--stream` | Stream tokens to stdout. Forces text mode. |
-| `--json` | Emit structured envelope instead of plain text. |
-| `--text` | Plain text. Kept for back-compat (now the default). |
+| `--stream` / `--no-stream` | Stream tokens. Forces text mode. `--no-stream` overrides a preset's `stream: true`. |
+| `--json` / `--no-json` | Emit structured envelope. `--no-json` overrides a preset's `json: true`. |
+| `--text` / `--no-text` | Plain text. Kept for back-compat (now the default). `--no-text` overrides a preset's `text: true`. |
 | `--temperature <n>` | Sampling temperature. Provider-specific range, typically 0–2. |
 | `--max-tokens <n>` | Hard cap on completion tokens. |
 | `--top-p <n>` | Top-p / nucleus sampling, 0–1. |
@@ -84,6 +84,26 @@ git diff | marmot --stream 'commit message under 60 chars' | pbcopy
 marmot --provider anthropic --file ./paper.pdf 'summarize'
 marmot --provider openai --model gpt-4o --image ./before.png --image ./after.png 'what changed?'
 marmot --schema-file ./entities.json 'extract entities' < article.txt | jq .output
+```
+
+### Presets (text mode)
+
+A `text`-mode preset can store any of `run`'s flags plus the positional prompt. When merged at runtime:
+
+- **Concat** (`\n\n` join): `system`, `prompt`, `promptFile` (file contents).
+- **List append**: `file`, `image`, `stop`.
+- **Scalar replace**: everything else (`provider`, `model`, `temperature`, etc.; `providerOption` is list-shaped but stays scalar by design).
+- **Boolean override**: pass `--no-stream` / `--no-text` / `--no-json` at runtime to flip a preset's `true` to `false`.
+
+`apiKey`, `preset`, and stdin-only modifiers (`fileMime`, `imageMime`, `textStdin`) are rejected at preset parse time.
+
+```bash
+marmot preset create code-review --mode text \
+  --provider anthropic --model claude-sonnet-4-6 \
+  --system 'You are a senior engineer reviewing code.'
+
+marmot @code-review --file ./auth.ts 'flag any subtle bugs'
+marmot @code-review --no-stream --json 'one-line summary'   # disable preset stream/text
 ```
 
 ## `image`

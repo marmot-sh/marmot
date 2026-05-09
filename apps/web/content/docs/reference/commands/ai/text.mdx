@@ -14,18 +14,19 @@ Providers: `openrouter`, `anthropic`, `openai`, `vercel`, `cloudflare`, `ollama`
 
 ## Prompt sources
 
-Prompt is concatenated from up to three sources, joined by a blank line:
+Prompt is concatenated from up to four sources, joined by a blank line:
 
-1. Positional argument
-2. `-p` / `--prompt-file <path>`
-3. Piped stdin (when stdin is not a TTY)
+1. Preset's `prompt` field (when `--preset` / `@<name>` is in use)
+2. Positional argument
+3. `-p` / `--prompt-file <path>`
+4. Piped stdin (when stdin is not a TTY)
 
 ```bash
 git diff | marmot 'summarize this for the changelog'
 cat user.txt | marmot -p ./prompts/system.txt 'one-line summary'
 ```
 
-`--system <text>` / `--system-file <path>` for the system prompt.
+`--system <text>` / `--system-file <path>` for the system prompt. Both system and prompt fields are concatenated when set in both a preset and at runtime — see [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
 
 ## Multimodal input
 
@@ -94,9 +95,9 @@ For cross-cutting flags (`--provider`, `--api-key`, `-o`, `--retries`, `--timeou
 | `--schema <json>` | Inline JSON Schema (object mode). |
 | `--schema-file <path>` | JSON Schema from a file. |
 | `--schema-module <path>` | Local module exporting a Zod schema as default or `schema`. **Trusted-code only:** the module is executed with full Node privileges — do not point it at code you didn't write or audit. |
-| `--stream` | Stream tokens. Implies text. |
-| `--json` | Emit structured envelope (default is text). |
-| `--text` | Plain text (now the default; flag kept for back-compat). |
+| `--stream` / `--no-stream` | Stream tokens. Implies text. `--no-stream` overrides a preset's `stream: true`. |
+| `--json` / `--no-json` | Emit structured envelope (default is text). `--no-json` overrides a preset's `json: true`. |
+| `--text` / `--no-text` | Plain text (now the default; flag kept for back-compat). `--no-text` overrides a preset's `text: true`. |
 | `--temperature <n>` | Sampling temperature. Provider-specific range, typically 0–2. |
 | `--max-tokens <n>` | Hard cap on completion tokens. |
 | `--top-p <n>` | Top-p / nucleus sampling, 0–1. |
@@ -108,6 +109,28 @@ For cross-cutting flags (`--provider`, `--api-key`, `-o`, `--retries`, `--timeou
 <Callout>
 `--json`, `--text`, and `--stream` are mutually exclusive in spirit (text is default; `--json` overrides; `--stream` forces text).
 </Callout>
+
+## Presets
+
+`run` accepts a `text`-mode preset for any of its flags, plus the positional prompt. Preset values fill slots when the runtime flag is omitted; runtime values follow the merge rule for that field — scalars replace, lists append, prompt-like text concatenates. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+# Save a coding-review preset.
+marmot preset create code-review \
+  --mode text \
+  --provider anthropic --model claude-sonnet-4-6 \
+  --system 'You are a senior engineer reviewing code.' \
+  --temperature 0.2
+
+# Use it. The runtime prompt concatenates with any preset prompt;
+# runtime --file appends to a preset file list.
+marmot @code-review --file ./auth.ts 'flag any subtle bugs'
+
+# Override booleans defensively.
+marmot @code-review --no-stream --json 'one-line summary'
+```
+
+Preset-able fields for `text` mode: `prompt`, `promptFile`, `system`, `systemFile`, `schema`, `schemaFile`, `schemaModule`, `file` (list), `image` (list), `temperature`, `maxTokens`, `topP`, `seed`, `stop` (list), `reasoning`, `providerOption`, `output`, `stream`, `text`, `json`, `retries`, `timeout`, `session`.
 
 ## Sampling and reasoning
 
