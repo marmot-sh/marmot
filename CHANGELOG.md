@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.7.0] — 2026-05-09
+
+A presets release. Presets become a complete configuration surface for every verb: any positional argument and most flags are now preset-able, runtime values compose with preset values via consistent merge rules (scalars replace, lists append, prompt-like text concatenates), and runtime gets boolean negation flags so preset booleans aren't sticky. Schema additions are purely additive — every existing preset continues to validate. The release does carry five documented runtime-semantics shifts and removes two redundant CLI flags; see Changed and Removed below for migration guidance. The realistic shape of a preset is now "bake the persistent context, supply the per-call detail at runtime" — bake `--company acme.com` in an enrich preset and add `--first-name` per call; bake `--system` and `--file standards.md` in a run preset and add the runtime prompt and `--file code.ts`; bake `--query "site:linkedin.com"` in a search preset and append the per-call query.
 
 ### Added
 

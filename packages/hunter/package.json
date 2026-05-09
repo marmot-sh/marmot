@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/hunter",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "@marmot-sh adapter for Hunter — Email finding, verification, domain enrichment.",
   "type": "module",
   "private": true,
