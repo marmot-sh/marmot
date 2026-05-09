@@ -67,7 +67,7 @@ export type TranscribeRunCommandOptions = {
   provider?: string;
   model?: string;
   apiKey?: string;
-  input?: string;
+  audio?: string;
   output?: string;
   language?: string;
   prompt?: string;
@@ -125,8 +125,8 @@ export async function handleTranscribeRunCommand(
   const stderr = dependencies.stderr ?? process.stderr;
   const resolveProvider = dependencies.resolveProvider ?? getProviderAdapter;
 
-  // Resolve audio source: positional arg → --input → stdin
-  const explicitPath = audioPathArg ?? options.input;
+  // Resolve audio source: positional arg → preset.audio → stdin
+  const explicitPath = audioPathArg ?? options.audio;
   let audioBytes: Uint8Array | null = null;
   let audioMimeType: string | undefined;
 
@@ -162,7 +162,7 @@ export async function handleTranscribeRunCommand(
   if (!audioBytes || audioBytes.byteLength === 0) {
     throw new AICliError(
       'validation',
-      'Provide an audio file via positional arg, --input <path>, or piped stdin.',
+      'Provide an audio file via positional arg, an `audio` field on a preset, or piped stdin.',
     );
   }
 

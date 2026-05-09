@@ -409,10 +409,10 @@ Presets exist for every verb category. Common to every mode: `--provider`, `--re
 | Mode | Verb | Extra fields |
 | --- | --- | --- |
 | `text` | (default) | `--prompt`, `--prompt-file`, `--system`, `--system-file`, `--schema`, `--schema-file`, `--schema-module`, `--file` (list), `--image` (list), `--temperature`, `--max-tokens`, `--top-p`, `--seed`, `--stop` (list), `--reasoning`, `--provider-option`, `--output`, `--stream`, `--text`, `--json`, `--session` |
-| `image` | `image` | `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n` (1..10), `--provider-option` |
-| `video` | `video` | `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio`/`--no-audio`, `--n`, `--seed`, `--provider-option` |
-| `speech` | `speak` | `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option` |
-| `transcription` | `transcribe` | `--language`, `--format`, `--prompt`, `--provider-option` |
+| `image` | `image` | `--prompt`, `--prompt-file`, `--size`, `--quality`, `--style`, `--negative`, `--seed`, `--n`, `--provider-option`, `--output`, `--binary`, `--b64`, `--json`, `--preview`, `--session` |
+| `video` | `video` | `--prompt`, `--prompt-file`, `--image` (list), `--aspect`, `--resolution`, `--duration`, `--fps`, `--audio`/`--no-audio`, `--n`, `--seed`, `--provider-option`, `--output`, `--binary`, `--b64`, `--json`, `--session` |
+| `speech` | `speak` | `--text` (positional), `--prompt-file`, `--voice`, `--format`, `--speed`, `--instructions`, `--provider-option`, `--output`, `--binary`, `--b64`, `--json`, `--play`, `--wait`, `--session` |
+| `transcription` | `transcribe` | `--audio` (positional), `--language`, `--format`, `--prompt` (concat), `--provider-option`, `--output`, `--text`, `--json`, `--session` |
 
 **Web modes**
 
@@ -489,9 +489,9 @@ When both a preset and a runtime flag set the same field, three rules dispatch b
 
 - **Scalar** (default) — runtime replaces preset. `--provider`, `--model`, `--temperature`, booleans like `--stream`, etc.
 - **List append** — preset list followed by runtime list. `--file`, `--image`, `--stop`. (Note: `--provider-option` is list-shaped but stays as scalar replace by design.)
-- **Concat** — joined with `\n\n`. Prompt-like text fields: `--system` (text mode), preset's `prompt` field plus positional prompt, `--prompt-file` content. Future: `--instructions` for crawl/research, transcribe `--prompt` (when those features land).
+- **Concat** — joined with `\n\n`. Prompt-like text fields: `--system`, `prompt` (text/image/video positional), `text` (speech positional), `--prompt-file` content, transcribe `--prompt` (bias hint). Future: `--instructions` for crawl/research (when those features land).
 
-Boolean override: a preset field set to `true` is flipped by the matching `--no-<flag>` runtime flag (e.g. `--no-stream` overrides preset `stream: true`). The `text` mode pairs added in 0.7.0+: `--no-stream`, `--no-text`, `--no-json`.
+Boolean override: a preset field set to `true` is flipped by the matching `--no-<flag>` runtime flag (e.g. `--no-stream` overrides preset `stream: true`). Negation pairs added in 0.7.0+: `text` mode — `--no-stream`, `--no-text`, `--no-json`. AI verbs — `--no-binary`, `--no-b64`, `--no-json`, `--no-text` (transcribe), `--no-play`, `--no-wait` (speech), `--preview` / `--no-preview` (image).
 
 **Permanent exclusions** (rejected at preset parse time): `--api-key`, `--preset`, stdin-only modifiers (`--file-mime`, `--image-mime`, `--text-stdin`).
 

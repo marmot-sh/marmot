@@ -234,3 +234,124 @@ describe('withPreset merge rules for text mode', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('withPreset merge rules for AI verbs (image / speak / transcribe / video)', () => {
+  it('image preset prompt fills options.prompt for handler concat', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'oil-painting',
+      { mode: 'image', provider: 'openai', prompt: 'in the style of Monet,' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'oil-painting' } as {
+        preset?: string;
+        prompt?: string;
+        provider?: string;
+      },
+      'image',
+    );
+    expect(merged.prompt).toBe('in the style of Monet,');
+    expect(merged.provider).toBe('openai');
+  });
+
+  it('image preset preview false + runtime --preview true → preview true', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'no-preview-default',
+      { mode: 'image', provider: 'openai', preview: false },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'no-preview-default', preview: true } as {
+        preset?: string;
+        preview?: boolean;
+      },
+      'image',
+    );
+    expect(merged.preview).toBe(true);
+  });
+
+  it('speak preset text concatenates with runtime text via engine', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'tts-prefix',
+      { mode: 'speech', provider: 'openai', text: 'Welcome.' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'tts-prefix', text: 'Take a seat.' } as {
+        preset?: string;
+        text?: string;
+      },
+      'speech',
+    );
+    expect(merged.text).toBe('Welcome.\n\nTake a seat.');
+  });
+
+  it('transcribe preset audio fills options.audio for positional fallback', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'recording',
+      { mode: 'transcription', provider: 'openai', audio: '~/calls/today.mp3' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'recording' } as { preset?: string; audio?: string },
+      'transcription',
+    );
+    expect(merged.audio).toBe('~/calls/today.mp3');
+  });
+
+  it('transcribe preset prompt concatenates with runtime --prompt (Breaking change)', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'whisper-bias',
+      { mode: 'transcription', provider: 'openai', prompt: 'Technical vocabulary:' },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'whisper-bias', prompt: 'React, Vue, Angular.' } as {
+        preset?: string;
+        prompt?: string;
+      },
+      'transcription',
+    );
+    expect(merged.prompt).toBe('Technical vocabulary:\n\nReact, Vue, Angular.');
+  });
+
+  it('video preset image list appends with runtime --image paths', async () => {
+    const { env } = await fixture();
+    process.env.MARMOT_HOME = env.MARMOT_HOME!;
+    await upsertPreset(
+      'first-frame-fixed',
+      { mode: 'video', provider: 'vercel', image: ['./brand.png'] },
+      {},
+      env,
+    );
+
+    const merged = await withPreset(
+      { preset: 'first-frame-fixed', image: ['./last.png'] } as {
+        preset?: string;
+        image?: string[];
+      },
+      'video',
+    );
+    expect(merged.image).toEqual(['./brand.png', './last.png']);
+  });
+});

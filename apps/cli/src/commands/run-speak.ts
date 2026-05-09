@@ -58,6 +58,7 @@ export type SpeechRunCommandOptions = {
   model?: string;
   apiKey?: string;
   output?: string;
+  text?: string;
   promptFile?: string;
   voice?: string;
   format?: string;
@@ -110,7 +111,11 @@ export async function handleSpeechRunCommand(
   const startedAtMs = Date.now();
   const stderr = dependencies.stderr ?? process.stderr;
   const resolveProvider = dependencies.resolveProvider ?? getProviderAdapter;
-  const inlineText = textParts.join(' ');
+  // Preset-supplied `text` (concat rule in engine) prepends positional args.
+  const positionalText = textParts.join(' ');
+  const inlineText = options.text
+    ? [options.text, positionalText].filter((s) => s.trim().length > 0).join('\n\n')
+    : positionalText;
 
   const promptFile = options.promptFile
     ? await readPromptFile(options.promptFile)

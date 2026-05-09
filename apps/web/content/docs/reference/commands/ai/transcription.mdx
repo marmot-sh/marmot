@@ -52,15 +52,25 @@ For cross-cutting flags see [Common flags](/docs/reference/commands/common-flags
 | Flag | Description |
 | --- | --- |
 | `--model <id>` | Transcription model. Defaults to provider's default. |
-| `-i, --input <path>` | Audio file path (alternative to positional arg). |
 | `-o, --output <path>` | Write rendered output to a file. |
 | `--language <code>` | ISO-639-1 language hint (e.g. `en`, `es`). |
-| `--prompt <text>` | Bias prompt to guide the transcription. |
+| `--prompt <text>` | Bias prompt to guide the transcription. **Concatenates** with a preset's `prompt` field when both are set. |
 | `--format <fmt>` | `text` (default), `json`, `srt`, `vtt`, `verbose-json`. |
 | `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche STT params (`timestamp_granularities`, etc.). |
-| `--text` | Plain text (now the default; flag kept for back-compat). |
-| `--json` | Alias for `--format json`. |
+| `--text` / `--no-text` | Plain text (now the default; flag kept for back-compat). |
+| `--json` / `--no-json` | Alias for `--format json`. |
 
 <Callout>
-Audio source priority: positional path → `--input` → piped binary stdin. At least one is required.
+Audio source priority: positional path → preset `audio` field → piped binary stdin. At least one is required. (The legacy `-i, --input` flag was removed in 0.7.0; pass the audio path positionally or set `audio` in a preset.)
 </Callout>
+
+## Presets
+
+`transcription`-mode presets accept `audio` (positional), `language`, `format`, `prompt` (concatenates with runtime), `providerOption`, `output`, `text`, `json`, `retries`, `timeout`, `session`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create whisper-en --mode transcription --provider openai \
+  --language en --prompt "Technical vocabulary."
+marmot @whisper-en ./meeting.mp3
+marmot @whisper-en ./call.mp3 --prompt "Names: Ada, Linus."   # both prompts apply
+```
