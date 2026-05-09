@@ -32,6 +32,21 @@ export type FieldDescriptor = {
   /** Allowed values for `enum` type. */
   enumValues?: readonly string[];
   /**
+   * Numeric inclusive lower bound (validated at prompt time; the schema
+   * also enforces, so this is purely UX-side early-fail).
+   */
+  min?: number;
+  /** Numeric inclusive upper bound (UX-side early-fail). */
+  max?: number;
+  /**
+   * Regex the string input must match. The interactive walk re-prompts
+   * with the descriptor's help text when it fails. The schema validates
+   * a second time at the end of the walk as a backstop.
+   */
+  pattern?: RegExp;
+  /** Friendly description of `pattern` shown when validation fails. */
+  patternHint?: string;
+  /**
    * Mutually-exclusive group. Within a group, the interactive flow asks
    * "which one (if any)?" once and only walks the chosen branch. The
    * flag-driven builder ignores this field — passing two members of the
@@ -58,15 +73,17 @@ const fieldRetries: FieldDescriptor = {
   key: 'retries',
   flag: 'retries',
   type: 'number-int',
+  min: 0,
   label: 'Retries',
-  help: 'Default retry count for this preset.',
+  help: 'Default retry count for this preset (0 or more).',
 };
 const fieldTimeout: FieldDescriptor = {
   key: 'timeout',
   flag: 'timeout',
   type: 'number-int',
+  min: 1,
   label: 'Timeout (seconds)',
-  help: 'Default per-attempt timeout for this preset.',
+  help: 'Default per-attempt timeout for this preset (1 or more).',
 };
 
 const baseShared: FieldDescriptor[] = [fieldProvider, fieldRetries, fieldTimeout];
@@ -157,15 +174,18 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'maxTokens',
       flag: 'max-tokens',
       type: 'number-int',
+      min: 1,
       label: 'Max tokens',
-      help: 'Hard cap on completion tokens.',
+      help: 'Hard cap on completion tokens (1 or more).',
     },
     {
       key: 'topP',
       flag: 'top-p',
       type: 'number-float',
+      min: 0,
+      max: 1,
       label: 'Top-p',
-      help: 'Nucleus sampling, 0–1.',
+      help: 'Nucleus sampling, between 0 and 1.',
     },
     {
       key: 'seed',
@@ -313,6 +333,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'n',
       flag: 'n',
       type: 'number-int',
+      min: 1,
+      max: 10,
       label: 'Number of images',
       help: 'How many images to generate (1–10).',
     },
@@ -375,8 +397,10 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'speed',
       flag: 'speed',
       type: 'number-float',
+      min: 0.25,
+      max: 4,
       label: 'Playback speed',
-      help: 'Multiplier 0.25 – 4.0.',
+      help: 'Multiplier between 0.25 and 4.0.',
     },
     {
       key: 'instructions',
@@ -533,15 +557,17 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'duration',
       flag: 'duration',
       type: 'number-int',
+      min: 1,
       label: 'Duration (seconds)',
-      help: 'Clip length.',
+      help: 'Clip length (1 or more).',
     },
     {
       key: 'fps',
       flag: 'fps',
       type: 'number-int',
+      min: 1,
       label: 'Frames per second',
-      help: 'Honored by some providers, ignored by others.',
+      help: 'Honored by some providers (1 or more).',
     },
     {
       key: 'audio',
@@ -561,8 +587,10 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'n',
       flag: 'n',
       type: 'number-int',
+      min: 1,
+      max: 10,
       label: 'Number of clips',
-      help: 'How many clips to generate.',
+      help: 'How many clips to generate (1–10; most models cap at 1).',
     },
     {
       key: 'seed',
@@ -615,8 +643,9 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'limit',
       flag: 'limit',
       type: 'number-int',
+      min: 1,
       label: 'Result limit',
-      help: 'Max results to return.',
+      help: 'Max results to return (1 or more).',
     },
     {
       key: 'depth',
@@ -638,6 +667,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'afterDate',
       flag: 'after-date',
       type: 'string',
+      pattern: /^\d{4}-\d{2}-\d{2}$/,
+      patternHint: 'Use YYYY-MM-DD (e.g. 2026-01-15).',
       label: 'After date',
       help: 'YYYY-MM-DD lower bound.',
     },
@@ -645,6 +676,8 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'beforeDate',
       flag: 'before-date',
       type: 'string',
+      pattern: /^\d{4}-\d{2}-\d{2}$/,
+      patternHint: 'Use YYYY-MM-DD (e.g. 2026-12-31).',
       label: 'Before date',
       help: 'YYYY-MM-DD upper bound.',
     },
@@ -769,8 +802,9 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'limit',
       flag: 'limit',
       type: 'number-int',
+      min: 1,
       label: 'URL limit',
-      help: 'Max URLs returned.',
+      help: 'Max URLs returned (1 or more).',
     },
     ...sharedCacheControl,
     {
@@ -796,15 +830,17 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'maxPages',
       flag: 'max-pages',
       type: 'number-int',
+      min: 1,
       label: 'Max pages',
-      help: 'Cap pages crawled.',
+      help: 'Cap pages crawled (1 or more).',
     },
     {
       key: 'maxDepth',
       flag: 'max-depth',
       type: 'number-int',
+      min: 0,
       label: 'Max depth',
-      help: 'Discovery depth.',
+      help: 'Discovery depth (0 or more).',
     },
     {
       key: 'instructions',
@@ -923,8 +959,9 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'maxWait',
       flag: 'max-wait',
       type: 'number-int',
+      min: 1,
       label: 'Max wait (s)',
-      help: 'Total wait timeout. Default 900.',
+      help: 'Total wait timeout in seconds. Default 900.',
     },
     {
       key: 'raw',
@@ -949,8 +986,9 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'limit',
       flag: 'limit',
       type: 'number-int',
+      min: 1,
       label: 'Item limit',
-      help: 'Max items to find.',
+      help: 'Max items to find (1 or more).',
     },
     {
       key: 'entityType',
@@ -1111,8 +1149,9 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'minLikelihood',
       flag: 'min-likelihood',
       type: 'number-int',
+      min: 1,
       label: 'Min likelihood',
-      help: 'Reject results below this likelihood.',
+      help: 'Reject results below this likelihood (1 or more).',
     },
     {
       key: 'require',
@@ -1160,8 +1199,9 @@ export const MODE_FIELDS: Record<PresetMode, FieldDescriptor[]> = {
       key: 'limit',
       flag: 'limit',
       type: 'number-int',
+      min: 1,
       label: 'Result limit',
-      help: 'Max results to return.',
+      help: 'Max results to return (1 or more).',
     },
     {
       key: 'cursor',

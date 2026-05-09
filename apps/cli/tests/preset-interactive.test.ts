@@ -156,6 +156,59 @@ describe('getFieldDescriptor', () => {
   });
 });
 
+describe('descriptor validation metadata', () => {
+  it('every retries field has min: 0', () => {
+    for (const mode of PRESET_MODES) {
+      const f = MODE_FIELDS[mode].find((d) => d.key === 'retries');
+      expect(f, `${mode}.retries`).toBeDefined();
+      expect(f?.min, `${mode}.retries.min`).toBe(0);
+    }
+  });
+
+  it('every timeout field has min: 1', () => {
+    for (const mode of PRESET_MODES) {
+      const f = MODE_FIELDS[mode].find((d) => d.key === 'timeout');
+      expect(f, `${mode}.timeout`).toBeDefined();
+      expect(f?.min, `${mode}.timeout.min`).toBe(1);
+    }
+  });
+
+  it('text mode topP has min: 0 and max: 1', () => {
+    const f = MODE_FIELDS.text.find((d) => d.key === 'topP')!;
+    expect(f.min).toBe(0);
+    expect(f.max).toBe(1);
+  });
+
+  it('image and video n fields have min: 1, max: 10', () => {
+    for (const mode of ['image', 'video'] as const) {
+      const f = MODE_FIELDS[mode].find((d) => d.key === 'n')!;
+      expect(f.min, `${mode}.n.min`).toBe(1);
+      expect(f.max, `${mode}.n.max`).toBe(10);
+    }
+  });
+
+  it('search afterDate / beforeDate carry the YYYY-MM-DD pattern', () => {
+    const after = MODE_FIELDS.search.find((d) => d.key === 'afterDate')!;
+    const before = MODE_FIELDS.search.find((d) => d.key === 'beforeDate')!;
+    expect(after.pattern?.test('2026-05-09')).toBe(true);
+    expect(after.pattern?.test('2026/05/09')).toBe(false);
+    expect(before.pattern?.test('not-a-date')).toBe(false);
+  });
+
+  it('speech speed has range 0.25–4', () => {
+    const f = MODE_FIELDS.speech.find((d) => d.key === 'speed')!;
+    expect(f.min).toBe(0.25);
+    expect(f.max).toBe(4);
+  });
+
+  it('crawl maxPages has min: 1 and maxDepth has min: 0 (allows root-only)', () => {
+    const mp = MODE_FIELDS.crawl.find((d) => d.key === 'maxPages')!;
+    const md = MODE_FIELDS.crawl.find((d) => d.key === 'maxDepth')!;
+    expect(mp.min).toBe(1);
+    expect(md.min).toBe(0);
+  });
+});
+
 describe('descriptor type coverage', () => {
   it('every FieldType has at least one descriptor using it (except path which appears in multiple modes)', () => {
     const seen = new Set<FieldType>();

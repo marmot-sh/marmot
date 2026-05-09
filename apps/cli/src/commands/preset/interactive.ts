@@ -4,6 +4,8 @@
  * flags on a TTY. Driven by the per-mode field descriptor table so any
  * new field automatically appears in the walk without touching this file.
  */
+import { stat as fsStat } from 'node:fs/promises';
+
 import {
   cancel,
   confirm,
@@ -76,27 +78,41 @@ class InteractiveCancelled extends Error {
 
 /** Prompt a string. Empty input means "skip" (returns undefined). */
 async function promptString(desc: FieldDescriptor, currentValue?: string): Promise<string | undefined> {
-  const placeholder = currentValue ? `current: ${currentValue}` : 'skip';
-  const result = await text({
-    message: desc.label,
-    placeholder,
-    initialValue: '',
-  });
-  if (isCancel(result)) bail('Cancelled.');
-  const trimmed = (result as string).trim();
-  if (trimmed.length === 0) return currentValue; // empty → keep current (or undefined for create)
-  return trimmed;
+  while (true) {
+    const placeholder = currentValue ? `current: ${currentValue}` : 'skip';
+    const result = await text({
+      message: desc.label,
+      placeholder,
+      initialValue: '',
+    });
+    if (isCancel(result)) bail('Cancelled.');
+    const trimmed = (result as string).trim();
+    if (trimmed.length === 0) return currentValue;
+    if (desc.pattern && !desc.pattern.test(trimmed)) {
+      note(desc.patternHint ?? `"${trimmed}" doesn't match the expected format. Try again.`);
+      continue;
+    }
+    return trimmed;
+  }
 }
 
-/** Prompt a number. Re-prompts on parse failure. */
+/** Prompt a number. Re-prompts on parse failure or out-of-range. */
 async function promptNumber(
   desc: FieldDescriptor,
   kind: 'int' | 'float',
   currentValue?: number,
 ): Promise<number | undefined> {
   while (true) {
+    const rangeHint =
+      desc.min !== undefined && desc.max !== undefined
+        ? ` (${desc.min}–${desc.max})`
+        : desc.min !== undefined
+          ? ` (≥ ${desc.min})`
+          : desc.max !== undefined
+            ? ` (≤ ${desc.max})`
+            : '';
     const result = await text({
-      message: desc.label,
+      message: `${desc.label}${rangeHint}`,
       placeholder: currentValue !== undefined ? `current: ${currentValue}` : 'skip',
       initialValue: '',
     });
@@ -104,8 +120,65 @@ async function promptNumber(
     const raw = (result as string).trim();
     if (raw.length === 0) return currentValue;
     const n = kind === 'int' ? Number.parseInt(raw, 10) : Number.parseFloat(raw);
-    if (Number.isFinite(n)) return n;
-    note(`"${raw}" is not a valid ${kind === 'int' ? 'integer' : 'number'}. Try again.`);
+    if (!Number.isFinite(n)) {
+      note(`"${raw}" is not a valid ${kind === 'int' ? 'integer' : 'number'}. Try again.`);
+      continue;
+    }
+    if (kind === 'int' && !Number.isInteger(n)) {
+      note(`"${raw}" must be an integer (no decimals). Try again.`);
+      continue;
+    }
+    if (desc.min !== undefined && n < desc.min) {
+      note(`Value must be ≥ ${desc.min}. Try again.`);
+      continue;
+    }
+    if (desc.max !== undefined && n > desc.max) {
+      note(`Value must be ≤ ${desc.max}. Try again.`);
+      continue;
+    }
+    return n;
+  }
+}
+
+/**
+ * Prompt a filesystem path. Behaves like promptString, but if the user
+ * provides an absolute or `~`-expanded path, we soft-check existence
+ * and warn if it isn't found. We allow the user to proceed since
+ * preset paths resolve at use time (a path can be valid at runtime
+ * from a different cwd than the one the prompt was answered from).
+ */
+async function promptPath(desc: FieldDescriptor, currentValue?: string): Promise<string | undefined> {
+  while (true) {
+    const placeholder = currentValue ? `current: ${currentValue}` : 'skip';
+    const result = await text({
+      message: desc.label,
+      placeholder,
+      initialValue: '',
+    });
+    if (isCancel(result)) bail('Cancelled.');
+    const trimmed = (result as string).trim();
+    if (trimmed.length === 0) return currentValue;
+
+    // Soft existence check — only meaningful for absolute/`~` paths.
+    // Relative paths resolve cwd-at-runtime, which can differ from now.
+    if (trimmed.startsWith('/') || trimmed.startsWith('~')) {
+      const expanded = trimmed.startsWith('~')
+        ? `${process.env.HOME ?? ''}${trimmed.slice(1)}`
+        : trimmed;
+      try {
+        const stat = await fsStat(expanded);
+        if (!stat.isFile()) {
+          note(`"${trimmed}" exists but isn't a regular file.`);
+          const ok = await confirm({ message: 'Use it anyway?', initialValue: false });
+          if (isCancel(ok) || !ok) continue;
+        }
+      } catch {
+        note(`"${trimmed}" doesn't appear to exist (checked at create time, may be valid at use time).`);
+        const ok = await confirm({ message: 'Use this path anyway?', initialValue: true });
+        if (isCancel(ok) || !ok) continue;
+      }
+    }
+    return trimmed;
   }
 }
 
@@ -371,8 +444,9 @@ async function runFieldPrompt(
 
   switch (desc.type) {
     case 'string':
-    case 'path':
       return promptString(desc, typeof cur === 'string' ? cur : undefined);
+    case 'path':
+      return promptPath(desc, typeof cur === 'string' ? cur : undefined);
     case 'number-int':
       return promptNumber(desc, 'int', typeof cur === 'number' ? cur : undefined);
     case 'number-float':
