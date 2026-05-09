@@ -57,11 +57,14 @@ export async function handleVerifyCommand(
   const stderr = deps.stderr ?? process.stderr;
   const fetchFn = deps.fetchFn ?? fetch;
 
-  const email = (options.email ?? args[0])?.trim();
+  // Positional first, then preset's `email` field. The legacy `--email`
+  // flag was removed in 0.7.0 — the canonical surface is positional, with
+  // a verify-mode preset's `email` field as the persistent fallback.
+  const email = (args[0] ?? options.email)?.trim();
   if (!email) {
     throw new AICliError(
       'validation',
-      'verify requires an email address. Pass it positionally or via --email.',
+      'verify requires an email address. Pass it positionally or set `email` on a verify-mode preset.',
     );
   }
 
@@ -163,13 +166,15 @@ export async function handleVerifyCommand(
 export function buildVerifyCommand(deps: VerifyCommandDependencies = {}): Command {
   const cmd = new Command('verify')
     .description('Verify email deliverability via a configured provider.')
-    .argument('[email]', 'Email address to verify.')
-    .option('--email <addr>', 'Email address (alternative to positional arg).')
+    .argument('[email]', 'Email address to verify. Optional when a verify-mode preset supplies `email`.')
     .option('--provider <slug>', 'Data provider: hunter, tomba, bouncer, datagma, zerobounce, kickbox.')
     .option('--api-key <apiKey>', 'Provider API key override.')
     .option('--raw', "Emit the provider's native response under `raw` instead of normalized data.")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
+    .option('--cache', 'Use the response cache (default; overrides a preset that sets cache: false).')
     .option('--no-cache', 'Bypass the response cache for this call (skip read and write).')
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
+    .option('--no-refresh', 'Disable refresh (overrides preset refresh: true).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')

@@ -398,8 +398,11 @@ export function buildEnrichCommand(deps: EnrichCommandDependencies = {}): Comman
     .option('--fields <list>', 'Comma-separated fields to return (payload shaping).')
     // Output
     .option('--raw', "Emit the provider's native response under `raw` instead of normalized data.")
+    .option('--no-raw', 'Disable raw envelope (overrides preset raw: true).')
+    .option('--cache', 'Use the response cache (default; overrides a preset that sets cache: false).')
     .option('--no-cache', 'Bypass the response cache for this call (skip read and write).')
     .option('--refresh', 'Skip cache read but write the fresh response (overwrite any cached entry).')
+    .option('--no-refresh', 'Disable refresh (overrides preset refresh: true).')
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')

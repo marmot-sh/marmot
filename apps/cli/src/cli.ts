@@ -267,10 +267,35 @@ function addPresetWriteOptions(command: Command): Command {
     .option('--match-conditions <json>', 'JSON array of {name, description} conditions (findall mode, Parallel).')
     // Enrich / Lookup
     .option('--type <kind>', 'Entity type: person, org (enrich mode); person, org, email (lookup mode).')
-    // Enrich
+    // Enrich identifiers
+    .option('--email <addr>', 'Email address (enrich / verify mode).')
+    .option('--email-hash <hash>', 'MD5/SHA-256 hash of email (enrich mode).')
+    .option('--linkedin <url>', 'LinkedIn URL or handle (enrich mode).')
+    .option('--phone <number>', 'Phone number (enrich mode).')
+    .option('--name <full>', 'Full name (enrich mode).')
+    .option('--first-name <first>', 'First name (enrich mode).')
+    .option('--last-name <last>', 'Last name (enrich mode).')
+    .option('--middle-name <middle>', 'Middle name (enrich mode).')
+    .option('--company <ref>', 'Employer / company name or domain (enrich / lookup-email mode).')
+    .option('--provider-id <id>', "Provider's stable id (enrich mode).")
+    .option('--domain <domain>', 'Company/org domain (enrich / lookup mode).')
+    .option('--website <url>', 'Org website URL (enrich mode).')
+    .option('--ticker <symbol>', 'Stock ticker (enrich mode).')
+    // Enrich result shaping
     .option('--min-likelihood <n>', 'Reject results below this likelihood (enrich mode).')
     .option('--require <fields>', 'Comma-separated fields the result must populate (enrich mode).')
-    .option('--fields <list>', 'Comma-separated fields to return (enrich mode).');
+    .option('--fields <list>', 'Comma-separated fields to return (enrich mode).')
+    // Lookup-specific filters
+    .option('--q <text>', 'Free-form keyword query (lookup mode).')
+    .option('--cursor <token>', 'Pagination cursor (lookup mode).')
+    .option('--title <text>', 'Job title (lookup person).')
+    .option('--seniority <enum>', 'Seniority level (lookup mode).')
+    .option('--location <text>', 'Geographic location (lookup mode).')
+    .option('--industry <text>', 'Industry filter (lookup mode).')
+    .option('--employees <range>', 'Employee count range "min,max" (lookup mode).')
+    .option('--tech <csv>', 'Tech-stack tags (lookup org).')
+    .option('--email-type <kind>', 'Email type: personal or generic (lookup-email mode).')
+    .option('--department <text>', 'Department filter (lookup-email mode).');
 }
 
 function buildPresetCommand(): Command {

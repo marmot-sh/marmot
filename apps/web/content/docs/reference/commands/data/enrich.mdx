@@ -104,6 +104,16 @@ For `--type org`, `data` is `{ "org": {…} }` instead. Both shapes return `{ "p
 
 Set via `marmot setup` (Configure data verb defaults) or `marmot config set enrich.provider <slug>`.
 
+## Presets
+
+`enrich`-mode presets accept all 13 identifier fields (`email`, `emailHash`, `linkedin`, `phone`, `name`, `firstName`, `lastName`, `middleName`, `company`, `providerId`, `domain`, `website`, `ticker`), `type`, `minLikelihood`, `require`, `fields`, `cache`, `refresh`, `output`, `raw`, `retries`, `timeout`, `session`. All scalar-replace: runtime flags fully replace preset values. New negation flags: `--cache` (paired with `--no-cache`), `--no-refresh`, `--no-raw`. See [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
+
+```bash
+marmot preset create acme-people --mode enrich --provider pdl --type person --company acme.com
+marmot @acme-people --first-name Jane              # preset's company applies
+marmot @acme-people --first-name Bob --company other.com   # runtime overrides company
+```
+
 ## Plan-tier notes
 
 - **Apollo `/people/match`** is gated on free plans. Free-tier keys get HTTP 403 with `error_code: API_INACCESSIBLE`. Upgrade or switch providers.

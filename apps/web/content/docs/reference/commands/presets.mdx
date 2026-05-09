@@ -102,11 +102,11 @@ Common to every mode: `--provider`, `--retries`, `--timeout`. AI modes also acce
 
 | Mode | Verb | Mode-specific flags |
 | --- | --- | --- |
-| `enrich` | `enrich` | `--type` (person / org), `--min-likelihood`, `--require`, `--fields` |
-| `lookup` | `lookup` | `--type` (person / org / email), `--limit` |
-| `verify` | `verify` | (provider, retries, timeout only) |
+| `enrich` | `enrich` | `--type` (person / org), `--email`, `--email-hash`, `--linkedin`, `--phone`, `--name`, `--first-name`, `--last-name`, `--middle-name`, `--company`, `--provider-id`, `--domain`, `--website`, `--ticker`, `--min-likelihood`, `--require`, `--fields`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `lookup` | `lookup` | `--type` (person / org / email), `--q`, `--limit`, `--cursor`, `--title`, `--seniority`, `--location`, `--domain`, `--industry`, `--employees`, `--tech`, `--email-type`, `--department`, `--company`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
+| `verify` | `verify` | `--email`, `--cache`, `--refresh`, `--output`, `--raw`, `--session` |
 
-Per-call identifiers — `--email`, `--linkedin`, `--first-name`, `--query`, etc. on data verbs — intentionally stay as call-time flags, not preset-shaped, because they vary per invocation.
+As of 0.7.0 every data-verb identifier is preset-able — the realistic use is partial baking (e.g. `--company acme.com` in a preset, `--first-name Jane` at runtime). All identifier fields are scalar-replace: a runtime flag fully replaces a preset value.
 
 ## Use
 
