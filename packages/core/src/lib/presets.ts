@@ -14,7 +14,7 @@ import {
 /** Input shape for `upsertPreset`. Distributes Omit over the discriminated
  *  union so each mode allows omitting `preset_id`. The helper auto-assigns
  *  one when missing. */
-type DistributiveOmit<T, K extends keyof any> = T extends T ? Omit<T, K> : never;
+type DistributiveOmit<T, K extends PropertyKey> = T extends T ? Omit<T, K> : never;
 export type PresetInput = DistributiveOmit<Preset, 'preset_id'> & { preset_id?: string };
 
 export function validatePresetName(name: string): void {
