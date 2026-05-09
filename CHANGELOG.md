@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.7.1] — 2026-05-09
+
+A preset-UX release. Bare `marmot preset create` (and `marmot preset update <name>`) now enter a guided walkthrough — the same kind of interactive walk `marmot setup` already had — instead of forcing users to remember every flag for every mode. The walk knows about each mode's preset-able fields, validates inputs at prompt time, hides fields the chosen provider doesn't actually honor, and surfaces current values when updating an existing preset. A behind-the-scenes refactor consolidates per-mode preset metadata into a single descriptor table, so the flag-driven path and the interactive walk read from the same source of truth — adding a new preset field touches one place going forward. Plus a small fix to the cache control semantics so a preset's `cache: true` actually means "cache on" without requiring a separate provider-level config flip.
 
 ### Changed
 
