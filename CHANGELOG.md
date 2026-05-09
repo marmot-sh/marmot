@@ -29,6 +29,10 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 - **Breaking: `transcribe --prompt` switches from replace to concatenate.** When both a `transcription` preset's `prompt` and a runtime `--prompt` are set, they now join with `\n\n` (compositional bias hints — the preset establishes baseline vocabulary; runtime adds call-specific names/jargon). Previously the preset value was dropped.
 - **Breaking: `crawl --instructions` and `research --instructions` switch from replace to concatenate.** Same logic as transcribe — preset establishes baseline guidance, runtime adds call-specific direction; both apply.
 
+### Fixed
+
+- **`@typescript-eslint/no-explicit-any` warning in `packages/core/src/lib/presets.ts`.** Replaced `keyof any` with `PropertyKey` (the standard non-`any` equivalent for "any property key") in the `DistributiveOmit` helper. No behavior change.
+
 ### Removed
 
 - **Breaking: `transcribe -i, --input <path>` flag.** The positional `[audio]` argument is the canonical surface, and the new `audio` field on `transcription`-mode presets covers the preset-side use case. Migration: `marmot transcribe --input foo.mp3` → `marmot transcribe foo.mp3`. Stdin and preset paths still work as documented.
