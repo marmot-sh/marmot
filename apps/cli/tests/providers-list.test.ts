@@ -1,6 +1,53 @@
 import { describe, expect, it } from 'vitest';
 
 import { listProviderSummaries } from '../src/providers/index.js';
+import { handleProvidersListCommand } from '../src/commands/providers-list.js';
+
+class Cap {
+  chunks: string[] = [];
+  write(s: string): boolean {
+    this.chunks.push(s);
+    return true;
+  }
+  text(): string {
+    return this.chunks.join('');
+  }
+}
+
+describe('handleProvidersListCommand — output modes', () => {
+  const env = { HOME: '/tmp/marmot-test-home' };
+
+  it('emits raw summaries array in JSON mode (preserves today envelope)', async () => {
+    const cap = new Cap();
+    await handleProvidersListCommand({ json: true }, { env, stdout: cap });
+    const parsed = JSON.parse(cap.text());
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(19);
+    expect(parsed[0]).toHaveProperty('slug');
+  });
+
+  it('--markdown emits a pipe-table with the expected columns', async () => {
+    const cap = new Cap();
+    await handleProvidersListCommand({ markdown: true }, { env, stdout: cap });
+    const out = cap.text();
+    expect(out).toMatch(/^\| SLUG \| NAME \| CATEGORY \| ENV VARS \|/m);
+    expect(out).toMatch(/\| --- \| --- \| --- \| --- \|/);
+  });
+
+  it('--check-keys --markdown adds a STATUS column', async () => {
+    const cap = new Cap();
+    await handleProvidersListCommand({ checkKeys: true, markdown: true }, { env, stdout: cap });
+    const out = cap.text();
+    expect(out).toMatch(/^\| SLUG \| NAME \| CATEGORY \| ENV VARS \| STATUS \|/m);
+  });
+
+  it('rejects --json + --markdown together', async () => {
+    const cap = new Cap();
+    await expect(
+      handleProvidersListCommand({ json: true, markdown: true }, { env, stdout: cap }),
+    ).rejects.toThrow(/mutually exclusive/);
+  });
+});
 
 describe('listProviderSummaries', () => {
   const env = { HOME: '/tmp/marmot-test-home' };

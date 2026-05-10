@@ -109,6 +109,38 @@ describe('marmot tasks command group', () => {
     await expect(runTasks(['list', '--limit', '0'], env, stdout)).rejects.toThrow(/positive integer/);
   });
 
+  it('list --markdown emits a pipe-table', async () => {
+    const { env } = await fixture();
+    await appendTaskRecord({ taskId: 'a', provider: 'parallel', verb: 'research' }, env);
+    const stdout = new Cap();
+    await runTasks(['list', '--markdown'], env, stdout);
+    const out = stdout.text();
+    expect(out).toMatch(/^\| TASK ID \| VERB \| PROVIDER \| STATUS \| CREATED \|/m);
+    expect(out).toMatch(/\| --- \| --- \| --- \| --- \| --- \|/);
+  });
+
+  it('list --json + --markdown rejected with mutual-exclusion error', async () => {
+    const { env } = await fixture();
+    const stdout = new Cap();
+    await expect(runTasks(['list', '--json', '--markdown'], env, stdout)).rejects.toThrow(/mutually exclusive/);
+  });
+
+  it('list shows pagination footer in human mode when total > limit', async () => {
+    // Force human mode by faking isTTY on the Cap stub. resolveOutputMode
+    // checks `stream.isTTY`; setting it to true gates into the human path.
+    const { env } = await fixture();
+    for (let i = 0; i < 25; i++) {
+      await appendTaskRecord({ taskId: `t-${i}`, provider: 'parallel', verb: 'research' }, env);
+    }
+    const stdout = new Cap();
+    (stdout as unknown as { isTTY: boolean }).isTTY = true;
+    await runTasks(['list', '--limit', '5'], env, stdout);
+    const out = stdout.text();
+    // Header + 5 data rows + footer
+    expect(out).toMatch(/TASK ID/);
+    expect(out).toMatch(/Showing 5 of 25 tasks/);
+  });
+
   it('list filters by --since duration', async () => {
     const { env } = await fixture();
     await appendTaskRecord({ taskId: 'a', provider: 'parallel', verb: 'research' }, env);

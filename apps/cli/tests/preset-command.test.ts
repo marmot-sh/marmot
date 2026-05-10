@@ -304,6 +304,46 @@ describe('preset list + show', () => {
     expect(out.preset.voice).toBe('alloy');
     expect(out.preset.speed).toBe(1.2);
   });
+
+  it('preset list --markdown renders a markdown pipe-table', async () => {
+    const { env } = await fixture();
+    await handlePresetCreate('alpha', { mode: 'text', provider: 'anthropic', model: 'm1' }, { env });
+    await handlePresetCreate('beta', { mode: 'search', provider: 'parallel' }, { env });
+    const cap = captureStdout();
+    await handlePresetList({ markdown: true }, { env, stdout: cap.writer });
+    const out = cap.text;
+    expect(out).toMatch(/^\| NAME \| MODE \| PROVIDER \| MODEL \|/m);
+    expect(out).toMatch(/^\| --- \| --- \| --- \| --- \|/m);
+    expect(out).toMatch(/^\| alpha \| text \| anthropic \| m1 \|/m);
+  });
+
+  it('preset list rejects --json + --markdown together', async () => {
+    const { env } = await fixture();
+    const cap = captureStdout();
+    await expect(
+      handlePresetList({ json: true, markdown: true }, { env, stdout: cap.writer }),
+    ).rejects.toThrow(/mutually exclusive/);
+  });
+
+  it('preset list defaults to JSON when stdout is not a TTY (Cap stub has no isTTY)', async () => {
+    const { env } = await fixture();
+    await handlePresetCreate('p', { mode: 'text', provider: 'anthropic' }, { env });
+    const cap = captureStdout();
+    await handlePresetList({}, { env, stdout: cap.writer });
+    const parsed = JSON.parse(cap.text);
+    expect(parsed.presets).toBeInstanceOf(Array);
+  });
+
+  it('preset show --markdown emits sectioned ## headings', async () => {
+    const { env } = await fixture();
+    await handlePresetCreate('p1', { mode: 'text', provider: 'anthropic', model: 'm1' }, { env });
+    const cap = captureStdout();
+    await handlePresetShow('p1', { markdown: true }, { env, stdout: cap.writer });
+    const out = cap.text;
+    expect(out).toMatch(/## Preset "p1"/);
+    expect(out).toMatch(/### Identity/);
+    expect(out).toMatch(/\| Field \| Value \|/);
+  });
 });
 
 describe('expandPresetSigil', () => {
