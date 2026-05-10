@@ -62,6 +62,16 @@ import { runInteractiveCreate, runInteractiveUpdate } from './commands/preset/in
 import { MODE_FIELDS } from './commands/preset/field-descriptors.js';
 import { AICliError, PRESET_MODES, getPreset } from '@marmot-sh/core';
 import { addOutputModeOptions, type OutputModeOptions } from './lib/output-mode-options.js';
+import {
+  handlePipelineCreate,
+  handlePipelineDelete,
+  handlePipelineList,
+  handlePipelineRename,
+  handlePipelineRun,
+  handlePipelineShow,
+  handlePipelineUpdate,
+  type PipelineWriteOptions,
+} from './commands/pipeline/index.js';
 
 /**
  * Detect whether the user supplied any preset field flag at runtime. Used
@@ -401,6 +411,76 @@ function buildPresetCommand(): Command {
   });
 
   return presetCommand;
+}
+
+function buildPipelineCommand(): Command {
+  const pipelineCommand = new Command('pipeline')
+    .description('Manage pipelines: named multi-stage workflows. Each step runs as a marmot subprocess; stdout chains into the next step\'s stdin.');
+
+  pipelineCommand
+    .command('create')
+    .description('Create a new pipeline. Pass --step \'...\' once per stage (repeatable).')
+    .argument('<name>', 'Pipeline name (slug: lowercase, digits, - or _).')
+    .option('--step <step>', 'Step in the form "<verb> [args]" or "@preset [args]". Repeatable.', collectStop, [] as string[])
+    .option('--label <text>', 'Optional human-readable label.')
+    .action(async (name: string, options: PipelineWriteOptions) => {
+      await handlePipelineCreate(name, options);
+    });
+
+  pipelineCommand
+    .command('update')
+    .description('Update an existing pipeline. Passing --step replaces the full step list.')
+    .argument('<name>', 'Pipeline name.')
+    .option('--step <step>', 'Repeatable. If omitted, current steps are kept.', collectStop, [] as string[])
+    .option('--label <text>', 'Update the label.')
+    .action(async (name: string, options: PipelineWriteOptions) => {
+      await handlePipelineUpdate(name, options);
+    });
+
+  pipelineCommand
+    .command('delete')
+    .description('Delete a pipeline.')
+    .argument('<name>', 'Pipeline name.')
+    .action(async (name: string) => {
+      await handlePipelineDelete(name);
+    });
+
+  pipelineCommand
+    .command('rename')
+    .description('Rename a pipeline. The pipeline_id stays stable.')
+    .argument('<old>', 'Existing pipeline name.')
+    .argument('<new>', 'New pipeline name.')
+    .action(async (oldName: string, newName: string) => {
+      await handlePipelineRename(oldName, newName);
+    });
+
+  addOutputModeOptions(
+    pipelineCommand
+      .command('list')
+      .description('List all pipelines (name, step count, label). Default: human-readable on TTY, JSON when piped.'),
+  ).action(async (options: OutputModeOptions) => {
+    await handlePipelineList(options);
+  });
+
+  addOutputModeOptions(
+    pipelineCommand
+      .command('show')
+      .description('Show one pipeline\'s full step list.')
+      .argument('<name>', 'Pipeline name.'),
+  ).action(async (name: string, options: OutputModeOptions) => {
+    await handlePipelineShow(name, options);
+  });
+
+  pipelineCommand
+    .command('run')
+    .description('Run a pipeline. Equivalent to `marmot @<name> [input]`.')
+    .argument('<name>', 'Pipeline name.')
+    .argument('[input...]', 'Positional arguments substituted into ${input}, ${1}, ${2}, …')
+    .action(async (name: string, input: string[]) => {
+      await handlePipelineRun(name, input);
+    });
+
+  return pipelineCommand;
 }
 
 function buildSessionCommand(): Command {
@@ -865,6 +945,7 @@ export function createProgram(): Command {
   program.addCommand(buildTasksCommand().helpGroup('Other'));
   program.addCommand(cacheCommand.helpGroup('Other'));
   program.addCommand(buildPresetCommand().helpGroup('Other'));
+  program.addCommand(buildPipelineCommand().helpGroup('Other'));
   program.addCommand(buildSessionCommand().helpGroup('Other'));
   program.addCommand(setupCommand.helpGroup('Other'));
   program.addCommand(configCommand.helpGroup('Other'));
@@ -932,6 +1013,20 @@ function readPresetModeSync(name: string): PresetMode | null {
   }
 }
 
+/** Best-effort sync check for a pipeline by name. Used by the sigil
+ *  resolver to route `@<name>` to `pipeline run <name>` when the name
+ *  matches a pipeline (preferred over preset to support workflows). */
+function isPipelineNameSync(name: string): boolean {
+  try {
+    const path = getMarmotConfigPath();
+    const raw = readFileSync(path, 'utf8');
+    const config = JSON.parse(raw) as { pipelines?: Record<string, unknown> };
+    return Boolean(config.pipelines && name in config.pipelines);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Strip global cross-cutting flags from argv and set the matching env
  * vars so verb handlers can honor them without per-command wiring.
@@ -983,6 +1078,7 @@ export function applyGlobalLoggingFlags(
 export function expandPresetSigil(
   argv: readonly string[],
   lookupMode: (name: string) => PresetMode | null = readPresetModeSync,
+  isPipelineName: (name: string) => boolean = isPipelineNameSync,
 ): string[] {
   const out = [...argv];
   const hasExplicit = out.some((a) => a === '--preset' || a.startsWith('--preset='));
@@ -993,6 +1089,14 @@ export function expandPresetSigil(
     if (!tok.startsWith('@') || tok.length < 2) continue;
     const candidate = tok.slice(1);
     if (!PRESET_NAME_REGEX.test(candidate)) continue;
+
+    // Pipeline-first routing. When the sigil is at argv[2] and the name
+    // matches a pipeline, expand to `pipeline run <name>` so the rest of
+    // argv flows in as positional ${input}/${1}/... arguments.
+    if (i === 2 && isPipelineName(candidate)) {
+      out.splice(i, 1, 'pipeline', 'run', candidate);
+      return out;
+    }
 
     // Inject a verb if argv[2] is the sigil itself — meaning the user typed
     // `marmot @name ...` with no explicit verb. If argv[2] is a flag (starts

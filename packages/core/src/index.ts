@@ -21,6 +21,7 @@ export * from './lib/mime.js';
 export * from './lib/paths.js';
 export * from './lib/pricing.js';
 export * from './lib/presets.js';
+export * from './lib/pipelines.js';
 export * from './lib/sessions.js';
 export * from './lib/skill.js';
 export * from './lib/retry.js';

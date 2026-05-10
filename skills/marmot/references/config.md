@@ -510,6 +510,31 @@ Boolean override: a preset field set to `true` is flipped by the matching `--no-
 
 Presets store flags only, never credentials.
 
+### Pipelines (0.9.0+) — multi-stage workflows
+
+Where a preset configures a single verb invocation, a **pipeline** chains several invocations through stdin/stdout. Stored under a top-level `pipelines` key in `config.json`. The same `@<name>` sigil routes to a pipeline first, then falls back to a preset (collisions are rejected at create time).
+
+```bash
+marmot pipeline create news-digest \
+  --step 'search ${input}' \
+  --step 'run "summarize this in three paragraphs"' \
+  --step '@news-podcast'
+
+marmot @news-digest "AI safety in 2026"
+# expands to: marmot search ... | marmot run ... | marmot @news-podcast
+```
+
+Step shapes (on disk):
+- `{ verb, args?, prompt?, flags? }` — inline marmot verb invocation.
+- `{ preset: <name>, args? }` — reference an existing preset.
+- `{ pipeline: <name> }` — nested pipelines (deferred for v1; rejected at parse time).
+
+Substitution tokens in step strings: `${input}` (all positionals joined), `${1}`, `${2}`, … (1-indexed positionals), plus `?`-suffixed optional variants (`${input?}`, `${1?}`).
+
+Each step runs as a `marmot` subprocess; stdout chains into the next step's stdin. The first step's stdin is inherited from the parent (so `cat foo.txt | marmot @<name>` works). The final step's stdout is the user's stdout. Failed steps surface a `Pipeline "<name>" failed at step N (<verb>) with exit code <code>` error and a non-zero exit.
+
+CRUD mirrors presets: `marmot pipeline create / update / list / show / delete / rename / run`. The `update` verb replaces the full steps array (per-step editing deferred). `list / show` follow the 0.8.0 TTY-aware human/json/markdown output pattern.
+
 ## 9. Sessions
 
 Containers that log related calls and (in chat mode) carry message history.
