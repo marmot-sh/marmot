@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.8.0] — 2026-05-09
+
+A list/show output release. Seven JSON-only commands — `preset list`, `preset show`, `session list`, `session show`, `providers list`, `tasks list`, `tasks show` — now emit a human-readable table or grouped key/value layout when stdout is an interactive terminal, and fall back to today's JSON envelope when piped or redirected. New `--markdown` flag everywhere lets you embed output in docs / Slack / GitHub. `tasks list` gains `--since` and a `--limit` ceiling so the index can grow without flooding stdout. Behind the scenes, all seven commands consume one shared renderer, so the output story is consistent and adding new list/show commands is now a small lift.
 
 ### Added
 

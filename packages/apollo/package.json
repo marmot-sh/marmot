@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/apollo",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "@marmot-sh adapter for Apollo — People + organizations: search, enrichment.",
   "type": "module",
   "private": true,
