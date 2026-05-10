@@ -15,6 +15,8 @@ import {
 } from '@marmot-sh/core';
 
 import { MODE_FIELDS, type FieldDescriptor } from './field-descriptors.js';
+import { renderList, renderRecord, type Column, type Section } from '../../lib/list-renderer.js';
+import { resolveOutputMode, type OutputModeOptions } from '../../lib/output-mode-options.js';
 
 export type PresetCommandDependencies = {
   env?: NodeJS.ProcessEnv;
@@ -324,7 +326,22 @@ export async function handlePresetRename(
   );
 }
 
+type PresetListRow = {
+  name: string;
+  mode: string;
+  provider?: string;
+  model?: string;
+};
+
+const PRESET_LIST_COLUMNS: Column<PresetListRow>[] = [
+  { key: 'name', header: 'NAME' },
+  { key: 'mode', header: 'MODE' },
+  { key: 'provider', header: 'PROVIDER' },
+  { key: 'model', header: 'MODEL' },
+];
+
 export async function handlePresetList(
+  options: OutputModeOptions = {},
   dependencies: PresetCommandDependencies = {},
 ): Promise<void> {
   const env = dependencies.env ?? process.env;
@@ -332,7 +349,7 @@ export async function handlePresetList(
 
   const presets = await listPresets(env);
   const names = Object.keys(presets).sort();
-  const summary = names.map((name) => {
+  const rows: PresetListRow[] = names.map((name) => {
     const p = presets[name]!;
     return {
       name,
@@ -342,16 +359,55 @@ export async function handlePresetList(
       model: 'model' in p ? p.model : undefined,
     };
   });
-  writeLine(stdout, JSON.stringify({ presets: summary }, null, 2));
+  const mode = resolveOutputMode(options, stdout as NodeJS.WriteStream);
+  writeLine(
+    stdout,
+    renderList({
+      rows,
+      columns: PRESET_LIST_COLUMNS,
+      mode,
+      envelopeKey: 'presets',
+      emptyMessage: 'No presets configured. Run `marmot preset create` to add one.',
+    }),
+  );
 }
 
 export async function handlePresetShow(
   name: string,
+  options: OutputModeOptions = {},
   dependencies: PresetCommandDependencies = {},
 ): Promise<void> {
   const env = dependencies.env ?? process.env;
   const stdout = dependencies.stdout ?? process.stdout;
 
   const preset = await getPreset(name, env);
-  writeLine(stdout, JSON.stringify({ name, preset }, null, 2));
+  const mode = resolveOutputMode(options, stdout as NodeJS.WriteStream);
+
+  // JSON keeps the today-style envelope { name, preset } for back-compat.
+  if (mode === 'json') {
+    writeLine(stdout, JSON.stringify({ name, preset }, null, 2));
+    return;
+  }
+
+  // For human/markdown, group keys into Identity / Settings.
+  const flatRecord: Record<string, unknown> = { name, ...(preset as Record<string, unknown>) };
+  const identityKeys: string[] = ['name', 'mode', 'preset_id', 'provider', 'model'];
+  const settingsKeys: string[] = Object.keys(flatRecord).filter(
+    (k) => !identityKeys.includes(k),
+  );
+  const sections: Section<typeof flatRecord>[] = [
+    { title: 'Identity', keys: identityKeys },
+    { title: 'Settings', keys: settingsKeys },
+  ];
+  writeLine(
+    stdout,
+    renderRecord({
+      record: flatRecord,
+      mode,
+      envelopeKey: 'preset',
+      sections,
+      title: `Preset "${name}"`,
+    }),
+  );
+  return;
 }

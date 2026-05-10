@@ -85,16 +85,23 @@ marmot tasks prune  [flags…]
 
 ### `tasks list`
 
+Default output is TTY-aware: a human table on an interactive terminal, the JSON envelope when piped or redirected. Pass `--json` or `--markdown` to force a specific format.
+
 | Flag | Description |
 | --- | --- |
 | `--provider <slug>` | Filter by provider. |
 | `--verb <name>` | Filter by verb. |
 | `--status <name>` | `queued`, `running`, `done`, `failed`, or `cancelled`. |
-| `--limit <n>` | Cap rows returned. Newest first. |
+| `--since <duration>` | Only show tasks created within this window: `1h`, `24h`, `7d`, etc. |
+| `--limit <n>` | Cap rows returned (default 20, max 1000). Newest first. |
+| `--json` | Always emit the JSON envelope. |
+| `--markdown` | Emit a markdown pipe-table (for embedding in docs / chats). |
+
+When the underlying task count exceeds `--limit`, the human-mode footer reads `Showing 20 of 87 tasks. Pass --limit 1000 or filters (--since, --status, --verb, --provider) to narrow.` The JSON envelope gains a `total` and `limit` field so consumers can paginate programmatically.
 
 ### `tasks show <id>`
 
-Print one record.
+Print one record. Supports `--json` and `--markdown` like the other show commands.
 
 ### `tasks remove <id>`
 

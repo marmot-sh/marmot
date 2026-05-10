@@ -4,6 +4,14 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Added
+
+- **TTY-aware human-readable defaults for list/show commands.** `marmot preset list`, `marmot preset show`, `marmot session list`, `marmot session show`, `marmot providers list`, `marmot tasks list`, and `marmot tasks show` now render a column-aligned table or grouped key/value layout when stdout is an interactive terminal. When piped or redirected (`| jq`, `> file`, etc.) they fall back to today's JSON envelope shape — same fields, same nesting — so existing tooling keeps working unchanged. Pass `--json` to always force JSON regardless of TTY, or `--markdown` to emit a markdown pipe-table (handy for embedding in docs / Slack / GitHub comments). `--json` and `--markdown` are mutually exclusive.
+- **Pagination + `--since` filter on `marmot tasks list`.** New `--since <duration>` flag (e.g. `1h`, `24h`, `7d`) restricts results to tasks created within the window. Default `--limit` is 20 (max 1000); when more records match the filters, the human-mode footer reads `Showing N of M tasks. Pass --limit ... or filters ... to narrow.` JSON envelope gains `total` and `limit` fields so consumers can paginate programmatically.
+- **Shared list/record renderer module** at `apps/cli/src/lib/list-renderer.ts` (with `output-mode-options.ts` for flag wiring). All affected commands consume the same renderer so output looks consistent across the seven commands.
+
 ## [0.7.1] — 2026-05-09
 
 A preset-UX release. Bare `marmot preset create` (and `marmot preset update <name>`) now enter a guided walkthrough — the same kind of interactive walk `marmot setup` already had — instead of forcing users to remember every flag for every mode. The walk knows about each mode's preset-able fields, validates inputs at prompt time, hides fields the chosen provider doesn't actually honor, and surfaces current values when updating an existing preset. A behind-the-scenes refactor consolidates per-mode preset metadata into a single descriptor table, so the flag-driven path and the interactive walk read from the same source of truth — adding a new preset field touches one place going forward. Plus a small fix to the cache control semantics so a preset's `cache: true` actually means "cache on" without requiring a separate provider-level config flip.

@@ -454,8 +454,8 @@ marmot preset create                          # interactive: name → mode → f
 marmot preset create my-name                  # interactive: skips the name prompt
 marmot preset update deep-research            # interactive: current values shown as defaults
 
-marmot preset list                # JSON: [{name, mode, provider, model}]
-marmot preset show deep-research  # JSON: full preset body (includes preset_id)
+marmot preset list                # human table on TTY, JSON when piped (0.7.2+); add --json or --markdown to force
+marmot preset show deep-research  # human key/value sections on TTY, JSON when piped (0.7.2+)
 marmot preset update deep-research --model claude-sonnet-4-6
 marmot preset rename deep-research deep-research-v2   # 0.6.0+; preset_id stays stable
 marmot preset delete deep-research
@@ -531,8 +531,8 @@ marmot session create market-q3 --mode chat --preset deep-research \
 marmot session use market-q3      # set global pointer
 marmot session current            # print active session
 marmot session end                # clear pointer
-marmot session list
-marmot session show market-q3     # meta + token totals + window usage
+marmot session list               # human table on TTY, JSON when piped (0.7.2+); --json or --markdown to force
+marmot session show market-q3     # human sections on TTY, JSON when piped; meta + token totals + window usage
 marmot session delete market-q3 [--keep-log]
 ```
 

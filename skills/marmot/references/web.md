@@ -250,11 +250,15 @@ There is no `--cancel` on `marmot get`. Cancellation is provider-specific and no
 Operates on the local index file `~/.marmot/tasks.json`. Does NOT hit the provider.
 
 ```
-marmot tasks list [--provider X] [--verb Y] [--status queued|running|done|failed|cancelled] [--limit N]
-marmot tasks show <id>
+marmot tasks list [--provider X] [--verb Y] [--status queued|running|done|failed|cancelled]
+                  [--since 1h|24h|7d|...] [--limit N]
+                  [--json | --markdown]
+marmot tasks show <id> [--json | --markdown]
 marmot tasks remove <id>
 marmot tasks prune [--older-than <days>]
 ```
+
+`tasks list` and `tasks show` are TTY-aware (0.7.2+): human-readable table / sections on TTY, JSON envelope when piped. `--json` and `--markdown` force the choice. `--limit` defaults to 20 (max 1000); when more records exist, the human-mode footer reports the total. `--since` filters to records created within the window (`1h`, `24h`, `7d`, etc.).
 
 `prune` defaults to 30 days; only removes terminal-state records (done/failed/cancelled). `remove` drops the local record without contacting the provider.
 

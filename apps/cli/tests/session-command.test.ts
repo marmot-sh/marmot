@@ -137,7 +137,7 @@ describe('session list + show', () => {
     await handleSessionCreate('zeta', { mode: 'stateless', label: 'misc' }, { env });
 
     const cap = captureStdout();
-    await handleSessionList({ env, stdout: cap.writer });
+    await handleSessionList({ json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.sessions.map((s: { name: string }) => s.name)).toEqual(['alpha', 'zeta']);
     expect(out.sessions[0].mode).toBe('chat');
@@ -148,10 +148,41 @@ describe('session list + show', () => {
     const { env } = await fixture();
     await handleSessionCreate('s1', {}, { env });
     const cap = captureStdout();
-    await handleSessionShow('s1', { env, stdout: cap.writer });
+    await handleSessionShow('s1', { json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.session.name).toBe('s1');
     expect(out.session.totals.calls).toBe(0);
+  });
+
+  it('session list --markdown emits a markdown table with the expected headers', async () => {
+    const { env } = await fixture();
+    await handleSessionCreate('alpha', { mode: 'chat' }, { env });
+    await handleSessionCreate('zeta', { mode: 'stateless', label: 'misc' }, { env });
+    const cap = captureStdout();
+    await handleSessionList({ markdown: true }, { env, stdout: cap.writer });
+    const out = cap.text;
+    expect(out).toMatch(/^\| NAME \| MODE \| PRESET \| CALLS \| LAST USED \|/m);
+    expect(out).toMatch(/\| alpha \| chat \|/);
+    expect(out).toMatch(/\| zeta \| stateless \|/);
+  });
+
+  it('session list rejects --json + --markdown together', async () => {
+    const { env } = await fixture();
+    const cap = captureStdout();
+    await expect(
+      handleSessionList({ json: true, markdown: true }, { env, stdout: cap.writer }),
+    ).rejects.toThrow(/mutually exclusive/);
+  });
+
+  it('session show --markdown emits ## title and section ### headings', async () => {
+    const { env } = await fixture();
+    await handleSessionCreate('s1', { mode: 'stateless', label: 'demo' }, { env });
+    const cap = captureStdout();
+    await handleSessionShow('s1', { markdown: true }, { env, stdout: cap.writer });
+    const out = cap.text;
+    expect(out).toMatch(/## Session "s1"/);
+    expect(out).toMatch(/### Identity/);
+    expect(out).toMatch(/### Totals/);
   });
 });
 
@@ -365,7 +396,7 @@ describe('session show window stats', () => {
     const { env } = await fixture();
     await handleSessionCreate('s1', {}, { env });
     const cap = captureStdout();
-    await handleSessionShow('s1', { env, stdout: cap.writer });
+    await handleSessionShow('s1', { json: true }, { env, stdout: cap.writer });
     expect(JSON.parse(cap.text).window).toBeNull();
   });
 
@@ -375,7 +406,7 @@ describe('session show window stats', () => {
     await handleSessionCreate('c1', { mode: 'chat', preset: 'p1' }, { env });
     await appendChatMessage('c1', { role: 'user', content: 'a'.repeat(40) }, env);
     const cap = captureStdout();
-    await handleSessionShow('c1', { env, stdout: cap.writer });
+    await handleSessionShow('c1', { json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.window.tokens_in_window).toBeGreaterThan(0);
     expect(out.window.model).toBe('claude-opus-4-7');

@@ -46,6 +46,16 @@ Override flags:
 | `--b64` | `image` and `speak` only. JSON envelope with inline base64. |
 | `--stream` | `run` only. Stream tokens as they arrive. Implies plain text. |
 
+### List/show commands (`preset list/show`, `session list/show`, `providers list`, `tasks list/show`)
+
+These commands now ship a TTY-aware default: human-readable table or key/value layout on an interactive terminal, the JSON envelope when piped or redirected. Pass `--json` to force JSON, or `--markdown` for a markdown pipe-table (handy when embedding output in docs / Slack / GitHub comments). `--json` and `--markdown` are mutually exclusive.
+
+```bash
+marmot preset list                 # human table on TTY
+marmot preset list | jq            # JSON (piped → fallback)
+marmot preset list --markdown      # markdown table, regardless of TTY
+```
+
 ## Async verbs
 
 `research`, `crawl`, and `findall` are async. They take two extra flags.

@@ -84,9 +84,13 @@ A handful of cells in the matrix above need a paid plan to work. Listed here so 
 `marmot providers list` returns one row per supported provider — all 19, across AI, web, and data — with the env vars it reads. Pass `--check-keys` to also report enabled state, per-env-var set/unset, and an overall `ready` boolean per row.
 
 ```bash
-marmot providers list                # supported providers + env vars
+marmot providers list                # supported providers + env vars (human table on TTY, JSON when piped)
 marmot providers list --check-keys   # adds enabled / keys / ready diagnostic
+marmot providers list --json         # force JSON envelope
+marmot providers list --markdown     # markdown pipe-table
 ```
+
+Output mode is TTY-aware by default — interactive terminals get the human table; piped output falls back to JSON. Pass `--json` or `--markdown` to force.
 
 For the bottom-line "what providers can I use right now?" answer, prefer `marmot config show --json` and read the `readyProviders` array. That field returns just the slugs of providers whose credentials resolve and that aren't disabled in config — same source data as `--check-keys`, but in a one-line summary instead of a per-row table.
 
