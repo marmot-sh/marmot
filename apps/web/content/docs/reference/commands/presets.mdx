@@ -17,6 +17,8 @@ marmot @<name> "..."           # sigil — auto-routes to the right verb
 marmot search @<name> "..."    # explicit verb still works
 ```
 
+For multi-stage workflows that chain several verb invocations together, see [Pipelines](/docs/reference/commands/pipelines) — they share the same `@<name>` sigil routing.
+
 ## The `@name` sigil
 
 The shorthand `@<name>` expands to `--preset <name>`. As of 0.4.7, it also routes to the verb that matches the preset's mode when no explicit verb is given. So a search-mode preset dispatches to `marmot search`, an enrich-mode preset to `marmot enrich`, and so on:

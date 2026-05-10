@@ -524,6 +524,73 @@ export type EnrichPreset = z.infer<typeof presetEnrichSchema>;
 export type LookupPreset = z.infer<typeof presetLookupSchema>;
 export type VerifyPreset = z.infer<typeof presetVerifySchema>;
 
+/* -------------------------------------------------------------------- */
+/* Pipelines: named multi-stage workflows                               */
+/* -------------------------------------------------------------------- */
+
+/**
+ * One step in a pipeline. Three shapes:
+ *
+ *   { verb, args?, prompt?, flags? } — inline verb invocation
+ *   { preset: '<name>' }              — reference an existing preset
+ *   { pipeline: '<name>' }            — reference another pipeline (deferred for v1)
+ *
+ * The on-disk shape is structured. The textual `--step '...'` CLI form
+ * is parsed into one of these by the CLI's parse-step helper.
+ */
+const inlineStepSchema = z
+  .object({
+    /** A marmot verb name. Validated by the runner against the known
+     *  verb list at execution time, not at schema parse time, so that
+     *  a verb added in a later release doesn't break older configs. */
+    verb: z.string().trim().min(1),
+    /** Positional input string passed as the verb's first argument.
+     *  Substitution tokens (${input}, ${1}, ...) are resolved at run
+     *  time. */
+    args: z.string().optional(),
+    /** Optional explicit `--prompt` body. Distinct from `args` so a
+     *  preset's `prompt` field can be expressed cleanly here too. */
+    prompt: z.string().optional(),
+    /** Additional `--flag value` entries for this verb. Booleans pass
+     *  as `true`. The runner serializes these into the spawned argv. */
+    flags: z.record(z.string().min(1), z.union([z.string(), z.boolean()])).optional(),
+  })
+  .strict();
+
+const presetRefStepSchema = z
+  .object({
+    preset: z.string().trim().min(1),
+    /** Optional input string passed as the preset's positional. */
+    args: z.string().optional(),
+  })
+  .strict();
+
+export const pipelineStepSchema = z.union([inlineStepSchema, presetRefStepSchema]);
+
+export const PIPELINE_NAME_REGEX = PRESET_NAME_REGEX;
+
+const pipelineNameSchema = z
+  .string()
+  .regex(
+    PIPELINE_NAME_REGEX,
+    'Pipeline name must be lowercase letters/digits with single - or _ separators (no leading, trailing, or consecutive separators).',
+  );
+
+export const pipelineSchema = z
+  .object({
+    pipeline_id: z.string().uuid().optional(),
+    /** Optional human-readable label. */
+    label: z.string().min(1).optional(),
+    /** Ordered list of pipeline steps. At least one. */
+    steps: z.array(pipelineStepSchema).min(1, 'A pipeline must have at least one step.'),
+  })
+  .strict();
+
+export type Pipeline = z.infer<typeof pipelineSchema>;
+export type PipelineStep = z.infer<typeof pipelineStepSchema>;
+export type InlineStep = z.infer<typeof inlineStepSchema>;
+export type PresetRefStep = z.infer<typeof presetRefStepSchema>;
+
 export const marmotConfigSchema = z
   .object({
     version: z.literal(1),
@@ -548,6 +615,12 @@ export const marmotConfigSchema = z
       .strict()
       .optional(),
     presets: z.record(presetNameSchema, presetSchema).optional(),
+    /** Pipelines: named multi-stage workflows. Each pipeline has an
+     *  ordered list of steps that the runner executes as subprocesses,
+     *  piping stdin/stdout between them. The `@<name>` sigil resolves
+     *  to a pipeline first, then falls back to a preset. Name collision
+     *  with the presets map is rejected at create time. */
+    pipelines: z.record(pipelineNameSchema, pipelineSchema).optional(),
     /** Usage log settings.
      *  - `enabled` (default true): write a record per metered call to
      *    ~/.marmot/usage/<UTC-DATE>.jsonl. Disable globally here or per-call

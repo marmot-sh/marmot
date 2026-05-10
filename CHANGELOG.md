@@ -4,6 +4,15 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Added
+
+- **Pipelines: named multi-stage workflows.** A pipeline is a sequence of marmot invocations chained through stdin/stdout, defined once and invoked through the same `@<name>` sigil that routes presets today. Each step runs as its own `marmot` subprocess; stdout pipes into the next step's stdin; the final step's stdout is the user's stdout. Stored under a new top-level `pipelines` key in `~/.marmot/config.json`. Step shapes: inline verb (`{ verb, args, prompt, flags }`), preset reference (`{ preset: name, args }`), or — deferred for a future release — nested pipeline. New top-level command group: `marmot pipeline create / update / list / show / delete / rename / run`.
+- **Substitution in pipeline steps:** `${input}` (all positional args joined), `${1}`, `${2}`, … (1-indexed positionals), plus `?`-suffixed optional variants. Required substitutions error before any subprocess is spawned: `Pipeline "<name>" step references ${input} but no input argument was provided.`
+- **Sigil routing extended.** `@<name>` resolves to a pipeline first, then falls back to a preset. Name collisions between pipelines and presets are rejected at create time so resolution stays deterministic.
+- **TTY-aware output for `pipeline list / show`** matches the 0.8.0 list/show pattern: human-readable on TTY, JSON when piped, `--json` / `--markdown` to force.
+
 ## [0.8.0] — 2026-05-09
 
 A list/show output release. Seven JSON-only commands — `preset list`, `preset show`, `session list`, `session show`, `providers list`, `tasks list`, `tasks show` — now emit a human-readable table or grouped key/value layout when stdout is an interactive terminal, and fall back to today's JSON envelope when piped or redirected. New `--markdown` flag everywhere lets you embed output in docs / Slack / GitHub. `tasks list` gains `--since` and a `--limit` ceiling so the index can grow without flooding stdout. Behind the scenes, all seven commands consume one shared renderer, so the output story is consistent and adding new list/show commands is now a small lift.

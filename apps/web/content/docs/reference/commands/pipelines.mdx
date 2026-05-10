@@ -1,0 +1,162 @@
+---
+title: Pipelines
+description: marmot pipeline — named multi-stage workflows. Each step runs as a marmot subprocess; stdout chains into the next step's stdin.
+---
+
+A pipeline is a named sequence of marmot invocations chained via stdin/stdout. Define once, invoke with the same `@<name>` sigil that routes presets:
+
+```bash
+marmot pipeline create news-digest \
+  --step 'search ${input}' \
+  --step 'run "summarize this in three paragraphs"' \
+  --step '@news-podcast'
+
+marmot @news-digest "AI safety in 2026"
+# Equivalent to:
+#   marmot search "AI safety in 2026" \
+#     | marmot run "summarize this in three paragraphs" \
+#     | marmot @news-podcast
+```
+
+Pipelines are stored under a top-level `pipelines` key in `~/.marmot/config.json` alongside presets.
+
+## Why pipelines vs shell aliases?
+
+A shell function can do the same thing — `news-digest() { marmot search "$1" | marmot run "summarize…" | marmot @news-podcast; }`. The advantages of a marmot pipeline:
+
+- **Discoverability** — `marmot pipeline list` shows what's available.
+- **Portability** — lives in your config, sharable across machines / agents / users.
+- **Composition** — a step can reference an existing preset (`@news-podcast`) so workflows build on tuned defaults.
+- **Sigil routing** — `marmot @news-digest "..."` works the same as `marmot @some-preset "..."`. One mental model.
+
+If you're solo and live in one shell, the shell function is fine. The pipeline shines when you want the workflow to follow you.
+
+## Create
+
+```bash
+marmot pipeline create <name> --step '...' [--step '...']...
+```
+
+Names follow the slug regex `^[a-z0-9]+([-_][a-z0-9]+)*$` — same shape as preset names. **Name collisions with presets are rejected at create time** so the `@<name>` sigil's resolution stays deterministic (pipeline beats preset, but the only way both exist with the same name is hand-editing `~/.marmot/config.json`).
+
+Each `--step '...'` flag carries one step in textual form. Three forms accepted:
+
+| Form | Meaning | Example |
+|---|---|---|
+| `<verb> [args]` | Inline marmot verb invocation. | `search ${input}` · `run "summarize this"` |
+| `@<preset>` | Reference an existing preset. | `@news-podcast` · `@digest ${input}` |
+| `pipeline:<name>` | Reference another pipeline (deferred — rejected for now). | _not yet supported_ |
+
+Quoted args (`"…"`, `'…'`) are preserved as a single token. Backslash-escapes inside step strings are NOT supported.
+
+## Substitution
+
+Step strings can interpolate the runtime positional arguments using:
+
+| Token | Resolves to |
+|---|---|
+| `${input}` | All positional args joined with a single space. Required by default. |
+| `${input?}` | Same but resolves to empty string when no positional was passed. |
+| `${1}`, `${2}`, … | The Nth positional (1-indexed). Required by default. |
+| `${1?}`, `${2?}`, … | Optional variants — empty string when not supplied. |
+
+Required substitution that has no matching positional surfaces a clear error before any subprocess is spawned: `Pipeline "news-digest" step references ${input} but no input argument was provided. Pass one: marmot @news-digest <input>.`
+
+## Update
+
+```bash
+marmot pipeline update <name> --step '...' [--step '...']...
+```
+
+Passing `--step` replaces the **full** step list. Omitting `--step` keeps the existing steps; you can update just the `--label`. Per-step editing (`--add-step`, `--replace-step`) is not yet supported.
+
+## Run
+
+```bash
+marmot pipeline run <name> [input...]
+marmot @<name> [input...]                    # sigil shortcut
+```
+
+Each step is executed as its own `marmot` subprocess. The first step's stdin is inherited from the parent (so `cat foo.txt | marmot @<name>` chains stdin into step 1). Step N's stdout pipes into step N+1's stdin. The final step's stdout is the user's stdout. Errors surface a `Pipeline "<name>" failed at step N (<verb>) with exit code <code>` message and a non-zero exit.
+
+```bash
+# Multi-arg substitution
+marmot pipeline create two-pass \
+  --step 'search ${1}' \
+  --step 'run "answer the user question: ${2}"'
+
+marmot @two-pass "AI safety" "what are the most-cited concerns?"
+```
+
+## List and show
+
+```bash
+marmot pipeline list                 # human table on TTY, JSON when piped
+marmot pipeline list --json
+marmot pipeline list --markdown
+
+marmot pipeline show <name>
+marmot pipeline show <name> --json
+marmot pipeline show <name> --markdown
+```
+
+`list` reports name, step count, and label. `show` prints identity (name, `pipeline_id`, label) and the numbered step list.
+
+Output mode is TTY-aware just like the other list/show commands — interactive terminals get the human layout; piped output falls back to JSON.
+
+## Rename and delete
+
+```bash
+marmot pipeline rename <old> <new>
+marmot pipeline delete <name>
+```
+
+Rename keeps `pipeline_id` stable. Delete returns `{removed: false}` when the name didn't exist (not an error).
+
+## Config keys
+
+```json
+{
+  "pipelines": {
+    "news-digest": {
+      "pipeline_id": "<uuid>",
+      "label": "Search → summarize → speak",
+      "steps": [
+        { "verb": "search", "args": "${input}" },
+        { "verb": "run", "prompt": "summarize this in three paragraphs" },
+        { "preset": "news-podcast" }
+      ]
+    }
+  }
+}
+```
+
+## Examples
+
+```bash
+# Search → summarize → speak
+marmot pipeline create news-digest \
+  --step 'search ${input}' \
+  --step 'run "summarize this in three paragraphs"' \
+  --step '@news-podcast'
+marmot @news-digest "AI safety in 2026"
+
+# Scrape → extract → save
+marmot pipeline create extract-emails \
+  --step 'scrape ${input}' \
+  --step 'run "list every email address you find. one per line."'
+marmot @extract-emails https://example.com/team
+
+# Image generation chained to vision QA
+marmot pipeline create describe-it \
+  --step 'image "${input}"' \
+  --step '@vision-qa'
+```
+
+## Known limitations
+
+- **Nested pipelines** — `pipeline:<name>` references aren't supported in this release. Recursion + cycle detection is deferred.
+- **Conditional / branching steps** — `if`, `parallel` aren't supported. Linear chains only.
+- **Per-step editing** — `update` replaces the full steps array. Per-step editing flags are deferred.
+- **Env var substitution** — `${ENV_VAR}` isn't supported. Wrap in a shell function if you need env.
+- **In-process execution** — every step is a real subprocess (~100–300 ms startup per step). Acceptable since AI/web calls take seconds; future optimization.
