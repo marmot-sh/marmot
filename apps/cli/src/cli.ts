@@ -61,6 +61,7 @@ import {
 import { runInteractiveCreate, runInteractiveUpdate } from './commands/preset/interactive.js';
 import { MODE_FIELDS } from './commands/preset/field-descriptors.js';
 import { AICliError, PRESET_MODES, getPreset } from '@marmot-sh/core';
+import { addOutputModeOptions, type OutputModeOptions } from './lib/output-mode-options.js';
 
 /**
  * Detect whether the user supplied any preset field flag at runtime. Used
@@ -382,20 +383,22 @@ function buildPresetCommand(): Command {
       await handlePresetRename(oldName, newName);
     });
 
-  presetCommand
-    .command('list')
-    .description('List all presets (name, mode, provider, model).')
-    .action(async () => {
-      await handlePresetList();
-    });
+  addOutputModeOptions(
+    presetCommand
+      .command('list')
+      .description('List all presets (name, mode, provider, model). Default: human-readable on TTY, JSON when piped.'),
+  ).action(async (options: OutputModeOptions) => {
+    await handlePresetList(options);
+  });
 
-  presetCommand
-    .command('show')
-    .description('Show full settings for one preset.')
-    .argument('<name>', 'Preset name.')
-    .action(async (name: string) => {
-      await handlePresetShow(name);
-    });
+  addOutputModeOptions(
+    presetCommand
+      .command('show')
+      .description('Show full settings for one preset.')
+      .argument('<name>', 'Preset name.'),
+  ).action(async (name: string, options: OutputModeOptions) => {
+    await handlePresetShow(name, options);
+  });
 
   return presetCommand;
 }
@@ -444,20 +447,22 @@ function buildSessionCommand(): Command {
       await handleSessionCurrent();
     });
 
-  sessionCommand
-    .command('list')
-    .description('List all sessions.')
-    .action(async () => {
-      await handleSessionList();
-    });
+  addOutputModeOptions(
+    sessionCommand
+      .command('list')
+      .description('List all sessions. Default: human-readable on TTY, JSON when piped.'),
+  ).action(async (options: OutputModeOptions) => {
+    await handleSessionList(options);
+  });
 
-  sessionCommand
-    .command('show')
-    .description('Show metadata + token totals for one session.')
-    .argument('<name>', 'Session name.')
-    .action(async (name: string) => {
-      await handleSessionShow(name);
-    });
+  addOutputModeOptions(
+    sessionCommand
+      .command('show')
+      .description('Show metadata + token totals for one session.')
+      .argument('<name>', 'Session name.'),
+  ).action(async (name: string, options: OutputModeOptions) => {
+    await handleSessionShow(name, options);
+  });
 
   sessionCommand
     .command('delete')
@@ -621,13 +626,18 @@ export function createProgram(): Command {
   const providersCommand = new Command('providers')
     .description('Inspect supported providers.');
 
-  providersCommand
-    .command('list')
-    .description('List every supported provider — AI, web, and data — with category and env var names.')
-    .option('--check-keys', 'Also report enabled state, per-env-var set/unset, and overall ready status per provider.')
-    .action(async (options: { checkKeys?: boolean }) => {
-      await handleProvidersListCommand({ checkKeys: Boolean(options.checkKeys) });
+  addOutputModeOptions(
+    providersCommand
+      .command('list')
+      .description('List every supported provider — AI, web, and data — with category and env var names. Default: human-readable on TTY, JSON when piped.')
+      .option('--check-keys', 'Also report enabled state, per-env-var set/unset, and overall ready status per provider.'),
+  ).action(async (options: { checkKeys?: boolean } & OutputModeOptions) => {
+    await handleProvidersListCommand({
+      checkKeys: Boolean(options.checkKeys),
+      json: options.json,
+      markdown: options.markdown,
     });
+  });
 
   const modelsCommand = new Command('models')
     .description('List cached models per provider and mode (text/image/speech/transcription).')

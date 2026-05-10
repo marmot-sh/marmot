@@ -44,6 +44,8 @@ import {
   type SessionMode,
 } from '@marmot-sh/core';
 import { getProviderAdapter } from '../../providers/index.js';
+import { renderList, renderRecord, type Column, type Section } from '../../lib/list-renderer.js';
+import { resolveOutputMode, type OutputModeOptions } from '../../lib/output-mode-options.js';
 
 export type SessionCommandDependencies = {
   env?: NodeJS.ProcessEnv;
@@ -146,7 +148,25 @@ export async function handleSessionCurrent(
   writeLine(stdout, JSON.stringify({ current }, null, 2));
 }
 
+type SessionListRow = {
+  name: string;
+  mode: string;
+  preset?: string;
+  label?: string;
+  calls: number;
+  last_used_at?: string;
+};
+
+const SESSION_LIST_COLUMNS: Column<SessionListRow>[] = [
+  { key: 'name', header: 'NAME' },
+  { key: 'mode', header: 'MODE' },
+  { key: 'preset', header: 'PRESET' },
+  { key: 'calls', header: 'CALLS', align: 'right' },
+  { key: 'last_used_at', header: 'LAST USED' },
+];
+
 export async function handleSessionList(
+  options: OutputModeOptions = {},
   deps: SessionCommandDependencies = {},
 ): Promise<void> {
   const env = deps.env ?? process.env;
@@ -155,7 +175,7 @@ export async function handleSessionList(
   const sessions = await listSessions(env);
   // Resolve preset_id → current slug at render time. Orphan ids (preset
   // was deleted) render as the raw UUID.
-  const summary = await Promise.all(
+  const rows: SessionListRow[] = await Promise.all(
     sessions.map(async (s) => {
       let presetSlug: string | undefined;
       if (s.preset_id) {
@@ -172,11 +192,22 @@ export async function handleSessionList(
       };
     }),
   );
-  writeLine(stdout, JSON.stringify({ sessions: summary }, null, 2));
+  const mode = resolveOutputMode(options, stdout as NodeJS.WriteStream);
+  writeLine(
+    stdout,
+    renderList({
+      rows,
+      columns: SESSION_LIST_COLUMNS,
+      mode,
+      envelopeKey: 'sessions',
+      emptyMessage: 'No sessions. Run `marmot session create <name>` to add one.',
+    }),
+  );
 }
 
 export async function handleSessionShow(
   name: string,
+  options: OutputModeOptions = {},
   deps: SessionCommandDependencies = {},
 ): Promise<void> {
   const env = deps.env ?? process.env;
@@ -184,7 +215,51 @@ export async function handleSessionShow(
 
   const session = await getSession(name, env);
   const window = await computeWindowUsage(session, env);
-  writeLine(stdout, JSON.stringify({ name, session, window }, null, 2));
+  const mode = resolveOutputMode(options, stdout as NodeJS.WriteStream);
+
+  // JSON keeps today's envelope shape exactly.
+  if (mode === 'json') {
+    writeLine(stdout, JSON.stringify({ name, session, window }, null, 2));
+    return;
+  }
+
+  // For human/markdown, flatten into one record with grouped sections.
+  const flat: Record<string, unknown> = {
+    name,
+    mode: session.mode,
+    label: session.label,
+    preset_id: session.preset_id,
+    record_prompts: session.record_prompts,
+    auto_compact: session.auto_compact,
+    created_at: session.created_at,
+    last_used_at: session.last_used_at,
+    calls: session.totals.calls,
+    input_tokens: session.totals.input_tokens,
+    output_tokens: session.totals.output_tokens,
+    cache_read_tokens: session.totals.cache_read_tokens,
+    cache_write_tokens: session.totals.cache_write_tokens,
+    window_used_pct: window?.percent_used ?? null,
+    window_used_tokens: window?.tokens_in_window ?? null,
+    window_max_tokens: window?.model_max_tokens ?? null,
+    window_model: window?.model ?? null,
+  };
+  const sections: Section<typeof flat>[] = [
+    { title: 'Identity', keys: ['name', 'mode', 'label', 'preset_id'] },
+    { title: 'Settings', keys: ['record_prompts', 'auto_compact'] },
+    { title: 'Timestamps', keys: ['created_at', 'last_used_at'] },
+    { title: 'Totals', keys: ['calls', 'input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens'] },
+    { title: 'Context window (chat mode)', keys: ['window_used_pct', 'window_used_tokens', 'window_max_tokens'] },
+  ];
+  writeLine(
+    stdout,
+    renderRecord({
+      record: flat,
+      mode,
+      envelopeKey: 'session',
+      sections,
+      title: `Session "${name}"`,
+    }),
+  );
 }
 
 /**

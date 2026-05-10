@@ -137,7 +137,7 @@ describe('session list + show', () => {
     await handleSessionCreate('zeta', { mode: 'stateless', label: 'misc' }, { env });
 
     const cap = captureStdout();
-    await handleSessionList({ env, stdout: cap.writer });
+    await handleSessionList({ json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.sessions.map((s: { name: string }) => s.name)).toEqual(['alpha', 'zeta']);
     expect(out.sessions[0].mode).toBe('chat');
@@ -148,7 +148,7 @@ describe('session list + show', () => {
     const { env } = await fixture();
     await handleSessionCreate('s1', {}, { env });
     const cap = captureStdout();
-    await handleSessionShow('s1', { env, stdout: cap.writer });
+    await handleSessionShow('s1', { json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.session.name).toBe('s1');
     expect(out.session.totals.calls).toBe(0);
@@ -365,7 +365,7 @@ describe('session show window stats', () => {
     const { env } = await fixture();
     await handleSessionCreate('s1', {}, { env });
     const cap = captureStdout();
-    await handleSessionShow('s1', { env, stdout: cap.writer });
+    await handleSessionShow('s1', { json: true }, { env, stdout: cap.writer });
     expect(JSON.parse(cap.text).window).toBeNull();
   });
 
@@ -375,7 +375,7 @@ describe('session show window stats', () => {
     await handleSessionCreate('c1', { mode: 'chat', preset: 'p1' }, { env });
     await appendChatMessage('c1', { role: 'user', content: 'a'.repeat(40) }, env);
     const cap = captureStdout();
-    await handleSessionShow('c1', { env, stdout: cap.writer });
+    await handleSessionShow('c1', { json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.window.tokens_in_window).toBeGreaterThan(0);
     expect(out.window.model).toBe('claude-opus-4-7');

@@ -280,7 +280,7 @@ describe('preset list + show', () => {
     await handlePresetCreate('zeta', { mode: 'image', provider: 'openai' }, { env });
     await handlePresetCreate('alpha', { mode: 'text', provider: 'anthropic', model: 'm1' }, { env });
     const cap = captureStdout();
-    await handlePresetList({ env, stdout: cap.writer });
+    await handlePresetList({ json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.presets.map((p: { name: string }) => p.name)).toEqual(['alpha', 'zeta']);
     expect(out.presets[0]).toEqual({
@@ -299,7 +299,7 @@ describe('preset list + show', () => {
       { env },
     );
     const cap = captureStdout();
-    await handlePresetShow('p1', { env, stdout: cap.writer });
+    await handlePresetShow('p1', { json: true }, { env, stdout: cap.writer });
     const out = JSON.parse(cap.text);
     expect(out.preset.voice).toBe('alloy');
     expect(out.preset.speed).toBe(1.2);

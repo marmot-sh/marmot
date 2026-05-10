@@ -236,9 +236,16 @@ Returns `{removed: false}` if the name didn't exist (not an error).
 ## List and show
 
 ```bash
-marmot preset list                # JSON: [{name, mode, provider, model}]
-marmot preset show <name>         # JSON: full preset body
+marmot preset list                # human table on TTY, JSON when piped
+marmot preset list --json         # always JSON envelope
+marmot preset list --markdown     # markdown pipe-table
+
+marmot preset show <name>         # human key/value sections on TTY, JSON when piped
+marmot preset show <name> --json
+marmot preset show <name> --markdown
 ```
+
+The default output is **TTY-aware**: a column-aligned table when stdout is an interactive terminal, the JSON envelope (today's structure preserved) when piped or redirected. Pass `--json` or `--markdown` to force a specific format. `--json` and `--markdown` are mutually exclusive.
 
 ## Config keys
 

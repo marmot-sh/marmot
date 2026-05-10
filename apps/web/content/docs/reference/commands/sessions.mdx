@@ -58,11 +58,18 @@ marmot --session <name> "summarize this"
 ## List and show
 
 ```bash
-marmot session list
-marmot session show <name>
+marmot session list                # human table on TTY, JSON when piped
+marmot session list --json         # always JSON envelope
+marmot session list --markdown     # markdown pipe-table
+
+marmot session show <name>         # human key/value sections on TTY, JSON when piped
+marmot session show <name> --json
+marmot session show <name> --markdown
 ```
 
 `list` prints every session. `show` prints metadata, token totals, and context-window usage for chat sessions.
+
+Output mode is TTY-aware by default — interactive terminals get the human table; piped output and redirects get JSON. Pass `--json` or `--markdown` to force.
 
 ## Delete
 
