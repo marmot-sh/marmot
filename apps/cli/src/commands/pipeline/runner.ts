@@ -127,6 +127,22 @@ export async function buildStepArgv(
 }
 
 /**
+ * Pick the marmot binary to spawn for each step. Production users have
+ * `marmot` in PATH (via the npm package). Dev users invoke through
+ * `marmot-dev`, which loads `apps/cli/src/cli.ts` via tsx — when our
+ * own argv[1] ends with `.ts` we're running in dev and should spawn
+ * `marmot-dev` so the child also runs the dev tree. Override either
+ * heuristic with `MARMOT_BIN` for testing or unusual setups.
+ */
+function defaultMarmotCommand(env: NodeJS.ProcessEnv): string {
+  const fromEnv = env.MARMOT_BIN?.trim();
+  if (fromEnv) return fromEnv;
+  const script = process.argv[1] ?? '';
+  if (script.endsWith('.ts')) return 'marmot-dev';
+  return 'marmot';
+}
+
+/**
  * Spawn each step in sequence, piping stdout to the next step's stdin.
  * The first step's stdin is inherited from the parent (so a user could
  * `cat foo.txt | marmot @pipeline`); the last step's stdout is also
@@ -134,8 +150,8 @@ export async function buildStepArgv(
  */
 export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipelineResult> {
   const { pipeline, positional } = opts;
-  const command = opts.command ?? process.argv[0] ?? 'marmot';
   const env = opts.env ?? process.env;
+  const command = opts.command ?? defaultMarmotCommand(env);
   const spawnFn = opts.spawnFn ?? (spawn as unknown as SpawnFn);
   const name = opts.name ?? '<pipeline>';
 

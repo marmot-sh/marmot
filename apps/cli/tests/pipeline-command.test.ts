@@ -312,6 +312,33 @@ describe('expandPresetSigil — pipeline routing', () => {
     );
     expect(expanded.slice(2, 5)).toEqual(['pipeline', 'run', 'shared']);
   });
+
+  it('REGRESSION: @-tokens that are values to a value-taking flag are left alone', () => {
+    // `marmot pipeline create demo --step '@news-podcast'` previously
+    // rewrote the @-token in the step value to `--preset news-podcast`,
+    // breaking the pipeline create command.
+    const argv = [
+      'node',
+      'marmot',
+      'pipeline',
+      'create',
+      'demo',
+      '--step',
+      '@news-podcast',
+    ];
+    const expanded = expandPresetSigil(argv, () => null, () => false);
+    // The @-token must survive untouched as the value of --step.
+    expect(expanded).toEqual(argv);
+  });
+
+  it('REGRESSION: @-tokens after non-flag positionals still get rewritten (e.g. `marmot search @some-preset`)', () => {
+    // Preserve the existing behavior where an explicit verb followed
+    // by an @-preset still resolves.
+    const argv = ['node', 'marmot', 'search', '@some-preset'];
+    const expanded = expandPresetSigil(argv, () => 'search', () => false);
+    expect(expanded).toContain('--preset');
+    expect(expanded).toContain('some-preset');
+  });
 });
 
 /* -------------------------------------------------------------------- */

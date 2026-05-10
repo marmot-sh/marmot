@@ -1090,6 +1090,13 @@ export function expandPresetSigil(
     const candidate = tok.slice(1);
     if (!PRESET_NAME_REGEX.test(candidate)) continue;
 
+    // Skip @-tokens that are values for a value-taking flag (e.g.
+    // `marmot pipeline create demo --step '@news-podcast'`). The flag
+    // owns this token; sigil resolution would otherwise mangle it into
+    // `--preset news-podcast` and break the parent command.
+    const prev = i > 0 ? out[i - 1]! : '';
+    if (prev.startsWith('--') && !prev.includes('=')) continue;
+
     // Pipeline-first routing. When the sigil is at argv[2] and the name
     // matches a pipeline, expand to `pipeline run <name>` so the rest of
     // argv flows in as positional ${input}/${1}/... arguments.
