@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/core",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Shared types, errors, retry, status, output formatters for marmot.",
   "type": "module",
   "private": true,

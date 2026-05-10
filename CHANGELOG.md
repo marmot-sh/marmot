@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.9.0] — 2026-05-10
+
+A pipelines release. Where a preset configures a single verb invocation, a pipeline chains several invocations through stdin/stdout — `search → summarize → speak`, `scrape → extract → save`, etc. Define once with `marmot pipeline create`, invoke through the same `@<name>` sigil that routes presets. Each step runs as its own `marmot` subprocess, so per-step provider auth, retry behavior, and output are exactly what users would get typing the equivalent shell pipe — but discoverable, persisted in config, and shareable.
 
 ### Added
 
@@ -12,6 +14,11 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 - **Substitution in pipeline steps:** `${input}` (all positional args joined), `${1}`, `${2}`, … (1-indexed positionals), plus `?`-suffixed optional variants. Required substitutions error before any subprocess is spawned: `Pipeline "<name>" step references ${input} but no input argument was provided.`
 - **Sigil routing extended.** `@<name>` resolves to a pipeline first, then falls back to a preset. Name collisions between pipelines and presets are rejected at create time so resolution stays deterministic.
 - **TTY-aware output for `pipeline list / show`** matches the 0.8.0 list/show pattern: human-readable on TTY, JSON when piped, `--json` / `--markdown` to force.
+
+### Fixed
+
+- **Sigil resolver no longer eats `@<name>` tokens that are flag values.** A `--step '@news-podcast'` in `marmot pipeline create` previously rewrote the step value to `--preset news-podcast`, breaking the parent command. The resolver now skips `@`-tokens whose previous argv element is a `--flag` (value-taking flag), preserving them for the parent verb.
+- **Pipeline runner now spawns the right marmot binary.** Previously the runner spawned `process.argv[0]` (the node executable) directly with no script path, producing `Cannot find module '<verb>'` errors. The runner now picks `marmot` from PATH for production, `marmot-dev` when running through tsx, or whatever `MARMOT_BIN` is set to.
 
 ## [0.8.0] — 2026-05-09
 

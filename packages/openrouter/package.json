@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/openrouter",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "@marmot-sh adapter for OpenRouter — text/image/speech/transcribe (where supported).",
   "type": "module",
   "private": true,

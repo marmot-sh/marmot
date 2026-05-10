@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/ui",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Marmot React component library (shadcn/ui + Base UI primitives).",
   "type": "module",
   "private": true,
