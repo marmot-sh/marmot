@@ -6,28 +6,26 @@ description: marmot pipeline — named multi-stage workflows. Each step runs as 
 A pipeline is a named sequence of marmot invocations chained via stdin/stdout. Define once, invoke with the same `@<name>` sigil that routes presets:
 
 ```bash
-marmot pipeline create news-digest \
+marmot pipeline create web-summary \
   --step 'search ${input}' \
-  --step 'run "summarize this in three paragraphs"' \
-  --step '@news-podcast'
+  --step 'run "summarize the top results in three paragraphs"'
 
-marmot @news-digest "AI safety in 2026"
+marmot @web-summary "AI safety in 2026"
 # Equivalent to:
 #   marmot search "AI safety in 2026" \
-#     | marmot run "summarize this in three paragraphs" \
-#     | marmot @news-podcast
+#     | marmot run "summarize the top results in three paragraphs"
 ```
 
 Pipelines are stored under a top-level `pipelines` key in `~/.marmot/config.json` alongside presets.
 
 ## Why pipelines vs shell aliases?
 
-A shell function can do the same thing — `news-digest() { marmot search "$1" | marmot run "summarize…" | marmot @news-podcast; }`. The advantages of a marmot pipeline:
+A shell function can do the same thing — `web-summary() { marmot search "$1" | marmot run "summarize…"; }`. The advantages of a marmot pipeline:
 
 - **Discoverability** — `marmot pipeline list` shows what's available.
 - **Portability** — lives in your config, sharable across machines / agents / users.
-- **Composition** — a step can reference an existing preset (`@news-podcast`) so workflows build on tuned defaults.
-- **Sigil routing** — `marmot @news-digest "..."` works the same as `marmot @some-preset "..."`. One mental model.
+- **Composition** — a step can reference an existing preset (`@<your-preset>`) so workflows build on tuned defaults.
+- **Sigil routing** — `marmot @web-summary "..."` works the same as `marmot @<preset> "..."`. One mental model.
 
 If you're solo and live in one shell, the shell function is fine. The pipeline shines when you want the workflow to follow you.
 
@@ -39,15 +37,14 @@ marmot pipeline create <name> --step '...' [--step '...']...
 
 Names follow the slug regex `^[a-z0-9]+([-_][a-z0-9]+)*$` — same shape as preset names. **Name collisions with presets are rejected at create time** so the `@<name>` sigil's resolution stays deterministic (pipeline beats preset, but the only way both exist with the same name is hand-editing `~/.marmot/config.json`).
 
-Each `--step '...'` flag carries one step in textual form. Three forms accepted:
+Each `--step '...'` flag carries one step in textual form. Two forms accepted:
 
 | Form | Meaning | Example |
 |---|---|---|
 | `<verb> [args]` | Inline marmot verb invocation. | `search ${input}` · `run "summarize this"` |
-| `@<preset>` | Reference an existing preset. | `@news-podcast` · `@digest ${input}` |
-| `pipeline:<name>` | Reference another pipeline (deferred — rejected for now). | _not yet supported_ |
+| `@<preset>` | Reference an existing preset. The preset must exist at run time. | `@my-podcast` · `@digest ${input}` |
 
-Quoted args (`"…"`, `'…'`) are preserved as a single token. Backslash-escapes inside step strings are NOT supported.
+Quoted args (`"…"`, `'…'`) are preserved as a single token. Backslash-escapes inside step strings are NOT supported. Compose pipelines together at the shell — `marmot @a | marmot @b` — pipelines themselves do not nest.
 
 ## Substitution
 
@@ -60,7 +57,7 @@ Step strings can interpolate the runtime positional arguments using:
 | `${1}`, `${2}`, … | The Nth positional (1-indexed). Required by default. |
 | `${1?}`, `${2?}`, … | Optional variants — empty string when not supplied. |
 
-Required substitution that has no matching positional surfaces a clear error before any subprocess is spawned: `Pipeline "news-digest" step references ${input} but no input argument was provided. Pass one: marmot @news-digest <input>.`
+Required substitution that has no matching positional surfaces a clear error before any subprocess is spawned: `Pipeline "web-summary" step references ${input} but no input argument was provided. Pass one: marmot @web-summary <input>.`
 
 ## Update
 
@@ -68,7 +65,7 @@ Required substitution that has no matching positional surfaces a clear error bef
 marmot pipeline update <name> --step '...' [--step '...']...
 ```
 
-Passing `--step` replaces the **full** step list. Omitting `--step` keeps the existing steps; you can update just the `--label`. Per-step editing (`--add-step`, `--replace-step`) is not yet supported.
+Passing `--step` replaces the full step list. Omitting `--step` keeps the existing steps; you can update just the `--label`.
 
 ## Run
 
@@ -88,7 +85,7 @@ marmot pipeline create two-pass \
 marmot @two-pass "AI safety" "what are the most-cited concerns?"
 ```
 
-## List and show
+## List and get
 
 ```bash
 marmot pipeline list                 # human table on TTY, JSON when piped
@@ -100,7 +97,7 @@ marmot pipeline get <name> --json
 marmot pipeline get <name> --markdown
 ```
 
-`list` reports name, step count, and label. `show` prints identity (name, `pipeline_id`, label) and the numbered step list.
+`list` reports name, step count, and label. `get` prints identity (name, `pipeline_id`, label) and the numbered step list.
 
 Output mode is TTY-aware just like the other list/get commands — interactive terminals get the human layout; piped output falls back to JSON.
 
@@ -118,13 +115,12 @@ Rename keeps `pipeline_id` stable. Delete returns `{removed: false}` when the na
 ```json
 {
   "pipelines": {
-    "news-digest": {
+    "web-summary": {
       "pipeline_id": "<uuid>",
-      "label": "Search → summarize → speak",
+      "label": "Search then summarize",
       "steps": [
         { "verb": "search", "args": "${input}" },
-        { "verb": "run", "prompt": "summarize this in three paragraphs" },
-        { "preset": "news-podcast" }
+        { "verb": "run", "prompt": "summarize the top results in three paragraphs" }
       ]
     }
   }
@@ -134,29 +130,21 @@ Rename keeps `pipeline_id` stable. Delete returns `{removed: false}` when the na
 ## Examples
 
 ```bash
-# Search → summarize → speak
-marmot pipeline create news-digest \
+# Search the web, then summarize the results
+marmot pipeline create web-summary \
   --step 'search ${input}' \
-  --step 'run "summarize this in three paragraphs"' \
-  --step '@news-podcast'
-marmot @news-digest "AI safety in 2026"
+  --step 'run "summarize the top results in three paragraphs"'
+marmot @web-summary "AI safety in 2026"
 
-# Scrape → extract → save
+# Scrape a page, then extract data with the model
 marmot pipeline create extract-emails \
   --step 'scrape ${input}' \
   --step 'run "list every email address you find. one per line."'
 marmot @extract-emails https://example.com/team
 
-# Image generation chained to vision QA
-marmot pipeline create describe-it \
-  --step 'image "${input}"' \
-  --step '@vision-qa'
+# Two-arg pipeline: search topic, then ask a follow-up
+marmot pipeline create research \
+  --step 'search ${1}' \
+  --step 'run "answer the user question against these results: ${2}"'
+marmot @research "openrouter pricing 2026" "which models offer the best $/token?"
 ```
-
-## Known limitations
-
-- **Nested pipelines** — `pipeline:<name>` references aren't supported in this release. Recursion + cycle detection is deferred.
-- **Conditional / branching steps** — `if`, `parallel` aren't supported. Linear chains only.
-- **Per-step editing** — `update` replaces the full steps array. Per-step editing flags are deferred.
-- **Env var substitution** — `${ENV_VAR}` isn't supported. Wrap in a shell function if you need env.
-- **In-process execution** — every step is a real subprocess (~100–300 ms startup per step). Acceptable since AI/web calls take seconds; future optimization.

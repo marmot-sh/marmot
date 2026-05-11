@@ -515,25 +515,25 @@ Presets store flags only, never credentials.
 Where a preset configures a single verb invocation, a **pipeline** chains several invocations through stdin/stdout. Stored under a top-level `pipelines` key in `config.json`. The same `@<name>` sigil routes to a pipeline first, then falls back to a preset (collisions are rejected at create time).
 
 ```bash
-marmot pipeline create news-digest \
+marmot pipeline create web-summary \
   --step 'search ${input}' \
-  --step 'run "summarize this in three paragraphs"' \
-  --step '@news-podcast'
+  --step 'run "summarize the top results in three paragraphs"'
 
-marmot @news-digest "AI safety in 2026"
-# expands to: marmot search ... | marmot run ... | marmot @news-podcast
+marmot @web-summary "AI safety in 2026"
+# expands to: marmot search ... | marmot run ...
 ```
 
 Step shapes (on disk):
 - `{ verb, args?, prompt?, flags? }` — inline marmot verb invocation.
-- `{ preset: <name>, args? }` — reference an existing preset.
-- `{ pipeline: <name> }` — nested pipelines (deferred for v1; rejected at parse time).
+- `{ preset: <name>, args? }` — reference an existing preset. The preset must exist at run time.
+
+Pipelines do not nest. Compose pipelines at the shell — `marmot @a | marmot @b` — when chaining is needed.
 
 Substitution tokens in step strings: `${input}` (all positionals joined), `${1}`, `${2}`, … (1-indexed positionals), plus `?`-suffixed optional variants (`${input?}`, `${1?}`).
 
 Each step runs as a `marmot` subprocess; stdout chains into the next step's stdin. The first step's stdin is inherited from the parent (so `cat foo.txt | marmot @<name>` works). The final step's stdout is the user's stdout. Failed steps surface a `Pipeline "<name>" failed at step N (<verb>) with exit code <code>` error and a non-zero exit.
 
-CRUD mirrors presets: `marmot pipeline create / update / list / get / delete / rename / run`. The `update` verb replaces the full steps array (per-step editing deferred). `list / get` follow the 0.8.0 TTY-aware human/json/markdown output pattern.
+CRUD mirrors presets: `marmot pipeline create / update / list / get / delete / rename / run`. The `update` verb replaces the full steps array. `list / get` follow the 0.8.0 TTY-aware human/json/markdown output pattern.
 
 ## 9. Sessions
 
