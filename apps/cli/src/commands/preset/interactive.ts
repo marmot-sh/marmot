@@ -112,25 +112,30 @@ function fieldAppliesToCurrentProvider(
 }
 
 /**
- * Pick a useful placeholder. Precedence:
- * 1. `current: <value>` when updating an existing preset — the user
- *    needs to see what they have so they can choose to keep it.
- * 2. Explicit example placeholder (e.g. "site:linkedin.com").
- * 3. Generic "skip" hint.
+ * Pick a useful placeholder. Used when there is no current value to
+ * pre-fill the input buffer — for the create flow, or for a field on
+ * an update that was previously unset.
+ *
+ *   - When `currentValue` is set: we pass it as `initialValue` of the
+ *     `text()` prompt so the user can press Enter to keep it or edit
+ *     it in place. The placeholder is irrelevant (the buffer is full).
+ *   - When `currentValue` is unset: placeholder is the example string
+ *     (or a generic skip hint).
  */
-function placeholderFor(desc: FieldDescriptor, currentValue?: string): string {
-  if (currentValue) return `current: ${currentValue}`;
+function placeholderFor(desc: FieldDescriptor): string {
   if (desc.placeholder) return desc.placeholder;
   return 'skip (press Enter)';
 }
 
-/** Prompt a string. Empty input means "skip" (returns undefined). */
+/** Prompt a string. On update, the current value is pre-filled in the
+ *  input buffer (Enter to keep; edit in place to change). Empty submit
+ *  means "skip" in the create flow. */
 async function promptString(desc: FieldDescriptor, currentValue?: string): Promise<string | undefined> {
   while (true) {
     const result = await text({
       message: buildMessage(desc),
-      placeholder: placeholderFor(desc, currentValue),
-      initialValue: '',
+      placeholder: placeholderFor(desc),
+      initialValue: currentValue ?? '',
     });
     if (isCancel(result)) bail('Cancelled.');
     const trimmed = (result as string).trim();
@@ -158,16 +163,12 @@ async function promptNumber(
           : desc.max !== undefined
             ? `(≤ ${desc.max})`
             : '';
-    // Same precedence as placeholderFor: current value wins, then example,
-    // then generic skip hint.
-    const placeholder =
-      currentValue !== undefined
-        ? `current: ${currentValue}`
-        : (desc.placeholder ?? 'skip (press Enter)');
+    // On update, the current value is pre-filled (Enter to keep, edit
+    // in place to change). On create, placeholder shows the example.
     const result = await text({
       message: buildMessage(desc, rangeHint),
-      placeholder,
-      initialValue: '',
+      placeholder: desc.placeholder ?? 'skip (press Enter)',
+      initialValue: currentValue !== undefined ? String(currentValue) : '',
     });
     if (isCancel(result)) bail('Cancelled.');
     const raw = (result as string).trim();
@@ -204,8 +205,8 @@ async function promptPath(desc: FieldDescriptor, currentValue?: string): Promise
   while (true) {
     const result = await text({
       message: buildMessage(desc),
-      placeholder: placeholderFor(desc, currentValue),
-      initialValue: '',
+      placeholder: placeholderFor(desc),
+      initialValue: currentValue ?? '',
     });
     if (isCancel(result)) bail('Cancelled.');
     const trimmed = (result as string).trim();

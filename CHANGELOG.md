@@ -4,6 +4,12 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Fixed
+
+- **`marmot preset update` now pre-fills string, number, and path fields with their current values** instead of showing them as gray placeholder ghost text. Press Enter to keep the value, or edit in place to change one character. Previously, updating a single character of a long system prompt required retyping the whole thing — the gray "current: …" was a hint, not editable content. Affects every preset mode and every string/number/path field. Boolean, enum, and list prompts (which are selects, not text inputs) already supported keep-current and are unchanged.
+
 ## [0.10.0] — 2026-05-10
 
 An output-control release. Three changes that re-shape how marmot decides what to put on your terminal and what counts as a valid call. First, every verb that writes to a file via `-o` now stays silent on the terminal by default and emits to a pipe only when one is attached — and `-q, --quiet` forces full silence universally. Second, `marmot run` no longer hard-requires a user prompt when a `system` prompt is in scope, so `marmot @pdf-to-md --file foo.pdf` finally works the way it reads. Third, the preset interactive model picker becomes a real picker — searchable, alphabetized, with a fixed 10-row scroll window — instead of dumping every cached model in source order. Two behavior changes are explicitly breaking (matrix below); both have one-line workarounds.

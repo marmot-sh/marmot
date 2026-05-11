@@ -90,8 +90,7 @@ The walk:
 
    | Field type | Prompt |
    | --- | --- |
-   | string / path | text input; empty input = skip (or "keep current" on update) |
-   | number | text input; re-prompts on parse failure |
+   | string / path / number | text input. On `update`, the current value is **pre-filled** — press Enter to keep it, or edit in place to change. On `create`, empty input = skip. |
    | bool | three-way select: enable / disable / skip-or-keep |
    | enum | select from the enum members |
    | list (file, image, stop, urls) | on `create`: loop until empty input; on `update`: Keep / Append / Replace |
