@@ -8,6 +8,7 @@ import { stat as fsStat } from 'node:fs/promises';
 
 import ansis from 'ansis';
 import {
+  autocomplete,
   cancel,
   confirm,
   intro,
@@ -452,12 +453,16 @@ async function promptModel(
     );
   }
 
+  const sortedModels = [...models].sort((a, b) =>
+    a.id.toLowerCase().localeCompare(b.id.toLowerCase()),
+  );
+
   const options = [
     {
       value: '__skip__',
       label: current ? `Keep current (${current})` : 'Skip (use provider default)',
     },
-    ...models.map((m) => ({
+    ...sortedModels.map((m) => ({
       value: m.id,
       label: m.id,
       hint: m.name && m.name !== m.id ? m.name : undefined,
@@ -465,20 +470,24 @@ async function promptModel(
     { value: '__custom__', label: 'Other / type a custom value' },
   ];
 
-  const result = await select({
-    message: `Model\n  ${ansis.dim('Picked from the cached model list for this provider. Pick "Other" to type a custom id.')}`,
+  const result = await autocomplete({
+    message: `Model\n  ${ansis.dim('Type to filter. Picked from the cached model list for this provider. Pick "Other" to type a custom id.')}`,
     options,
-    initialValue: current && models.some((m) => m.id === current) ? current : '__skip__',
+    initialValue:
+      current && sortedModels.some((m) => m.id === current) ? current : '__skip__',
+    maxItems: 10,
   });
   if (isCancel(result)) bail('Cancelled.');
-  if (result === '__skip__') return current;
-  if (result === '__custom__') {
+  // `autocomplete` returns the selected value as a single-element array.
+  const picked = Array.isArray(result) ? (result[0] as string) : (result as string);
+  if (picked === '__skip__') return current;
+  if (picked === '__custom__') {
     const free = await text({ message: 'Model id (custom)', initialValue: '' });
     if (isCancel(free)) bail('Cancelled.');
     const trimmed = (free as string).trim();
     return trimmed.length > 0 ? trimmed : current;
   }
-  return result as string;
+  return picked;
 }
 
 /** Run one field's prompt based on its descriptor type. */

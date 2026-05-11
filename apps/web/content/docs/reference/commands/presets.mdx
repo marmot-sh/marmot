@@ -85,7 +85,7 @@ The walk:
 
 1. **Name** — only on `create`, only if not passed positionally. Validates the slug regex on the fly; re-prompts on invalid.
 2. **Mode** — only on `create`. Pick from the 15 modes; render shows the verb each mode dispatches to (`text → marmot run`, `speech → marmot speak`, …).
-3. **Provider, model, retries, timeout** — common to every mode. Skip any to use the configured default.
+3. **Provider, model, retries, timeout** — common to every mode. Skip any to use the configured default. The **model** picker is searchable: alphabetized, shows a scrollable window of 10 entries, and accepts typed input to filter by lowercase substring match across model id and label. Pick `Other / type a custom value` to enter a model id that isn't in the cached list.
 4. **Mode-specific fields** — the walker iterates the field list for the chosen mode in declaration order. Each field type has its own prompt:
 
    | Field type | Prompt |

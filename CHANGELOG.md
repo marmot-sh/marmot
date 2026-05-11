@@ -4,6 +4,12 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Changed
+
+- **Interactive preset model picker is now searchable + windowed + alphabetized.** When `marmot preset create` / `marmot preset update <name>` reaches the model field for a provider with a long cached model list (OpenRouter ships ~30), the picker now (a) shows a fixed visible window of 10 entries with scroll, (b) accepts typed input to filter by lowercase substring match across model id and label, and (c) sorts entries alphabetically by id so the list is scannable before you type. Behavior is identical for short lists — small providers still render every option. The `Keep current` / `Skip` and `Other / type a custom value` sentinels are preserved.
+
 ## [0.9.0] — 2026-05-10
 
 A pipelines release. Where a preset configures a single verb invocation, a pipeline chains several invocations through stdin/stdout — `search → summarize → speak`, `scrape → extract → save`, etc. Define once with `marmot pipeline create`, invoke through the same `@<name>` sigil that routes presets. Each step runs as its own `marmot` subprocess, so per-step provider auth, retry behavior, and output are exactly what users would get typing the equivalent shell pipe — but discoverable, persisted in config, and shareable.
