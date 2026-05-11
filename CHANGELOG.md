@@ -6,6 +6,16 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 
 ## [Unreleased]
 
+### Changed
+
+- **`show` subcommand renamed to `get` for CRUD consistency.** Single-record retrieval is now named `get` everywhere it pairs with `list / create / update / delete`:
+  - `marmot preset show <name>` → `marmot preset get <name>`
+  - `marmot pipeline show <name>` → `marmot pipeline get <name>`
+  - `marmot session show <name>` → `marmot session get <name>`
+  - `marmot tasks show <id>` → `marmot tasks get <id>`
+
+  **Breaking.** No alias is kept — scripts calling the old names error out cleanly. `marmot config show` is unchanged (not part of a CRUD family — it's a "dump the whole object" operation). The top-level `marmot get <task-id>` shortcut for polling async tasks is unchanged in behavior; it's now framed as the shortcut for `marmot tasks get <id>` so `get` carries one consistent meaning across the CLI.
+
 ### Fixed
 
 - **`marmot preset update` now pre-fills string, number, and path fields with their current values** instead of showing them as gray placeholder ghost text. Press Enter to keep the value, or edit in place to change one character. Previously, updating a single character of a long system prompt required retyping the whole thing — the gray "current: …" was a hint, not editable content. Affects every preset mode and every string/number/path field. Boolean, enum, and list prompts (which are selects, not text inputs) already supported keep-current and are unchanged.

@@ -219,8 +219,8 @@ export function buildTasksCommand(
 
   addOutputModeOptions(
     cmd
-      .command('show')
-      .description('Show one task record.')
+      .command('get')
+      .description('Get one task record.')
       .argument('<id>', 'Task id.'),
   ).action(async (id: string, options: OutputModeOptions) => handleShow(id, options, deps));
 

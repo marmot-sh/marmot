@@ -404,8 +404,8 @@ function buildPresetCommand(): Command {
 
   addOutputModeOptions(
     presetCommand
-      .command('show')
-      .description('Show full settings for one preset.')
+      .command('get')
+      .description('Get full settings for one preset.')
       .argument('<name>', 'Preset name.'),
   ).action(async (name: string, options: OutputModeOptions) => {
     await handlePresetShow(name, options);
@@ -465,8 +465,8 @@ function buildPipelineCommand(): Command {
 
   addOutputModeOptions(
     pipelineCommand
-      .command('show')
-      .description('Show one pipeline\'s full step list.')
+      .command('get')
+      .description('Get one pipeline\'s full step list.')
       .argument('<name>', 'Pipeline name.'),
   ).action(async (name: string, options: OutputModeOptions) => {
     await handlePipelineShow(name, options);
@@ -538,8 +538,8 @@ function buildSessionCommand(): Command {
 
   addOutputModeOptions(
     sessionCommand
-      .command('show')
-      .description('Show metadata + token totals for one session.')
+      .command('get')
+      .description('Get metadata + token totals for one session.')
       .argument('<name>', 'Session name.'),
   ).action(async (name: string, options: OutputModeOptions) => {
     await handleSessionShow(name, options);

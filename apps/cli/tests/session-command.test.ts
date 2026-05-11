@@ -130,7 +130,7 @@ describe('session use + current + end', () => {
   });
 });
 
-describe('session list + show', () => {
+describe('session list + get', () => {
   it('lists sessions with summary fields', async () => {
     const { env } = await fixture();
     await handleSessionCreate('alpha', { mode: 'chat' }, { env });
@@ -174,7 +174,7 @@ describe('session list + show', () => {
     ).rejects.toThrow(/mutually exclusive/);
   });
 
-  it('session show --markdown emits ## title and section ### headings', async () => {
+  it('session get --markdown emits ## title and section ### headings', async () => {
     const { env } = await fixture();
     await handleSessionCreate('s1', { mode: 'stateless', label: 'demo' }, { env });
     const cap = captureStdout();
@@ -391,7 +391,7 @@ describe('session mark', () => {
   });
 });
 
-describe('session show window stats', () => {
+describe('session get window stats', () => {
   it('returns null window for stateless sessions', async () => {
     const { env } = await fixture();
     await handleSessionCreate('s1', {}, { env });

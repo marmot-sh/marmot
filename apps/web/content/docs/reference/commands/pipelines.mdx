@@ -95,14 +95,14 @@ marmot pipeline list                 # human table on TTY, JSON when piped
 marmot pipeline list --json
 marmot pipeline list --markdown
 
-marmot pipeline show <name>
-marmot pipeline show <name> --json
-marmot pipeline show <name> --markdown
+marmot pipeline get <name>
+marmot pipeline get <name> --json
+marmot pipeline get <name> --markdown
 ```
 
 `list` reports name, step count, and label. `show` prints identity (name, `pipeline_id`, label) and the numbered step list.
 
-Output mode is TTY-aware just like the other list/show commands — interactive terminals get the human layout; piped output falls back to JSON.
+Output mode is TTY-aware just like the other list/get commands — interactive terminals get the human layout; piped output falls back to JSON.
 
 ## Rename and delete
 

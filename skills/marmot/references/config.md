@@ -455,7 +455,7 @@ marmot preset create my-name                  # interactive: skips the name prom
 marmot preset update deep-research            # interactive: current values shown as defaults
 
 marmot preset list                # human table on TTY, JSON when piped (0.7.2+); add --json or --markdown to force
-marmot preset show deep-research  # human key/value sections on TTY, JSON when piped (0.7.2+)
+marmot preset get deep-research  # human key/value sections on TTY, JSON when piped (0.7.2+)
 marmot preset update deep-research --model claude-sonnet-4-6
 marmot preset rename deep-research deep-research-v2   # 0.6.0+; preset_id stays stable
 marmot preset delete deep-research
@@ -533,7 +533,7 @@ Substitution tokens in step strings: `${input}` (all positionals joined), `${1}`
 
 Each step runs as a `marmot` subprocess; stdout chains into the next step's stdin. The first step's stdin is inherited from the parent (so `cat foo.txt | marmot @<name>` works). The final step's stdout is the user's stdout. Failed steps surface a `Pipeline "<name>" failed at step N (<verb>) with exit code <code>` error and a non-zero exit.
 
-CRUD mirrors presets: `marmot pipeline create / update / list / show / delete / rename / run`. The `update` verb replaces the full steps array (per-step editing deferred). `list / show` follow the 0.8.0 TTY-aware human/json/markdown output pattern.
+CRUD mirrors presets: `marmot pipeline create / update / list / get / delete / rename / run`. The `update` verb replaces the full steps array (per-step editing deferred). `list / get` follow the 0.8.0 TTY-aware human/json/markdown output pattern.
 
 ## 9. Sessions
 
@@ -557,7 +557,7 @@ marmot session use market-q3      # set global pointer
 marmot session current            # print active session
 marmot session end                # clear pointer
 marmot session list               # human table on TTY, JSON when piped (0.7.2+); --json or --markdown to force
-marmot session show market-q3     # human sections on TTY, JSON when piped; meta + token totals + window usage
+marmot session get market-q3     # human sections on TTY, JSON when piped; meta + token totals + window usage
 marmot session delete market-q3 [--keep-log]
 ```
 
@@ -579,7 +579,7 @@ marmot session tail <name>        # follow-mode like tail -f
 marmot session stats <name>       # tokens, calls, cache_hit_rate, last_used_at
 ```
 
-`session show` returns `{tokens_in_window, model, model_max_tokens, percent_used}`. Token estimate is `chars/4`.
+`session get` returns `{tokens_in_window, model, model_max_tokens, percent_used}`. Token estimate is `chars/4`.
 
 ### Chat-mode helpers
 
