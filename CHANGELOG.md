@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.10.0] — 2026-05-10
+
+An output-control release. Three changes that re-shape how marmot decides what to put on your terminal and what counts as a valid call. First, every verb that writes to a file via `-o` now stays silent on the terminal by default and emits to a pipe only when one is attached — and `-q, --quiet` forces full silence universally. Second, `marmot run` no longer hard-requires a user prompt when a `system` prompt is in scope, so `marmot @pdf-to-md --file foo.pdf` finally works the way it reads. Third, the preset interactive model picker becomes a real picker — searchable, alphabetized, with a fixed 10-row scroll window — instead of dumping every cached model in source order. Two behavior changes are explicitly breaking (matrix below); both have one-line workarounds.
 
 ### Added
 

@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/tomba",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "@marmot-sh adapter for Tomba — Email finding, verification, domain enrichment, reveal/search.",
   "type": "module",
   "private": true,
