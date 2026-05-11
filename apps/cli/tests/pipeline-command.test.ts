@@ -207,7 +207,7 @@ describe('pipeline CRUD', () => {
     expect(text).toMatch(/\| a \|/);
   });
 
-  it('show --json wraps the pipeline under a "pipeline" key', async () => {
+  it('get --json wraps the pipeline under a "pipeline" key', async () => {
     const { env } = await fixture();
     await upsertPipeline(
       'demo',

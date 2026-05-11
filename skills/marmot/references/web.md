@@ -253,18 +253,18 @@ Operates on the local index file `~/.marmot/tasks.json`. Does NOT hit the provid
 marmot tasks list [--provider X] [--verb Y] [--status queued|running|done|failed|cancelled]
                   [--since 1h|24h|7d|...] [--limit N]
                   [--json | --markdown]
-marmot tasks show <id> [--json | --markdown]
+marmot tasks get <id> [--json | --markdown]
 marmot tasks remove <id>
 marmot tasks prune [--older-than <days>]
 ```
 
-`tasks list` and `tasks show` are TTY-aware (0.7.2+): human-readable table / sections on TTY, JSON envelope when piped. `--json` and `--markdown` force the choice. `--limit` defaults to 20 (max 1000); when more records exist, the human-mode footer reports the total. `--since` filters to records created within the window (`1h`, `24h`, `7d`, etc.).
+`tasks list` and `tasks get` are TTY-aware (0.7.2+): human-readable table / sections on TTY, JSON envelope when piped. `--json` and `--markdown` force the choice. `--limit` defaults to 20 (max 1000); when more records exist, the human-mode footer reports the total. `--since` filters to records created within the window (`1h`, `24h`, `7d`, etc.).
 
 `prune` defaults to 30 days; only removes terminal-state records (done/failed/cancelled). `remove` drops the local record without contacting the provider.
 
 ```bash
 marmot tasks list --status running --provider parallel
-marmot tasks show task_abc123
+marmot tasks get task_abc123
 marmot tasks prune --older-than 7
 ```
 
@@ -300,7 +300,7 @@ marmot @linkedin-people "engineering manager"
 
 ## Session binding (0.6.0+)
 
-Every web verb (sync and async) accepts `--session <name>`. The bound name flows into the usage record so `marmot usage --session <name>` filters work on web traffic, and the call appears under `marmot session show <name>` alongside any AI calls in the same session. Pre-0.6.0 web verbs hardcoded `session: null` even when a session was active — fixed in 0.6.0.
+Every web verb (sync and async) accepts `--session <name>`. The bound name flows into the usage record so `marmot usage --session <name>` filters work on web traffic, and the call appears under `marmot session get <name>` alongside any AI calls in the same session. Pre-0.6.0 web verbs hardcoded `session: null` even when a session was active — fixed in 0.6.0.
 
 ```bash
 marmot search "..." --session research-q2

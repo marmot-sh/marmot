@@ -11,7 +11,7 @@ marmot crawl <url> [--async | --wait] [flags…]
 marmot findall <objective> [--async | --wait] [flags…]
 marmot get <id> [flags…]
 marmot tasks list [flags…]
-marmot tasks show <id>
+marmot tasks get <id>
 marmot tasks remove <id>
 marmot tasks prune [flags…]
 ```
@@ -78,7 +78,7 @@ Every poll updates `lastCheckedAt` and `status` on the local record. On terminal
 
 ```bash
 marmot tasks list   [flags…]
-marmot tasks show   <id>
+marmot tasks get   <id>
 marmot tasks remove <id>
 marmot tasks prune  [flags…]
 ```
@@ -99,7 +99,7 @@ Default output is TTY-aware: a human table on an interactive terminal, the JSON 
 
 When the underlying task count exceeds `--limit`, the human-mode footer reads `Showing 20 of 87 tasks. Pass --limit 1000 or filters (--since, --status, --verb, --provider) to narrow.` The JSON envelope gains a `total` and `limit` field so consumers can paginate programmatically.
 
-### `tasks show <id>`
+### `tasks get <id>`
 
 Print one record. Supports `--json` and `--markdown` like the other show commands.
 

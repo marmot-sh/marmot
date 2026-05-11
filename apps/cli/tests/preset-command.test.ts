@@ -274,7 +274,7 @@ describe('preset delete', () => {
   });
 });
 
-describe('preset list + show', () => {
+describe('preset list + get', () => {
   it('lists presets sorted by name with summary fields', async () => {
     const { env } = await fixture();
     await handlePresetCreate('zeta', { mode: 'image', provider: 'openai' }, { env });
@@ -334,7 +334,7 @@ describe('preset list + show', () => {
     expect(parsed.presets).toBeInstanceOf(Array);
   });
 
-  it('preset show --markdown emits sectioned ## headings', async () => {
+  it('preset get --markdown emits sectioned ## headings', async () => {
     const { env } = await fixture();
     await handlePresetCreate('p1', { mode: 'text', provider: 'anthropic', model: 'm1' }, { env });
     const cap = captureStdout();

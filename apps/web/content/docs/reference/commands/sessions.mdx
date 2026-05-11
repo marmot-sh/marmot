@@ -11,7 +11,7 @@ marmot session use <name>
 marmot session current
 marmot session end
 marmot session list
-marmot session show <name>
+marmot session get <name>
 marmot session delete <name> [flags…]
 marmot session log <name> [flags…]
 marmot session tail <name>
@@ -62,9 +62,9 @@ marmot session list                # human table on TTY, JSON when piped
 marmot session list --json         # always JSON envelope
 marmot session list --markdown     # markdown pipe-table
 
-marmot session show <name>         # human key/value sections on TTY, JSON when piped
-marmot session show <name> --json
-marmot session show <name> --markdown
+marmot session get <name>         # human key/value sections on TTY, JSON when piped
+marmot session get <name> --json
+marmot session get <name> --markdown
 ```
 
 `list` prints every session. `show` prints metadata, token totals, and context-window usage for chat sessions.

@@ -11,7 +11,7 @@ marmot preset update <name> [flags…]
 marmot preset rename <old> <new>
 marmot preset delete <name>
 marmot preset list
-marmot preset show <name>
+marmot preset get <name>
 
 marmot @<name> "..."           # sigil — auto-routes to the right verb
 marmot search @<name> "..."    # explicit verb still works
@@ -36,7 +36,7 @@ Explicit verbs still win — `marmot scrape @some-search-preset url` keeps `scra
 
 As of 0.6.0, each preset carries a stable `preset_id` UUID assigned at creation. Sessions and the privacy-safe usage log reference presets by `preset_id` rather than by slug. Renaming a preset is therefore a no-op at the data layer — sessions and historical usage records keep working without any rewrites.
 
-The `preset_id` is auto-generated; users only ever interact with the slug. Display surfaces (`marmot session show`, `marmot session list`, chat-mode export) resolve `preset_id` → current slug at render time. Orphan ids (the preset was deleted) render as the raw UUID or `(deleted)`.
+The `preset_id` is auto-generated; users only ever interact with the slug. Display surfaces (`marmot session get`, `marmot session list`, chat-mode export) resolve `preset_id` → current slug at render time. Orphan ids (the preset was deleted) render as the raw UUID or `(deleted)`.
 
 ## Rename
 
@@ -56,7 +56,7 @@ Validates that `<new>` follows the slug regex (`^[a-z0-9]+([-_][a-z0-9]+)*$`), i
 }
 ```
 
-Because the `preset_id` is stable, sessions that bound to the old slug continue to resolve correctly; the next `marmot session show` displays the new slug. Historical usage records keep their original `preset_id` and resolve to the new slug at display time.
+Because the `preset_id` is stable, sessions that bound to the old slug continue to resolve correctly; the next `marmot session get` displays the new slug. Historical usage records keep their original `preset_id` and resolve to the new slug at display time.
 
 ## Create
 
@@ -241,9 +241,9 @@ marmot preset list                # human table on TTY, JSON when piped
 marmot preset list --json         # always JSON envelope
 marmot preset list --markdown     # markdown pipe-table
 
-marmot preset show <name>         # human key/value sections on TTY, JSON when piped
-marmot preset show <name> --json
-marmot preset show <name> --markdown
+marmot preset get <name>         # human key/value sections on TTY, JSON when piped
+marmot preset get <name> --json
+marmot preset get <name> --markdown
 ```
 
 The default output is **TTY-aware**: a column-aligned table when stdout is an interactive terminal, the JSON envelope (today's structure preserved) when piped or redirected. Pass `--json` or `--markdown` to force a specific format. `--json` and `--markdown` are mutually exclusive.

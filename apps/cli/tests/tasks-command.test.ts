@@ -158,19 +158,19 @@ describe('marmot tasks command group', () => {
     expect(out.data.tasks.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('show returns one record', async () => {
+  it('get returns one record', async () => {
     const { env } = await fixture();
     await appendTaskRecord({ taskId: 'show_me', provider: 'exa', verb: 'findall' }, env);
     const stdout = new Cap();
-    await runTasks(['show', 'show_me'], env, stdout);
+    await runTasks(['get', 'show_me'], env, stdout);
     const out = JSON.parse(stdout.text());
     expect(out.data.taskId).toBe('show_me');
   });
 
-  it('show errors on unknown id', async () => {
+  it('get errors on unknown id', async () => {
     const { env } = await fixture();
     const stdout = new Cap();
-    await expect(runTasks(['show', 'nope'], env, stdout)).rejects.toThrowError(
+    await expect(runTasks(['get', 'nope'], env, stdout)).rejects.toThrowError(
       /No local task record for "nope"/,
     );
   });

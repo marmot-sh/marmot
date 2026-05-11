@@ -26,7 +26,7 @@ description: Every top-level command, with a one-line purpose and a link to its 
 | `marmot research <query>` | Async deep research with optional schema | [Research](/docs/reference/commands/data/research) |
 | `marmot findall <objective>` | Async list-of-entities builder | [Findall](/docs/reference/commands/data/findall) |
 | `marmot get <id>` | Poll/retrieve an async task | [Async tasks](/docs/reference/commands/async-tasks) |
-| `marmot tasks list/show/remove/prune` | Manage the local async-task index | [Async tasks](/docs/reference/commands/async-tasks) |
+| `marmot tasks list/get/remove/prune` | Manage the local async-task index | [Async tasks](/docs/reference/commands/async-tasks) |
 | `marmot enrich --type person\|org [identifiers…]` | Identifier → full record (Apollo, Hunter, PDL, Tomba, Datagma) | [Enrich](/docs/reference/commands/data/enrich) |
 | `marmot lookup --type person\|org\|email [filters…]` | Filters → list of entities (Apollo, PDL, Tomba; Hunter/Tomba for emails) | [Lookup](/docs/reference/commands/data/lookup) |
 | `marmot verify <email>` | Email deliverability (Hunter, Tomba, Bouncer, Datagma, ZeroBounce, Kickbox) | [Verify](/docs/reference/commands/data/verify) |
@@ -55,7 +55,7 @@ description: Every top-level command, with a one-line purpose and a link to its 
 | `marmot preset update <name>` | Patch fields on an existing preset | [Presets](/docs/reference/commands/presets) |
 | `marmot preset delete <name>` | Remove a preset | [Presets](/docs/reference/commands/presets) |
 | `marmot preset list` | List all presets | [Presets](/docs/reference/commands/presets) |
-| `marmot preset show <name>` | Show full settings for one preset | [Presets](/docs/reference/commands/presets) |
+| `marmot preset get <name>` | Get full settings for one preset | [Presets](/docs/reference/commands/presets) |
 | `marmot @<preset> …` | Sigil shorthand for `--preset <preset>` on any verb | [Presets](/docs/reference/commands/presets) |
 
 ## Sessions
@@ -67,7 +67,7 @@ description: Every top-level command, with a one-line purpose and a link to its 
 | `marmot session current` | Print the active session | [Sessions](/docs/reference/commands/sessions) |
 | `marmot session end` | Clear the current-session pointer | [Sessions](/docs/reference/commands/sessions) |
 | `marmot session list` | List all sessions | [Sessions](/docs/reference/commands/sessions) |
-| `marmot session show <name>` | Show metadata, totals, window usage | [Sessions](/docs/reference/commands/sessions) |
+| `marmot session get <name>` | Get metadata, totals, window usage | [Sessions](/docs/reference/commands/sessions) |
 | `marmot session delete <name>` | Delete a session (`--keep-log` to preserve `log.jsonl`) | [Sessions](/docs/reference/commands/sessions) |
 | `marmot session log <name>` | Print log records | [Sessions](/docs/reference/commands/sessions) |
 | `marmot session tail <name>` | Follow log output | [Sessions](/docs/reference/commands/sessions) |
