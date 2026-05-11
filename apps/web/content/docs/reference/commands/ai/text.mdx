@@ -28,6 +28,15 @@ cat user.txt | marmot -p ./prompts/system.txt 'one-line summary'
 
 `--system <text>` / `--system-file <path>` for the system prompt. Both system and prompt fields are concatenated when set in both a preset and at runtime — see [Presets — Merge rules](/docs/reference/commands/presets#merge-rules).
 
+A prompt of **any** kind satisfies the requirement — a user prompt (positional / `--prompt-file` / piped stdin) **or** a system prompt (`--system` / `--system-file` / preset's `system`). This enables the "preset-as-task" pattern where the preset's `system` carries the full instruction and the user just supplies an attachment:
+
+```bash
+# A preset with only `system` set, and a PDF attached at the runtime call:
+marmot @pdf-to-md --file ./bank-info.pdf -o out.md
+```
+
+Attachments by themselves are not enough — there must be at least one prompt (user or system) for the model to act on.
+
 ## Multimodal input
 
 Vision and PDF/document inputs are flags on `marmot run`. Whether they work depends on whether the model accepts them — non-vision text models reject.

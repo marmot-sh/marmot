@@ -47,7 +47,12 @@ export function buildUserMessages(input: {
     }
   }
 
-  const content: UserContentPart[] = [{ type: 'text', text: input.prompt }];
+  // Skip the text part entirely when the user supplied only a system
+  // prompt + attachments — a `text` part with empty content is rejected
+  // by some providers (e.g. OpenAI) and is meaningless to all.
+  const content: UserContentPart[] = input.prompt
+    ? [{ type: 'text', text: input.prompt }]
+    : [];
   for (const img of input.images ?? []) {
     content.push({
       type: 'image',

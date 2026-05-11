@@ -45,7 +45,33 @@ describe('resolveRunInput', () => {
 
   it('requires at least one prompt source', () => {
     expect(() => resolveRunInput({})).toThrowError(
-      'Provide a prompt via argument, --prompt-file, or piped stdin.',
+      'Provide a prompt (positional arg, --prompt-file, or piped stdin) or a system prompt (--system / --system-file / preset).',
+    );
+  });
+
+  it('accepts a system prompt as the only prompt source (--system alone)', () => {
+    const resolved = resolveRunInput({ system: 'Be brief.' });
+    expect(resolved.system).toBe('Be brief.');
+    expect(resolved.prompt).toBe('');
+  });
+
+  it('accepts a system prompt loaded from --system-file as the only prompt source', () => {
+    const resolved = resolveRunInput({ systemFileContent: 'You are a JSON-only bot.' });
+    expect(resolved.system).toBe('You are a JSON-only bot.');
+  });
+
+  it('accepts a system prompt plus a file attachment (the preset-as-task case)', () => {
+    const resolved = resolveRunInput({
+      system: 'Convert this PDF to markdown.',
+      filePaths: ['./doc.pdf'],
+    });
+    expect(resolved.system).toBe('Convert this PDF to markdown.');
+    expect(resolved.filePaths).toEqual(['./doc.pdf']);
+  });
+
+  it('still rejects an attachment-only call with no prompt at all', () => {
+    expect(() => resolveRunInput({ filePaths: ['./doc.pdf'] })).toThrowError(
+      'Provide a prompt (positional arg, --prompt-file, or piped stdin) or a system prompt (--system / --system-file / preset).',
     );
   });
 });

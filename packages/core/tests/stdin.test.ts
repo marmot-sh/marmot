@@ -55,7 +55,7 @@ describe('resolveRunInput with stdin', () => {
 
   it('errors when no prompt source is provided at all', () => {
     expect(() => resolveRunInput({})).toThrowError(
-      'Provide a prompt via argument, --prompt-file, or piped stdin.',
+      'Provide a prompt (positional arg, --prompt-file, or piped stdin) or a system prompt (--system / --system-file / preset).',
     );
   });
 });
