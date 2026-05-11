@@ -52,7 +52,8 @@ For cross-cutting flags see [Common flags](/docs/reference/commands/common-flags
 | Flag | Description |
 | --- | --- |
 | `--model <id>` | Transcription model. Defaults to provider's default. |
-| `-o, --output <path>` | Write rendered output to a file. |
+| `-o, --output <path>` | Write rendered output to a file. With `-o` set on a TTY, stdout stays silent; when piped, the transcript still flows to the pipe. See [Stdout decision matrix](/docs/reference/commands/common-flags#stdout-decision-matrix). |
+| `-q, --quiet` | Suppress stdout. File output via `-o` is still written; stderr unaffected. |
 | `--language <code>` | ISO-639-1 language hint (e.g. `en`, `es`). |
 | `--prompt <text>` | Bias prompt to guide the transcription. **Concatenates** with a preset's `prompt` field when both are set. |
 | `--format <fmt>` | `text` (default), `json`, `srt`, `vtt`, `verbose-json`. |

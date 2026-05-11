@@ -56,7 +56,8 @@ For cross-cutting flags see [Common flags](/docs/reference/commands/common-flags
 | `--speed <n>` | Playback speed multiplier (0.25–4.0). OpenAI only. |
 | `--instructions <text>` | Steering text for steerable voices (e.g. gpt-4o-mini-tts). |
 | `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche TTS params. |
-| `-o, --output <path>` | Output audio path. |
+| `-o, --output <path>` | Output audio path. With `-o` set on a TTY, the path-print on stdout is suppressed; auto-playback still happens unless `--quiet`. See [Stdout decision matrix](/docs/reference/commands/common-flags#stdout-decision-matrix). |
+| `-q, --quiet` | Suppress stdout. File output via `-o` is still written; stderr unaffected. |
 | `-p, --prompt-file <path>` | Read text from a file. |
 | `--play` / `--no-play` | Play through speakers. Default on a TTY. When piped, also emits bytes downstream. `--no-play` overrides a preset's `play: true`. |
 | `--wait` / `--no-wait` | With `--play`, block until playback finishes. |

@@ -45,7 +45,8 @@ For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) se
 | Flag | Description |
 | --- | --- |
 | `--model <id>` | Image model. Defaults to provider's default. |
-| `-o, --output <path>` | Output path. `{i}` template for batches (e.g. `./out-{i}.png`). |
+| `-o, --output <path>` | Output path. `{i}` template for batches (e.g. `./out-{i}.png`). With `-o` set on a TTY, the path-print on stdout is suppressed; when piped, raw bytes still flow. See [Stdout decision matrix](/docs/reference/commands/common-flags#stdout-decision-matrix). |
+| `-q, --quiet` | Suppress stdout. File output via `-o` is still written; stderr unaffected. |
 | `-p, --prompt-file <path>` | Prompt from a file. |
 | `--n <count>` | Number of images (1–10, default 1). |
 | `--size <WxH>` | Image size (provider-specific allowed values). |

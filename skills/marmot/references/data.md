@@ -2,6 +2,8 @@
 
 Three verbs over a people/company/email graph: `enrich` (identifier in, full record out), `lookup` (filters in, list out), `verify` (email deliverability). Eight providers in a single namespace. Every verb returns a JSON envelope with `ok`, `provider`, `verb`, `type`, `cached`, `data`, `raw`, `usage`, `timestamp`. No implicit fallback. Invalid `--type` x `--provider` errors at parse time before any network call.
 
+Every verb accepts `-o, --output <path>` (write the JSON envelope to a file; with `-o` set on a TTY, stdout stays silent and the envelope flows to the pipe **only** when one is attached — 0.10.0+) and `-q, --quiet` (force full stdout silence; file output via `-o` is still written; stderr unaffected — 0.10.0+).
+
 ## Capability matrix (verb x type x provider)
 
 | Cell | apollo | hunter | pdl | tomba | bouncer | datagma | zerobounce | kickbox |

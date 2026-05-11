@@ -85,7 +85,8 @@ For cross-cutting flags (`--provider`, `--api-key`, `--retries`, `--timeout`) se
 | Flag | Description |
 | --- | --- |
 | `--model <id>` | Video model slug. Defaults to provider's default (`google/veo-3.1-lite` for openrouter and vercel). |
-| `-o, --output <path>` | Output path. `{i}` template for batches (e.g. `./clip-{i}.mp4`). |
+| `-o, --output <path>` | Output path. `{i}` template for batches (e.g. `./clip-{i}.mp4`). With `-o` set on a TTY, the path-print on stdout is suppressed; when piped, raw bytes still flow. See [Stdout decision matrix](/docs/reference/commands/common-flags#stdout-decision-matrix). |
+| `-q, --quiet` | Suppress stdout. File output via `-o` is still written; stderr unaffected. |
 | `-p, --prompt-file <path>` | Prompt from a file (merges with positional and stdin). |
 | `--aspect <W:H>` | Aspect ratio. `16:9` (default), `9:16`, `1:1`. Wider/taller ratios are model-specific. |
 | `--resolution <res>` | Resolution label (`720p`, `1080p`, `4k`) or `WxH`. Default depends on model and tier. |
