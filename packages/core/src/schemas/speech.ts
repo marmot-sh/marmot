@@ -28,6 +28,7 @@ const speechRunInputSchema = z.object({
   json: z.boolean().default(false),
   play: z.boolean().default(false),
   wait: z.boolean().default(false),
+  quiet: z.boolean().default(false),
   retries: z.coerce.number().int().min(0).max(10).default(0),
   timeoutSeconds: z.coerce.number().int().min(1).max(86_400).default(
     DEFAULT_SPEECH_TIMEOUT_MS / 1_000,
@@ -88,6 +89,7 @@ export type RawSpeechRunInput = {
   json?: boolean;
   play?: boolean;
   wait?: boolean;
+  quiet?: boolean;
   retries?: string | number;
   timeoutSeconds?: string | number;
 };
@@ -108,6 +110,7 @@ export type ResolvedSpeechRunInput = {
   json: boolean;
   play: boolean;
   wait: boolean;
+  quiet: boolean;
   retries: number;
   timeoutMs: number;
 };
@@ -154,6 +157,7 @@ export function resolveSpeechRunInput(
     json: parsed.data.json,
     play: parsed.data.play,
     wait: parsed.data.wait,
+    quiet: parsed.data.quiet,
     retries: parsed.data.retries,
     timeoutMs: parsed.data.timeoutSeconds * 1_000,
   };

@@ -31,6 +31,7 @@ const transcribeRunInputSchema = z.object({
   // --format json (or its alias --json) for the structured envelope.
   format: z.enum(TRANSCRIBE_FORMATS).default('text'),
   text: z.boolean().default(false),
+  quiet: z.boolean().default(false),
   retries: z.coerce.number().int().min(0).max(10).default(0),
   timeoutSeconds: z.coerce.number().int().min(1).max(86_400).default(
     DEFAULT_TRANSCRIPTION_TIMEOUT_MS / 1_000,
@@ -57,6 +58,7 @@ export type RawTranscribeRunInput = {
   prompt?: string;
   format?: string;
   text?: boolean;
+  quiet?: boolean;
   retries?: string | number;
   timeoutSeconds?: string | number;
 };
@@ -71,6 +73,7 @@ export type ResolvedTranscribeRunInput = {
   prompt?: string;
   format: TranscribeFormat;
   text: boolean;
+  quiet: boolean;
   retries: number;
   timeoutMs: number;
 };
@@ -97,6 +100,7 @@ export function resolveTranscribeRunInput(
     prompt: parsed.data.prompt,
     format: parsed.data.format,
     text: parsed.data.text,
+    quiet: parsed.data.quiet,
     retries: parsed.data.retries,
     timeoutMs: parsed.data.timeoutSeconds * 1_000,
   };

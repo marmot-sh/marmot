@@ -28,6 +28,7 @@ import { renderJsonOutput } from '@marmot-sh/core';
 import { renderTextOutput } from '@marmot-sh/core';
 import { renderObjectJsonOutput } from '@marmot-sh/core';
 import { writeLine, type OutputWriter } from '@marmot-sh/core';
+import { resolveStdoutEmit } from '../lib/stdout-mode.js';
 import { info, succeed, withSpinner, type StatusStream } from '@marmot-sh/core';
 import { readMarmotConfig, resolveTextDefaults } from '@marmot-sh/core';
 import {
@@ -212,6 +213,7 @@ export type RunCommandOptions = {
   text?: boolean;
   json?: boolean;
   stream?: boolean;
+  quiet?: boolean;
   retries?: string | number;
   timeout?: string | number;
   session?: string;
@@ -376,7 +378,13 @@ export async function handleRunCommand(
       await writeOutputFile(result.outputFile, renderedOutput);
     }
 
-    writeLine(execution.stdout, renderedOutput);
+    if (resolveStdoutEmit({
+      outputPath: result.outputFile ?? undefined,
+      quiet: execution.input.quiet,
+      stream: execution.stdout as NodeJS.WriteStream,
+    })) {
+      writeLine(execution.stdout, renderedOutput);
+    }
 
     await recordCall(
       sessionBinding,
@@ -481,7 +489,13 @@ export async function handleRunCommand(
     await writeOutputFile(result.outputFile, renderedOutput);
   }
 
-  writeLine(execution.stdout, renderedOutput);
+  if (resolveStdoutEmit({
+    outputPath: result.outputFile ?? undefined,
+    quiet: execution.input.quiet,
+    stream: execution.stdout as NodeJS.WriteStream,
+  })) {
+    writeLine(execution.stdout, renderedOutput);
+  }
 
   await recordCall(
     sessionBinding,
@@ -612,6 +626,11 @@ export async function handleStreamRunCommand(
     const outputFile = execution.resolvedOutputFile
       ? await openOutputFileStream(execution.resolvedOutputFile)
       : undefined;
+    const emitToStdout = resolveStdoutEmit({
+      outputPath: execution.resolvedOutputFile ?? undefined,
+      quiet: execution.input.quiet,
+      stream: execution.stdout as NodeJS.WriteStream,
+    });
     const textParts: string[] = [];
     let endedWithNewline = false;
 
@@ -622,7 +641,7 @@ export async function handleStreamRunCommand(
         lastAttemptWroteChunks = true;
         textParts.push(chunk);
         endedWithNewline = chunk.endsWith('\n');
-        execution.stdout.write(chunk);
+        if (emitToStdout) execution.stdout.write(chunk);
         outputFile?.stream.write(chunk);
       }
 
@@ -651,7 +670,14 @@ export async function handleStreamRunCommand(
     throw error;
   }
 
-  if (!streamedResult.endedWithNewline) {
+  if (
+    !streamedResult.endedWithNewline
+    && resolveStdoutEmit({
+      outputPath: execution.resolvedOutputFile ?? undefined,
+      quiet: execution.input.quiet,
+      stream: execution.stdout as NodeJS.WriteStream,
+    })
+  ) {
     execution.stdout.write('\n');
   }
 
@@ -949,6 +975,7 @@ async function prepareRunExecution(
     text: Boolean(options.text),
     json: Boolean(options.json),
     stream: Boolean(options.stream),
+    quiet: Boolean(options.quiet),
     retries: options.retries,
     timeoutSeconds: options.timeout,
   });

@@ -17,6 +17,8 @@ import {
   type StdinReader,
 } from '@marmot-sh/core';
 
+import { resolveStdoutEmit } from './stdout-mode.js';
+
 export type DataVerbDependencies = {
   stdin?: StdinReader;
   stderr?: { write(s: string): boolean | void };
@@ -133,19 +135,25 @@ export function mergeQueries(
   return merged;
 }
 
-/** Write an envelope to a file (when `outputPath` is set) or stdout.
- *  Centralizing this lets every data/web verb honor `-o` consistently
- *  without each one duplicating the mkdir-then-writeFile dance. */
+/** Write an envelope to stdout, a file, or both, per the project-wide
+ *  TTY-aware rules in `stdout-mode.ts`. Centralizing this lets every
+ *  data/web verb honor `-o` and `--quiet` consistently. */
 export async function writeEnvelope(
-  stdout: { write(s: string): boolean | void },
+  stdout: { write(s: string): boolean | void; isTTY?: boolean },
   outputPath: string | undefined,
   envelope: unknown,
+  opts?: { quiet?: boolean },
 ): Promise<void> {
   const text = `${JSON.stringify(envelope, null, 2)}\n`;
-  if (!outputPath) {
+  const emit = resolveStdoutEmit({
+    outputPath,
+    quiet: opts?.quiet,
+    stream: stdout as NodeJS.WriteStream,
+  });
+  if (emit) {
     stdout.write(text);
-    return;
   }
+  if (!outputPath) return;
   const resolved = resolveUserPath(outputPath);
   try {
     await mkdir(dirname(resolved), { recursive: true });

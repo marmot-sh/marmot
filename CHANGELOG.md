@@ -6,8 +6,23 @@ This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor b
 
 ## [Unreleased]
 
+### Added
+
+- **Universal `-q, --quiet` flag.** Every verb that supports `-o <file>` (AI: `run`, `transcribe`, `image`, `speak`, `video`; web/data: `search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`, `enrich`, `lookup`, `verify`) now accepts `-q` / `--quiet` to suppress stdout. File output via `-o` is still written; stderr status (spinners, cache hints, warnings, errors) is unaffected. `--quiet` always wins — if both stdout is piped AND `--quiet` is set, the pipe receives nothing.
+
 ### Changed
 
+- **TTY-aware stdout default when `-o` is set.** Verbs that support `-o <file>` now stay silent on the terminal by default and emit to a pipe only when one is attached. The new decision matrix:
+
+  | `-o` set | stdout piped | `--quiet` | Behavior |
+  | --- | --- | --- | --- |
+  | no  | no  | no  | Emit to screen (unchanged) |
+  | no  | yes | no  | Emit to pipe (unchanged) |
+  | **yes** | **no**  | no  | **Write file; stay silent on screen (NEW default)** |
+  | **yes** | **yes** | no  | **Write file AND emit to pipe (NEW for web/data — previously file-only)** |
+  | any | any | yes | `--quiet` always wins: stdout silent. File still written if `-o` set. |
+
+  Migration: to keep the old "stream to screen while saving" behavior on a TTY, drop `-o` and use shell `tee` — `marmot run --stream "..." | tee out.md`. **Breaking** for users who relied on AI verbs always echoing to stdout when `-o` was set, or on web/data verbs being silent on stdout when `-o` + piping were combined.
 - **Interactive preset model picker is now searchable + windowed + alphabetized.** When `marmot preset create` / `marmot preset update <name>` reaches the model field for a provider with a long cached model list (OpenRouter ships ~30), the picker now (a) shows a fixed visible window of 10 entries with scroll, (b) accepts typed input to filter by lowercase substring match across model id and label, and (c) sorts entries alphabetically by id so the list is scannable before you type. Behavior is identical for short lists — small providers still render every option. The `Keep current` / `Skip` and `Other / type a custom value` sentinels are preserved.
 - **`marmot run`: a system prompt now satisfies the "prompt required" check on its own.** Previously, `marmot run` (and `marmot @<text-preset>`) required a user prompt — positional argument, `--prompt-file`, or piped stdin — even when a system prompt was already in scope. That blocked the natural preset-as-task pattern: `marmot @pdf-to-md --file ./doc.pdf -o out.md`, where the preset's `system` carries the full instruction and the user just supplies an attachment. The validation now accepts any of (positional, `--prompt-file`, piped stdin, `--system`, `--system-file`, preset `system`). Attachments by themselves still don't satisfy — there must be at least one prompt for the model to act on. The error message when nothing is supplied has been clarified to name both paths. `marmot image` and `marmot video` keep the strict rule because for generative image/video the prompt is the description.
 

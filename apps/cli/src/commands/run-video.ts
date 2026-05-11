@@ -31,6 +31,7 @@ import {
   renderVideoFileOutput,
 } from '@marmot-sh/core';
 import { writeLine, type OutputWriter } from '@marmot-sh/core';
+import { resolveStdoutEmit } from '../lib/stdout-mode.js';
 import {
   resolveVideoRunInput,
   type ResolvedVideoRunInput,
@@ -58,6 +59,7 @@ export type VideoRunCommandOptions = {
   model?: string;
   apiKey?: string;
   output?: string;
+  quiet?: boolean;
   prompt?: string;
   promptFile?: string;
   aspect?: string;
@@ -216,6 +218,7 @@ export async function handleVideoRunCommand(
     model: defaults.model,
     apiKey: options.apiKey,
     outputPath: options.output,
+    quiet: Boolean(options.quiet),
     promptFilePath: promptFile?.path,
     inlinePrompt,
     promptFileContent: promptFile?.content,
@@ -394,11 +397,19 @@ export async function handleVideoRunCommand(
 
   let rendered: NormalizedVideoRunResult | null = null;
 
+  const emitToStdout = resolveStdoutEmit({
+    outputPath: input.outputPath,
+    quiet: input.quiet,
+    stream: stdout as NodeJS.WriteStream,
+  });
+
   if (input.binary || autoBinary) {
-    renderVideoBinaryOutput(
-      result,
-      stdout as unknown as { write: (chunk: Uint8Array) => boolean },
-    );
+    if (!input.quiet) {
+      renderVideoBinaryOutput(
+        result,
+        stdout as unknown as { write: (chunk: Uint8Array) => boolean },
+      );
+    }
   } else if (input.b64) {
     // For now treat b64 the same as JSON envelope -- emit a JSON object
     // with base64 video data. Mirror once we add a dedicated b64 renderer.
@@ -412,7 +423,7 @@ export async function handleVideoRunCommand(
         bytes: v.data.byteLength,
       })),
     };
-    writeLine(stdout, JSON.stringify(payload, null, 2));
+    if (emitToStdout) writeLine(stdout, JSON.stringify(payload, null, 2));
   } else {
     rendered = await renderVideoFileOutput({
       result,
@@ -421,11 +432,13 @@ export async function handleVideoRunCommand(
       cwd: dependencies.cwd,
       now,
     });
-    if (input.json) {
-      writeLine(stdout, renderVideoFileEnvelopeJson(rendered));
-    } else {
-      for (const clip of rendered.videos) {
-        if (clip.path) writeLine(stdout, clip.path);
+    if (emitToStdout) {
+      if (input.json) {
+        writeLine(stdout, renderVideoFileEnvelopeJson(rendered));
+      } else {
+        for (const clip of rendered.videos) {
+          if (clip.path) writeLine(stdout, clip.path);
+        }
       }
     }
   }

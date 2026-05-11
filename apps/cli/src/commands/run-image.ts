@@ -35,6 +35,7 @@ import {
   renderImageFileOutput,
 } from '@marmot-sh/core';
 import { writeLine, type OutputWriter } from '@marmot-sh/core';
+import { resolveStdoutEmit } from '../lib/stdout-mode.js';
 import {
   getProviderAdapter,
   type ProviderAdapter,
@@ -58,6 +59,7 @@ export type ImageRunCommandOptions = {
   model?: string;
   apiKey?: string;
   output?: string;
+  quiet?: boolean;
   prompt?: string;
   promptFile?: string;
   n?: string | number;
@@ -146,6 +148,7 @@ export async function handleImageRunCommand(
     model: defaults.model,
     apiKey: options.apiKey,
     outputPath: options.output,
+    quiet: Boolean(options.quiet),
     promptFilePath: promptFile?.path,
     inlinePrompt,
     promptFileContent: promptFile?.content,
@@ -338,15 +341,23 @@ export async function handleImageRunCommand(
 
   let rendered: NormalizedImageRunResult | null = null;
 
+  const emitToStdout = resolveStdoutEmit({
+    outputPath: input.outputPath,
+    quiet: input.quiet,
+    stream: stdout as NodeJS.WriteStream,
+  });
+
   if (input.binary || autoBinary) {
-    renderImageBinaryOutput(result, stdout as unknown as { write: (chunk: Uint8Array) => boolean });
+    if (!input.quiet) {
+      renderImageBinaryOutput(result, stdout as unknown as { write: (chunk: Uint8Array) => boolean });
+    }
   } else if (input.b64) {
     rendered = renderImageB64Output({
       result,
       requestedSize: input.size,
       now,
     });
-    writeLine(stdout, renderImageB64EnvelopeJson(rendered));
+    if (emitToStdout) writeLine(stdout, renderImageB64EnvelopeJson(rendered));
   } else {
     rendered = await renderImageFileOutput({
       result,
@@ -357,8 +368,8 @@ export async function handleImageRunCommand(
       now,
     });
     if (input.json) {
-      writeLine(stdout, renderImageFileEnvelopeJson(rendered));
-    } else {
+      if (emitToStdout) writeLine(stdout, renderImageFileEnvelopeJson(rendered));
+    } else if (emitToStdout) {
       // Default: print one file path per line — pipe-friendly. The JSON
       // envelope is still available via --json.
       for (const img of rendered.images) {

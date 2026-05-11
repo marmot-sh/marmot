@@ -34,6 +34,7 @@ const imageRunInputSchema = z.object({
   binary: z.boolean().default(false),
   b64: z.boolean().default(false),
   json: z.boolean().default(false),
+  quiet: z.boolean().default(false),
   retries: z.coerce.number().int().min(0).max(10).default(0),
   timeoutSeconds: z
     .coerce.number()
@@ -89,6 +90,7 @@ export type RawImageRunInput = {
   binary?: boolean;
   b64?: boolean;
   json?: boolean;
+  quiet?: boolean;
   retries?: string | number;
   timeoutSeconds?: string | number;
 };
@@ -109,6 +111,7 @@ export type ResolvedImageRunInput = {
   binary: boolean;
   b64: boolean;
   json: boolean;
+  quiet: boolean;
   retries: number;
   timeoutMs: number;
 };
@@ -158,6 +161,7 @@ export function resolveImageRunInput(
     binary: parsed.data.binary,
     b64: parsed.data.b64,
     json: parsed.data.json,
+    quiet: parsed.data.quiet,
     retries: parsed.data.retries,
     timeoutMs: parsed.data.timeoutSeconds * 1_000,
   };
