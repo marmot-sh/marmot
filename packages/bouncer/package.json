@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/bouncer",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "@marmot-sh adapter for Bouncer — Email verification with toxicity scoring and provider resolution.",
   "type": "module",
   "private": true,

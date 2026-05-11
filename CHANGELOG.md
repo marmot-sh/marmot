@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.11.0] — 2026-05-11
+
+A vocabulary + interactive-UX release. Two changes that polish how you talk to and walk through marmot. `show` subcommands are renamed to `get` so the CRUD vocabulary stays consistent across the CLI — `marmot preset get`, `marmot pipeline get`, `marmot session get`, `marmot tasks get`. And the `marmot preset update` walker now pre-fills string, number, and path fields with their current values, so a single-character edit to a long system prompt is just an arrow key away instead of a full retype. The rename is breaking (no alias kept); the prefill is additive.
 
 ### Changed
 
