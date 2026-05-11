@@ -36,6 +36,8 @@ Default verb. `marmot "..."` is sugar for `marmot run "..."`. Plain text on stdo
 
 Concatenated, joined by blank lines, in this order: preset `prompt` field (when `--preset`/`@<name>` is in use), positional args, `--prompt-file`, piped stdin (when not a TTY). Stdin can instead carry image bytes (`--image -`) or file bytes (`--file -`) — only one binary stdin role at a time.
 
+**A system prompt alone is sufficient** (0.10.0+). Any of (positional, `--prompt-file`, piped stdin, `--system`, `--system-file`, preset `system`) satisfies the requirement. This enables the preset-as-task pattern where the preset's `system` carries the full instruction and the user only supplies an attachment: `marmot @pdf-to-md --file ./doc.pdf -o out.md`. Attachments alone do **not** satisfy — there must be at least one prompt for the model to act on. (`image` and `video` keep the strict rule: prompt required, since for generative image/video the prompt IS the description.)
+
 ### Flags
 
 | Flag | Purpose |
@@ -63,7 +65,8 @@ Concatenated, joined by blank lines, in this order: preset `prompt` field (when 
 | `--stop <text>` | Stop sequence. Repeatable. |
 | `--reasoning <effort>` | Thinking/reasoning effort: `low`, `medium`, `high`. Maps to Anthropic thinking budget, OpenAI `reasoning_effort`, OpenRouter `reasoning.effort`. |
 | `--provider-option <key=value>` | Generic passthrough. Repeatable. Lands in `providerOptions[<provider>]` for niche params not covered by a dedicated flag. |
-| `-o, --output <path>` | Mirror rendered output to file. |
+| `-o, --output <path>` | Write rendered output to file. With `-o` set on a TTY, stdout stays silent (0.10.0+); when piped, also emits to the pipe. |
+| `-q, --quiet` | Suppress stdout. File output via `-o` is still written; stderr status is unaffected. Available on every AI verb (0.10.0+). |
 | `--retries <n>` | Retry attempts on retryable provider errors. |
 | `--timeout <seconds>` | Per-attempt timeout. |
 | `--session <name>` | Bind call to a session for logging/chat history. |
@@ -121,7 +124,8 @@ Providers: `openai`, `openrouter`, `vercel`, `cloudflare`.
 | `--provider <slug>` | Image-capable provider. |
 | `--model <id>` | Image model. Defaults per provider. |
 | `--api-key <key>` | Override env key. |
-| `-o, --output <path>` | Output path. `{i}` template expands per image (e.g. `./out-{i}.png`). |
+| `-o, --output <path>` | Output path. `{i}` template expands per image (e.g. `./out-{i}.png`). With `-o` set on a TTY, the path-print on stdout is suppressed (0.10.0+). |
+| `-q, --quiet` | Suppress stdout (file output via `-o` is still written; stderr unaffected). 0.10.0+. |
 | `-p, --prompt-file <path>` | Prompt from file. |
 | `--n <count>` | Image count, 1–10. Default 1. |
 | `--size <WxH>` | Provider-specific. |
@@ -184,7 +188,8 @@ Providers: `openai`, `openrouter`, `vercel`, `cloudflare`.
 | `--speed <n>` | Playback speed 0.25–4.0. OpenAI only. |
 | `--instructions <text>` | Steering for steerable voices (e.g. `gpt-4o-mini-tts`). |
 | `--provider-option <key=value>` | Generic passthrough. Repeatable. For niche TTS params. |
-| `-o, --output <path>` | Output path. |
+| `-o, --output <path>` | Output path. With `-o` set on a TTY, the path-print on stdout is suppressed (0.10.0+); auto-playback still happens unless `--quiet`. |
+| `-q, --quiet` | Suppress stdout (file output via `-o` is still written; stderr unaffected). 0.10.0+. |
 | `-p, --prompt-file <path>` | Read text from file. |
 | `--play` | Play through speakers. When piped, also emits bytes downstream. |
 | `--wait` | With `--play`, block until playback ends. |
@@ -238,7 +243,8 @@ Providers: `openai`, `openrouter`, `vercel`, `cloudflare`. Audio source priority
 | `--provider <slug>` | Transcription-capable provider. |
 | `--model <id>` | STT model. |
 | `--api-key <key>` | Override env key. |
-| `-o, --output <path>` | Write rendered output to file. |
+| `-o, --output <path>` | Write rendered output to file. With `-o` set on a TTY, stdout stays silent (0.10.0+); when piped, also emits to the pipe. |
+| `-q, --quiet` | Suppress stdout (file output via `-o` is still written; stderr unaffected). 0.10.0+. |
 | `--language <code>` | ISO-639-1 hint (e.g. `en`, `es`). |
 | `--prompt <text>` | Bias prompt to guide transcription (names, jargon). **Concatenates** with a preset's `prompt` field when both are set. |
 | `--format <fmt>` | `text` (default), `json`, `srt`, `vtt`, `verbose-json`. |
@@ -282,7 +288,7 @@ Default: 4-second 720p no-audio clip via `google/veo-3.1-lite` (~$0.03/sec, ~$0.
 
 Only `openrouter` and `vercel` route video. `--provider openai|anthropic|cloudflare|ollama` errors with a clear message; for Sora use `--provider openrouter --model openai/sora-2-pro`.
 
-Output: same TTY-aware shape as `image`/`speak` — auto-named MP4 in CWD on a TTY, raw bytes on a piped stdout, `-o` for explicit path.
+Output: same TTY-aware shape as `image`/`speak` — auto-named MP4 in CWD on a TTY, raw bytes on a piped stdout, `-o` for explicit path. With `-o` set on a TTY, the path-print on stdout is suppressed (0.10.0+). `-q, --quiet` forces full stdout silence (file still written) on any verb in this group.
 
 ```bash
 marmot video 'a small wooden boat sailing at sunset'

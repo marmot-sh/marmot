@@ -89,7 +89,7 @@ Object mode rejects `--stream` and `--text`.
 
 ## Flags
 
-For cross-cutting flags (`--provider`, `--api-key`, `-o`, `--retries`, `--timeout`) see [Common flags](/docs/reference/commands/common-flags). Run-specific:
+For cross-cutting flags (`--provider`, `--api-key`, `-o`, `-q, --quiet`, `--retries`, `--timeout`) see [Common flags](/docs/reference/commands/common-flags). `-q` / `--quiet` (0.10.0+) suppresses stdout (file output via `-o` is still written). With `-o` set on an interactive terminal, stdout stays silent by default; when piped, it still emits — see [Stdout decision matrix](/docs/reference/commands/common-flags#stdout-decision-matrix). Run-specific:
 
 | Flag | Description |
 | --- | --- |
