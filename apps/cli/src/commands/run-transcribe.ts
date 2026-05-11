@@ -29,6 +29,7 @@ import {
 import { withSpinner, type StatusStream } from '@marmot-sh/core';
 import { renderTranscribeOutput } from '@marmot-sh/core';
 import { writeLine, type OutputWriter } from '@marmot-sh/core';
+import { resolveStdoutEmit } from '../lib/stdout-mode.js';
 import {
   getProviderAdapter,
   type ProviderAdapter,
@@ -69,6 +70,7 @@ export type TranscribeRunCommandOptions = {
   apiKey?: string;
   audio?: string;
   output?: string;
+  quiet?: boolean;
   language?: string;
   prompt?: string;
   format?: string;
@@ -194,6 +196,7 @@ export async function handleTranscribeRunCommand(
     prompt: options.prompt,
     format: resolvedFormat,
     text: Boolean(options.text),
+    quiet: Boolean(options.quiet),
     retries: options.retries,
     timeoutSeconds: options.timeout,
   });
@@ -374,7 +377,13 @@ export async function handleTranscribeRunCommand(
     now,
   });
 
-  writeLine(stdout, stdoutBody);
+  if (resolveStdoutEmit({
+    outputPath: input.outputPath,
+    quiet: input.quiet,
+    stream: stdout as NodeJS.WriteStream,
+  })) {
+    writeLine(stdout, stdoutBody);
+  }
 
   // sttFlags / sttPresence / sttSensitive computed before the adapter call.
 

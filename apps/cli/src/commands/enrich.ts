@@ -62,6 +62,7 @@ export type EnrichCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   output?: string;
+  quiet?: boolean;
   preset?: string;
   preset_id?: string;
   session?: string;
@@ -308,7 +309,7 @@ export async function handleEnrichCommand(
       usage: result.usage ?? null,
       timestamp: new Date().toISOString(),
     };
-    await writeEnvelope(stdout, options.output, envelope);
+    await writeEnvelope(stdout, options.output, envelope, { quiet: options.quiet });
     return;
   }
 
@@ -371,7 +372,7 @@ export async function handleEnrichCommand(
     usage: result.usage ?? null,
     timestamp: new Date().toISOString(),
   };
-  await writeEnvelope(stdout, options.output, envelope);
+  await writeEnvelope(stdout, options.output, envelope, { quiet: options.quiet });
 }
 
 export function buildEnrichCommand(deps: EnrichCommandDependencies = {}): Command {
@@ -408,6 +409,7 @@ export function buildEnrichCommand(deps: EnrichCommandDependencies = {}): Comman
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('-q, --quiet', 'Suppress stdout (file output via -o is still written; stderr status is unaffected).')
     .option('--preset <name>', 'Apply a saved enrich preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (options: EnrichCommandOptions) => {

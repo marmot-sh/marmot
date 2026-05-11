@@ -58,6 +58,7 @@ export type LookupCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   output?: string;
+  quiet?: boolean;
   preset?: string;
   preset_id?: string;
   session?: string;
@@ -256,7 +257,7 @@ export async function handleLookupCommand(
       ...baseEnvelope,
       cached,
       data: options.raw ? null : result.data,
-      raw: options.raw ? (result.raw ?? null) : null,
+      raw: options.raw ? (result.raw ?? null, { quiet: options.quiet }) : null,
       usage: result.usage ?? null,
     });
     return;
@@ -316,7 +317,7 @@ export async function handleLookupCommand(
       ...baseEnvelope,
       cached,
       data: options.raw ? null : result.data,
-      raw: options.raw ? (result.raw ?? null) : null,
+      raw: options.raw ? (result.raw ?? null, { quiet: options.quiet }) : null,
       usage: result.usage ?? null,
     });
     return;
@@ -387,7 +388,7 @@ export async function handleLookupCommand(
     ...baseEnvelope,
     cached,
     data: options.raw ? null : result.data,
-    raw: options.raw ? (result.raw ?? null) : null,
+    raw: options.raw ? (result.raw ?? null, { quiet: options.quiet }) : null,
     usage: result.usage ?? null,
   });
 }
@@ -424,6 +425,7 @@ export function buildLookupCommand(deps: LookupCommandDependencies = {}): Comman
     .option('--retries <count>', 'Retry failed provider calls up to N times (default: 0).')
     .option('--timeout <seconds>', 'Per-attempt request timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('-q, --quiet', 'Suppress stdout (file output via -o is still written; stderr status is unaffected).')
     .option('--preset <name>', 'Apply a saved lookup preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (options: LookupCommandOptions) => {

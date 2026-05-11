@@ -50,6 +50,7 @@ export type FindallCommandOptions = {
   retries?: string | number;
   timeout?: string | number;
   output?: string;
+  quiet?: boolean;
   preset?: string;
   preset_id?: string;
   session?: string;
@@ -230,7 +231,7 @@ export async function handleFindallCommand(
       createdAt: new Date().toISOString(),
       next: `marmot get ${submission.taskId} --provider ${provider}`,
     };
-    await writeEnvelope(stdout, options.output, envelope);
+    await writeEnvelope(stdout, options.output, envelope, { quiet: options.quiet });
     return;
   }
 
@@ -301,7 +302,7 @@ export async function handleFindallCommand(
     error: finalStatus.error ?? null,
     timestamp: new Date().toISOString(),
   };
-  await writeEnvelope(stdout, options.output, envelope);
+  await writeEnvelope(stdout, options.output, envelope, { quiet: options.quiet });
 }
 
 export function buildFindallCommand(
@@ -326,6 +327,7 @@ export function buildFindallCommand(
     .option('--retries <count>', 'Retry the initial submission up to N times (default: 0). Polling is unaffected.')
     .option('--timeout <seconds>', 'Per-attempt submit timeout in seconds (default: 120).')
     .option('-o, --output <path>', 'Write the JSON envelope to a file instead of stdout.')
+    .option('-q, --quiet', 'Suppress stdout (file output via -o is still written; stderr status is unaffected).')
     .option('--preset <name>', 'Apply a saved findall preset as defaults (explicit flags still win). Shorthand: @name.')
     .option('--session <name>', 'Bind this call to a session so it appears in `marmot session show <name>` and filters by session in usage reports.')
     .action(async (objectiveParts: string[], options: FindallCommandOptions) => {

@@ -12,6 +12,7 @@ Every verb supports the same cross-cutting flags. Verb-specific flags live on ea
 | `--provider <slug>` | Override the configured default provider for this verb. |
 | `--api-key <key>` | Override the env-var API key. No effect for Ollama. |
 | `-o, --output <path>` | Write the result to a file. With `--stream`, written incrementally. |
+| `-q, --quiet` | Suppress stdout. File output via `-o` is still written; stderr status (spinners, cache hints, warnings, errors) is unaffected. See [Stdout decision matrix](#stdout-decision-matrix). |
 | `--retries <n>` | Retry retryable provider errors up to N times with exponential backoff. Default 0, max 10. |
 | `--timeout <seconds>` | Per-attempt timeout. Default varies by verb (web/data 120, text/image/speech 300, transcription/video 600); max 86400. |
 | `--session <name>` | Bind the call to a session so the usage record carries `session: <name>` and the call appears under `marmot session show <name>` (chat-mode sessions also prepend chat history for `run`). Available on every verb. |
@@ -77,6 +78,38 @@ See [Async tasks](/docs/reference/commands/async-tasks).
 | `--refresh` | Skip cache read but write the fresh response, overwriting any existing entry. |
 
 See [Caching](/docs/reference/caching) for the full model and the `marmot cache` subcommands.
+
+## Stdout decision matrix
+
+Every verb that accepts `-o <file>` resolves what to send to stdout using these rules:
+
+| `-o` set | stdout piped | `--quiet` | What happens |
+| --- | --- | --- | --- |
+| no  | no  | no  | Emit to screen (default). |
+| no  | yes | no  | Emit to pipe (default). |
+| yes | no  | no  | Write the file; **stay silent on screen** (new default in 0.10.0). |
+| yes | yes | no  | Write the file AND emit to the pipe. |
+| any | any | yes | `--quiet` always wins: stdout silent. File still written if `-o` is set. |
+
+`--quiet` only governs stdout. Stderr (spinners, cache hints, warnings, errors) is unaffected.
+
+Examples:
+
+```bash
+# Write to file, stay silent — common case.
+marmot run "summarize this" -o out.md
+
+# Write to file AND consume in a pipe.
+marmot run "summarize this" -o out.md | grep -i critical
+
+# Force silence even when piped (write file only, pipe gets nothing).
+marmot search "openrouter pricing" -o out.json --quiet
+
+# Want to watch the stream AND save it? Drop -o and use shell tee.
+marmot run --stream "long answer" | tee out.md
+```
+
+The matrix applies to AI verbs (`run`, `transcribe`, `image`, `speak`, `video`) and web/data verbs (`search`, `scrape`, `answer`, `map`, `crawl`, `research`, `findall`, `enrich`, `lookup`, `verify`).
 
 ## stdout vs stderr
 

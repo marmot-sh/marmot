@@ -43,6 +43,7 @@ const runInputSchema = z.object({
   text: z.boolean().default(false),
   json: z.boolean().default(false),
   stream: z.boolean().default(false),
+  quiet: z.boolean().default(false),
   retries: z.coerce.number().int().min(0).max(10).default(0),
   timeoutSeconds: z.coerce.number().int().min(1).max(86_400).default(
     DEFAULT_TEXT_TIMEOUT_MS / 1_000,
@@ -162,6 +163,7 @@ export type RawRunInput = {
   text?: boolean;
   json?: boolean;
   stream?: boolean;
+  quiet?: boolean;
   retries?: string | number;
   timeoutSeconds?: string | number;
 };
@@ -192,6 +194,7 @@ export type ResolvedRunInput = {
   text: boolean;
   json: boolean;
   stream: boolean;
+  quiet: boolean;
   retries: number;
   timeoutMs: number;
 };
@@ -269,6 +272,7 @@ export function resolveRunInput(rawInput: RawRunInput): ResolvedRunInput {
     text: parsed.data.stream || !parsed.data.json,
     json: parsed.data.json,
     stream: parsed.data.stream,
+    quiet: parsed.data.quiet,
     retries: parsed.data.retries,
     timeoutMs: parsed.data.timeoutSeconds * 1_000,
   };

@@ -35,6 +35,7 @@ import {
   renderSpeechFileOutput,
 } from '@marmot-sh/core';
 import { writeLine, type OutputWriter } from '@marmot-sh/core';
+import { resolveStdoutEmit } from '../lib/stdout-mode.js';
 import {
   getProviderAdapter,
   type ProviderAdapter,
@@ -58,6 +59,7 @@ export type SpeechRunCommandOptions = {
   model?: string;
   apiKey?: string;
   output?: string;
+  quiet?: boolean;
   text?: string;
   promptFile?: string;
   voice?: string;
@@ -144,6 +146,7 @@ export async function handleSpeechRunCommand(
     model: defaults.model,
     apiKey: options.apiKey,
     outputPath: options.output,
+    quiet: Boolean(options.quiet),
     promptFilePath: promptFile?.path,
     inlineText,
     promptFileContent: promptFile?.content,
@@ -341,15 +344,23 @@ export async function handleSpeechRunCommand(
 
   let rendered: NormalizedSpeechRunResult | null = null;
 
+  const emitToStdout = resolveStdoutEmit({
+    outputPath: input.outputPath,
+    quiet: input.quiet,
+    stream: stdout as NodeJS.WriteStream,
+  });
+
   if (input.binary || autoBinary) {
-    renderSpeechBinaryOutput(result, stdout as unknown as { write: (chunk: Uint8Array) => boolean });
+    if (!input.quiet) {
+      renderSpeechBinaryOutput(result, stdout as unknown as { write: (chunk: Uint8Array) => boolean });
+    }
   } else if (input.b64) {
     rendered = renderSpeechB64Output({
       result,
       formatHint: input.format,
       now,
     });
-    writeLine(stdout, renderSpeechB64EnvelopeJson(rendered));
+    if (emitToStdout) writeLine(stdout, renderSpeechB64EnvelopeJson(rendered));
   } else {
     // For --play (or auto-TTY-play) without explicit -o, write to a temp file
     // and clean up after playback.
@@ -389,7 +400,7 @@ export async function handleSpeechRunCommand(
       }
     }
 
-    if (!ephemeral) {
+    if (!ephemeral && emitToStdout) {
       if (input.json) {
         writeLine(stdout, renderSpeechFileEnvelopeJson(rendered));
       } else if (rendered.audio.path) {
