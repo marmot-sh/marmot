@@ -51,6 +51,12 @@ const runInputSchema = z.object({
   const hasInlinePrompt = Boolean(value.inlinePrompt?.trim());
   const hasPromptFile = Boolean(value.promptFileContent?.trim());
   const hasStdin = Boolean(value.stdinContent?.trim());
+  // A system prompt (via --system or --system-file) is sufficient on its
+  // own: presets like `pdf-to-md` carry the full instruction in `system`
+  // and the user just supplies an attachment. Attachments alone do NOT
+  // satisfy the requirement — there must be at least one prompt for the
+  // model to act on.
+  const hasSystem = Boolean(value.system?.trim() || value.systemFileContent?.trim());
   const schemaSources = [
     value.schema,
     value.schemaFilePath,
@@ -71,10 +77,10 @@ const runInputSchema = z.object({
     });
   }
 
-  if (!hasInlinePrompt && !hasPromptFile && !hasStdin) {
+  if (!hasInlinePrompt && !hasPromptFile && !hasStdin && !hasSystem) {
     context.addIssue({
       code: 'custom',
-      message: 'Provide a prompt via argument, --prompt-file, or piped stdin.',
+      message: 'Provide a prompt (positional arg, --prompt-file, or piped stdin) or a system prompt (--system / --system-file / preset).',
       path: ['inlinePrompt'],
     });
   }
@@ -219,7 +225,10 @@ export function resolveRunInput(rawInput: RawRunInput): ResolvedRunInput {
     parsed.data.systemFileContent,
   );
 
-  if (!prompt.trim()) {
+  // System prompt alone is sufficient. If the user provided neither a
+  // user prompt nor a system prompt, the superRefine above already
+  // surfaced the message — we won't reach this branch.
+  if (!prompt.trim() && !system.trim()) {
     throw new AICliError('validation', 'The resolved prompt is empty.');
   }
 
