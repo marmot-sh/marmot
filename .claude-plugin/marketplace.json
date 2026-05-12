@@ -1,0 +1,22 @@
+{
+  "name": "marmot",
+  "owner": {
+    "name": "Marmot",
+    "url": "https://marmot.sh"
+  },
+  "metadata": {
+    "description": "Unified CLI for AI generation, web search, and enrichment, built for agents and scripts.",
+    "version": "0.11.0"
+  },
+  "plugins": [
+    {
+      "name": "marmot",
+      "description": "Marmot agent skill — verb surface, output formats, and provider matrix.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/marmot"
+      ]
+    }
+  ]
+}

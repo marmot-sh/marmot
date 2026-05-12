@@ -198,6 +198,13 @@ Run `marmot setup` and choose "Install or update agent skill", or install via th
 npx skills add https://github.com/marmot-sh/marmot --skill marmot
 ```
 
+Claude Code users can also install via the native plugin marketplace:
+
+```bash
+/plugin marketplace add marmot-sh/marmot
+/plugin install marmot@marmot
+```
+
 Either path installs to the canonical `~/.agents/skills/marmot/` and creates per-harness symlinks (`~/.claude/skills/marmot`, `~/.opencode/skills/marmot`, `~/.codex/skills/marmot`).
 
 ## Documentation

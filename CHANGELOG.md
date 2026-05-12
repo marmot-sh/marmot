@@ -4,6 +4,13 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Added
+
+- **Claude Code native plugin install path.** A new `.claude-plugin/marketplace.json` at the repo root declares the marmot skill as an installable plugin, so Claude Code users can install via the native plugin marketplace flow (`/plugin marketplace add marmot-sh/marmot` → `/plugin install marmot@marmot`). The existing `marmot setup` and `npx skills add ...` install paths continue to work unchanged — this is purely additive.
+- **Agent skill install instructions in the `marmot-sh` shim README.** The unscoped install alias package's README now documents the agent skill alongside the CLI, so users landing on `npmjs.com/package/marmot-sh` after `npm install -g marmot-sh` discover the skill from the same page. Mirrors the section already in the `@marmot-sh/cli` README. Both READMEs gain the Claude Code native install instructions.
+
 ## [0.11.0] — 2026-05-11
 
 A vocabulary + interactive-UX release. Two changes that polish how you talk to and walk through marmot. `show` subcommands are renamed to `get` so the CRUD vocabulary stays consistent across the CLI — `marmot preset get`, `marmot pipeline get`, `marmot session get`, `marmot tasks get`. And the `marmot preset update` walker now pre-fills string, number, and path fields with their current values, so a single-character edit to a long system prompt is just an arrow key away instead of a full retype. The rename is breaking (no alias kept); the prefill is additive.

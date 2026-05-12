@@ -38,6 +38,17 @@ npx skills add https://github.com/marmot-sh/marmot --skill marmot
 
 The CLI auto-detects your harness (Claude Code, OpenCode, Codex, and others) and follows the same `.agents/skills/<name>/` canonical pattern with per-harness symlinks. Re-running the command updates an existing install.
 
+### Claude Code native plugin
+
+Claude Code users can install through the native plugin marketplace:
+
+```bash
+/plugin marketplace add marmot-sh/marmot
+/plugin install marmot@marmot
+```
+
+This reads the repo's `.claude-plugin/marketplace.json` and installs the skill into Claude Code's plugin directory. Re-running `/plugin install marmot@marmot` updates an existing install.
+
 ### Manual install
 
 If you don't have the `skills` CLI, copy the `marmot/` directory into your harness's skill directory.
@@ -94,9 +105,11 @@ Replace the final `~/.claude/skills/` symlink target with `~/.opencode/skills/` 
 marmot setup            # the "Agent skill" step detects outdated installs
 # or
 npx skills add https://github.com/marmot-sh/marmot --skill marmot
+# or, in Claude Code
+/plugin install marmot@marmot
 ```
 
-Both paths overwrite in place. If you symlinked into a clone of the marmot repo, just `git pull` the clone.
+All three paths overwrite in place. If you symlinked into a clone of the marmot repo, just `git pull` the clone.
 
 ## License
 
