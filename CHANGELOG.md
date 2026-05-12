@@ -4,6 +4,14 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Fixed
+
+- **CRITICAL — `marmot setup` no longer wipes `presets`, `pipelines`, `providers`, and `logging` from your config.** Three sibling code paths inside `marmot setup` (the first-run "Populate with OpenRouter defaults?" prompt, the AI-defaults walk's per-mode editor, and the data/web-defaults walk's per-verb applier) constructed a fresh `{ version, defaults }` object instead of merging into the existing config. Every other top-level field was silently dropped on the next write. **If you ran `marmot setup` on any version from 0.5.x through 0.11.1 with a populated config, your presets / pipelines / cache settings / provider auth overrides / logging config were likely lost.** This patch adds the `...config` spread to all three sites, deletes an orphaned fourth site (`setup-web.ts`) carrying the same pattern, and surfaces parse errors in `readConfigSafely` instead of silently routing a "config exists but won't parse" into the destructive populate prompt. Four regression tests guard each fixed code path plus the historical bug shape.
+
+  **Mitigation if you're not yet on 0.11.2**: back up `~/.marmot/config.json` before running `marmot setup`. After upgrading to 0.11.2 the bug is gone — no backup needed before subsequent setup runs.
+
 ## [0.11.1] — 2026-05-12
 
 An install-path release. Adds Claude Code's native plugin marketplace as a third way to install the marmot agent skill, alongside the existing `marmot setup` and `npx skills add` paths. Pure docs + a new manifest file at the repo root — no code changes. The shim package's npm README now documents the agent skill too, closing the discoverability gap on `npmjs.com/package/marmot-sh`.
