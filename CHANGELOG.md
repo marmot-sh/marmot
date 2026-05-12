@@ -4,6 +4,13 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [Unreleased]
+
+### Changed
+
+- **Uninstall instructions added to all three READMEs.** Root `README.md`, `apps/cli/README.md` (`@marmot-sh/cli` on npm), and `apps/marmot-sh/README.md` (`marmot-sh` on npm) now document the three-layer uninstall: remove the CLI via npm, optionally remove the marmot home directory (respects `$MARMOT_HOME`), and optionally remove the agent skill canonical + per-harness symlinks.
+- **`SECURITY.md` no longer pins a specific version.** The supported-versions paragraph previously read "Marmot is at v0.1.x" — stale since 0.5.x. Rewritten as "Marmot is in its v0.x phase" so the line stays correct across the entire 0.y track without future drift.
+
 ## [0.11.2] — 2026-05-12
 
 A **critical data-loss fix**. Anyone who ran `marmot setup` on any version 0.5.x–0.11.1 with a populated config likely lost their presets, pipelines, cache settings, and provider auth overrides. This release fixes the three sibling code paths inside `marmot setup` that silently dropped every top-level config field except `version` and `defaults` when persisting changes. Upgrade as soon as practical; back up `~/.marmot/config.json` first if you have anything in it you can't recreate.

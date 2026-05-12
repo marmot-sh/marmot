@@ -4,7 +4,7 @@ We take security in marmot seriously. This document explains what's covered, how
 
 ## Supported versions
 
-Marmot is at v0.1.x. During the v0.x phase, security fixes ship to the latest released minor version only. Once v1.0 is published, this policy will be updated to define a longer support window.
+Marmot is in its v0.x phase. Security fixes ship to the latest released minor version only. Once v1.0 is published, this policy will be updated to define a longer support window.
 
 ## Reporting a vulnerability
 

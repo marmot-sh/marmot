@@ -41,6 +41,20 @@ Either path installs to the canonical `~/.agents/skills/marmot/` and creates per
 
 See the [`@marmot-sh/cli` README](https://www.npmjs.com/package/@marmot-sh/cli#agent-skill) for full details.
 
+## Uninstall
+
+```bash
+# Remove the CLI
+npm uninstall -g marmot-sh            # or @marmot-sh/cli
+
+# Optional — also remove config, presets, pipelines, cache, sessions, usage:
+rm -rf "${MARMOT_HOME:-$HOME/.marmot}"
+
+# Optional — also remove the agent skill (if installed):
+rm -rf ~/.agents/skills/marmot
+rm -f  ~/.claude/skills/marmot ~/.opencode/skills/marmot ~/.codex/skills/marmot
+```
+
 ## What this package is
 
 This is a thin install alias for the canonical [`@marmot-sh/cli`](https://www.npmjs.com/package/@marmot-sh/cli) package. The bundled binary is bit-identical — only the package name differs. The unscoped name exists for two reasons:

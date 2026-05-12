@@ -207,6 +207,20 @@ Claude Code users can also install via the native plugin marketplace:
 
 Either path installs to the canonical `~/.agents/skills/marmot/` and creates per-harness symlinks (`~/.claude/skills/marmot`, `~/.opencode/skills/marmot`, `~/.codex/skills/marmot`).
 
+## Uninstall
+
+```bash
+# Remove the CLI
+npm uninstall -g marmot-sh            # or @marmot-sh/cli
+
+# Optional — also remove config, presets, pipelines, cache, sessions, usage:
+rm -rf "${MARMOT_HOME:-$HOME/.marmot}"
+
+# Optional — also remove the agent skill (if installed):
+rm -rf ~/.agents/skills/marmot
+rm -f  ~/.claude/skills/marmot ~/.opencode/skills/marmot ~/.codex/skills/marmot
+```
+
 ## Documentation
 
 Full docs at [marmot.sh/docs](https://marmot.sh/docs?utm_source=github&utm_medium=main):
