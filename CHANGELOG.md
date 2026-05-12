@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.11.3] — 2026-05-12
+
+A docs-only patch — adds Uninstall instructions to all three READMEs and clears a stale version pin from `SECURITY.md`. Republished so the new copy reaches `npmjs.com/package/marmot-sh` and `npmjs.com/package/@marmot-sh/cli` immediately.
 
 ### Changed
 
