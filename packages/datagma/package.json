@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/datagma",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "@marmot-sh adapter for Datagma — Person enrichment with mobile-phone finder, plus email verification.",
   "type": "module",
   "private": true,

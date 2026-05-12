@@ -1,6 +1,6 @@
 {
   "name": "marmot-sh",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Unscoped install alias for marmot — the unified CLI for AI, search, and enrichment. `npm install -g marmot-sh`. Identical artifact to @marmot-sh/cli; published under the bare name for shorter install commands and npm search discoverability.",
   "type": "module",
   "license": "MIT",

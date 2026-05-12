@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.11.1] — 2026-05-12
+
+An install-path release. Adds Claude Code's native plugin marketplace as a third way to install the marmot agent skill, alongside the existing `marmot setup` and `npx skills add` paths. Pure docs + a new manifest file at the repo root — no code changes. The shim package's npm README now documents the agent skill too, closing the discoverability gap on `npmjs.com/package/marmot-sh`.
 
 ### Added
 
