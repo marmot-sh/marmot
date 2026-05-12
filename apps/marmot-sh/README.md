@@ -20,6 +20,27 @@ gh pr diff | marmot 'write a commit message under 60 chars'
 
 See [marmot.sh](https://marmot.sh) for full docs, the verb reference, and provider catalog.
 
+## Agent skill
+
+Marmot ships an agent skill for Claude Code, OpenCode, Codex, and similar harnesses. Two ways to install:
+
+```bash
+# Interactive — pick "Install or update agent skill" from the menu
+marmot setup
+
+# One-shot via the open skills CLI
+npx skills add https://github.com/marmot-sh/marmot --skill marmot
+```
+
+Either path installs to the canonical `~/.agents/skills/marmot/` and creates per-harness symlinks. Claude Code users can also install natively:
+
+```bash
+/plugin marketplace add marmot-sh/marmot
+/plugin install marmot@marmot
+```
+
+See the [`@marmot-sh/cli` README](https://www.npmjs.com/package/@marmot-sh/cli#agent-skill) for full details.
+
 ## What this package is
 
 This is a thin install alias for the canonical [`@marmot-sh/cli`](https://www.npmjs.com/package/@marmot-sh/cli) package. The bundled binary is bit-identical — only the package name differs. The unscoped name exists for two reasons:
