@@ -145,6 +145,7 @@ export async function handleSetupCommand(
       // never drift from the rest of the codebase. Adding a new mode here
       // means adding to the relevant *_DEFAULT_MODELS map only.
       config = {
+        ...config,
         version: 1,
         defaults: {
           ...(config.defaults ?? {}),
@@ -328,6 +329,7 @@ function applyMode(
     entry.voice = voiceOrSkip;
   }
   return {
+    ...config,
     version: 1,
     defaults: {
       ...(config.defaults ?? {}),
@@ -667,12 +669,14 @@ function aiCurrent(mode: Mode, config: MarmotConfig): string {
 async function readConfigSafely(
   env: NodeJS.ProcessEnv,
 ): Promise<MarmotConfig | null> {
-  try {
-    return await readMarmotConfig(env);
-  } catch {
-    // Existing file is malformed — we'll overwrite. Setup is the recovery path.
-    return null;
-  }
+  // We deliberately do NOT swallow parse errors here. A previous version of
+  // this function returned null on any read failure, which silently routed
+  // a malformed-existing-config into the "first-run populate" branch above
+  // — and that branch (when written before this fix) rebuilt the config
+  // object from scratch, wiping presets, pipelines, providers, and logging.
+  // Surface the error instead so the user can back up the file before
+  // doing anything destructive.
+  return readMarmotConfig(env);
 }
 
 type PickProviderArgs = {

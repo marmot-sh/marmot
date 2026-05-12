@@ -99,6 +99,7 @@ function applyVerb(
 ): MarmotConfig {
   const defaults = (config.defaults ?? {}) as ConfigDefaults;
   return {
+    ...config,
     version: 1,
     defaults: {
       ...defaults,
