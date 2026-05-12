@@ -4,7 +4,9 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
-## [Unreleased]
+## [0.11.2] — 2026-05-12
+
+A **critical data-loss fix**. Anyone who ran `marmot setup` on any version 0.5.x–0.11.1 with a populated config likely lost their presets, pipelines, cache settings, and provider auth overrides. This release fixes the three sibling code paths inside `marmot setup` that silently dropped every top-level config field except `version` and `defaults` when persisting changes. Upgrade as soon as practical; back up `~/.marmot/config.json` first if you have anything in it you can't recreate.
 
 ### Fixed
 
