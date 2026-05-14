@@ -54,6 +54,22 @@ type Totals = Omit<GroupedRow, 'key' | 'durations'> & {
   costAvgUsd: number;
 };
 
+type SerializedRow = Omit<GroupedRow, 'durations'> & {
+  durationAvgMs: number;
+  durationP50Ms: number;
+  durationP95Ms: number;
+};
+
+function serializeRow(row: GroupedRow): SerializedRow {
+  const { durations, ...rest } = row;
+  return {
+    ...rest,
+    durationAvgMs: row.requests > 0 ? Math.round(row.durationTotalMs / row.requests) : 0,
+    durationP50Ms: percentile(durations, 50),
+    durationP95Ms: percentile(durations, 95),
+  };
+}
+
 function resolveWindow(options: UsageCommandOptions): { fromMs: number; toMs: number } {
   // --from/--to wins; otherwise --since (default 7d).
   let fromMs: number;
@@ -474,7 +490,7 @@ export async function handleUsageCommand(
             to: new Date(toMs).toISOString(),
           },
           totals,
-          [`by_${by}`]: rows,
+          [`by_${by}`]: rows.map(serializeRow),
         },
         null,
         2,
