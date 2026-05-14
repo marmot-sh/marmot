@@ -65,10 +65,10 @@ marmot usage --json                         # structured envelope
 
 Every grouping (by provider / verb / day / model) reports:
 
-- `requests`, `errors`, `error_rate`, `cached`, `cache_hit_rate`
-- `duration_ms_avg`, `duration_ms_p50`, `duration_ms_p95`
-- `cost_total`, `cost_avg_usd` (over `requests_with_cost`), `requests_without_cost`
-- `quantity_totals` — sum of every numeric child key
+- `requests`, `errors`, `errorRate`, `cached`, `cacheHitRate` (top-level `totals` only — rows omit `errorRate` / `cacheHitRate`)
+- `durationTotalMs`, `durationAvgMs`, `durationP50Ms`, `durationP95Ms`
+- `costTotal`, `costAvgUsd` (over `requestsWithCost`), `requestsWithoutCost`
+- `quantityTotals` — sum of every numeric child key
 
 The human-formatted output renders all timestamps in your local timezone. Storage stays UTC (one file per UTC day) so file boundaries are stable. The window header adapts to the range:
 

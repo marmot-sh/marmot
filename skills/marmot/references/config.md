@@ -307,7 +307,7 @@ marmot usage --failed-only
 marmot usage --json                                # envelope for piping
 ```
 
-`--since` accepts a positive integer plus `h`/`d`/`w`. Aggregator reports `requests`, `errors`, `error_rate`, `cached`, `cache_hit_rate`, `duration_avg/p50/p95`, `cost_total/avg`, `requests_with_cost`, `requests_without_cost`, and `quantity_totals` (sum of every numeric child key, e.g. `tokens_input: 142310`).
+`--since` accepts a positive integer plus `h`/`d`/`w`. Aggregator reports `requests`, `errors`, `errorRate`, `cached`, `cacheHitRate`, `durationTotalMs`, `durationAvgMs`, `durationP50Ms`, `durationP95Ms`, `costTotal`, `costAvgUsd`, `requestsWithCost`, `requestsWithoutCost`, and `quantityTotals` (sum of every numeric child key, e.g. `tokens_input: 142310`). Per-row stats (in `by_provider` / `by_verb` / `by_day` / `by_model`) include the same `duration*` and `cost*` fields; `errorRate` and `cacheHitRate` are top-level totals only.
 
 ### Live tail: `--watch`
 

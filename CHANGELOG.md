@@ -4,6 +4,14 @@ All notable changes to Marmot are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/). Pre-1.0 minor bumps may include breaking changes; patch bumps will not.
 
+## [0.11.4] — 2026-05-14
+
+A small patch that fixes `marmot usage --json` leaking the internal per-request `durations` array on every grouped row. The raw array was scratch state used to compute `durationP50Ms` / `durationP95Ms` and was meant to be stripped before serialization, but only the top-level `totals` block did so. Every row in `by_provider` / `by_verb` / `by_day` / `by_model` shipped the full array — potentially hundreds of numbers per row on a busy week — bloating the JSON output and exposing implementation scratch. The on-disk usage log was never affected (records always carried one `duration_ms` per call).
+
+### Fixed
+
+- **`marmot usage --json` no longer dumps raw per-request duration arrays in grouped rows.** The `aggregate()` function builds an in-memory `durations: number[]` per group to compute p50/p95. The `Totals` type explicitly omitted it, but per-row output never stripped it, so each row in `by_provider` (and the other `--by` groupings) serialized the full array. Rows now serialize through a `SerializedRow` shape that drops the array and adds per-row `durationAvgMs`, `durationP50Ms`, and `durationP95Ms` instead — mirroring the stats `totals` already exposes. Human-readable (`--json` absent) output and the on-disk `~/.marmot/usage/<UTC-DATE>.jsonl` format are unchanged.
+
 ## [0.11.3] — 2026-05-12
 
 A docs-only patch — adds Uninstall instructions to all three READMEs and clears a stale version pin from `SECURITY.md`. Republished so the new copy reaches `npmjs.com/package/marmot-sh` and `npmjs.com/package/@marmot-sh/cli` immediately.
