@@ -1,6 +1,6 @@
 {
   "name": "@marmot-sh/zerobounce",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "description": "@marmot-sh adapter for ZeroBounce — Email verification with deep sub-status taxonomy and regional endpoints.",
   "type": "module",
   "private": true,
